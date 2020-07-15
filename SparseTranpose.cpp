@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <iostream>
 #include <random>
+#include <bits/stdc++.h>
 #include <type_traits>
 
 class SparseMatrixCsr {
@@ -21,6 +22,9 @@ private:
     // in questo modo la tupla (data, row_indices, [col_]indices) rappresenta la stessa
     // matrice in formato COO
     void generate_row_indices(int* row_indices);
+
+    // a partire dall'array degli indici genero quello dei puntatori
+    void compact_indices(const int* indices, int* puntatori);
 
 public:
 
@@ -72,6 +76,26 @@ void SparseMatrixCsr::generate_row_indices(int* row_indices) {
         }
     }
 }
+
+void SparseMatrixCsr::compact_indices(const int* indices, int* puntatori) {
+
+
+    int elements = this->indptr[this->N];
+
+    int posto = 0;
+
+    // scorro tutti gli elementi
+    for(int i = 0; i < elements; i++) {
+
+        // il primo elemento oppure quando c'è un cambio vengono salvati
+        if(i == 0 || indices[i] != indices[i-1]) {
+            puntatori[posto] = i;
+            posto++;
+        }
+    }
+}
+
+
 
 SparseMatrixCsr::SparseMatrixCsr(const float* matrix, const int N)
 {
@@ -162,7 +186,17 @@ void swap(T& a, T& b){
     T tmp = a; a = b; b = tmp;
 }
 
+struct CustomLessThan
+{
+    bool operator()(std::tuple<float, int, int> const &lhs, std::tuple<float, int, int> const &rhs) const
+    {
+        return std::get<1>(lhs) < std::get<1>(rhs);
+    }
+};
+
 void SparseMatrixCsr::transpose() {
+
+    std::cout << "***TRASPOSTA\n";
 
     int elements = this->indptr[this->N];
 
@@ -170,27 +204,59 @@ void SparseMatrixCsr::transpose() {
     int* row_indices = new int[elements];
     this->generate_row_indices(row_indices);
 
-    // 2. ordino per `indices`
-    // O(n^2) -> vedi di usare std::sort incapsulando in una std::tuple gli elementi dei 4 vettori 
-    // oppure definisci comparator che estrae indici tramite aritmetica dei puntatori
-    for(int i = 0; i < elements-1; i++) {
-        for(int j = i + 1; j < elements; j++) {
-            if( this->indices[i] > this->indices[j] ) {
-
-                swap(this->data[i], this->data[j]);
-                swap(this->indices[i], this->indices[j]);
-                swap(this->indptr[i], this->indptr[j]);
-                swap(row_indices[i], row_indices[j]);
-            }
-        }
+    std::cout << "***genero indici di riga\n";
+    for(int i = 0; i < elements; i++) {
+        std::cout << " " << row_indices[i];
     }
+    std::cout << "\n";
+
+    // 2. ordino per `indices`
+    // 2.1 creo array di tuple per ordinare agevolmente con libreria c++
+    std::vector< std::tuple<float, int, int> > array_di_tuple;
+    for(int i = 0; i < elements; i++) {
+        array_di_tuple.push_back( std::tuple<float, int, int>{
+            this->data[i],
+            this->indices[i],
+            row_indices[i]
+        } );
+    }
+    // 2.2 ordino, NB: il sort deve essere stabile
+    std::stable_sort(array_di_tuple.begin(), array_di_tuple.end(), CustomLessThan());
+    // 2.3 recupero ogni elemento 
+    for(int i = 0; i < elements; i++) {
+        std::tuple<float, int, int> element = array_di_tuple[i];
+        this->data[i]    = std::get<0>(element);
+        this->indices[i] = std::get<1>(element);
+        row_indices[i]   = std::get<2>(element);
+    }
+
+    std::cout << "***ordinamento\n";
+    std::cout << "Data: ";
+    for(int i = 0; i < elements; i++) {
+        std::cout << " " << data[i];
+    }
+    std::cout << "\nIndices: ";
+    for(int i = 0; i < elements; i++) {
+        std::cout << " " << indices[i];
+    }
+    std::cout << "\nRow_indices: ";
+    for(int i = 0; i < elements; i++) {
+        std::cout << " " << row_indices[i];
+    }
+    std::cout << "\n";
 
     // 3. inverti le righe con le colonne: hai trasposto quindi portato da CSR a CSC
     int* col_indices = this->indices;
     this->indices = row_indices;
 
     // 4. compatta il vecchio `col_indices` per farlo diventare l'array dei puntatori alle colonne
-    
+    compact_indices(col_indices, this->indptr);    
+
+    // security check
+    if(this->indptr[this->N] != elements) {
+        std::cout << "Hai sovrascritto per sbaglio il num di elementi\n";
+        this->indptr[this->N] = elements;
+    }
 
     // 5. dealloca `col_indices` e ritorna
     delete col_indices;
@@ -243,7 +309,7 @@ void SparseMatrixCsr::print_coo() {
 
 void SparseMatrixCsr::print_original() {
 
-    float* output_matrix = new float[N*N];
+    float* output_matrix = new float[N*N]{ 0 };
     this->to_matrix(output_matrix);
 
     std::cout << "Stampa formato N*N" << std::endl;
@@ -261,33 +327,9 @@ void SparseMatrixCsr::print_original() {
 
 int main() {
 
-    std::cout << "=================== TEST #1 ===================\n";
-
-    // 0 2 3
-    // 0 5 0
-    // 7 0 9
-
-    // CSR data:    2 3 5 7 9
-    // CSR indices: 1 2 1 0 2 # colonne
-    // CSR indptr:  0 2 3 (5)
-    // ricostruisco righe CRC
-    // CSR righe:   0 0 1 2 2 
-
-    // CSC data:    7 2 5 3 9
-    // CSC indices: 2 0 1 0 2 # righe
-    // CSC indptr:  0 1 3 (5)
-    // ricostruisco colonne CSC
-    // CSC colonne: 0 1 1 2 2 
-
     const int N = 3;
-    float* matrix = new float[N*N] { 0, 2, 3, 0, 5, 0, 7, 0, 9 };
 
-    SparseMatrixCsr sparse(matrix, N); // creazione matrice CSR
-    sparse.print();                    // stampa della matrice CSR
-    sparse.print_coo();                // stampa della matrice in formato COO
-    sparse.print_original();           // stampa della matrice ri-creata
-
-    std::cout << "=================== TEST #2 ===================\n";
+    std::cout << "=================== TEST #1 ===================\n";
 
     // matrix
     // 1 0 0 
@@ -309,7 +351,40 @@ int main() {
     SparseMatrixCsr sparse2(matrix2, N); 
     sparse2.print();                    
     sparse2.print_coo();                
-    sparse2.print_original();           
+    sparse2.print_original();  
+
+    
+    std::cout << "=================== TEST #2 ===================\n";
+
+    // 0 2 3
+    // 0 5 0
+    // 7 0 9
+
+    // CSR data:    2 3 5 7 9
+    // CSR indices: 1 2 1 0 2 # colonne
+    // CSR indptr:  0 2 3 (5)
+    // ricostruisco righe CRC
+    // CSR righe:   0 0 1 2 2 
+
+    // CSC data:    7 2 5 3 9
+    // CSC indices: 2 0 1 0 2 # righe
+    // CSC indptr:  0 1 3 (5)
+    // ricostruisco colonne CSC
+    // CSC colonne: 0 1 1 2 2 
+
+    float* matrix = new float[N*N] { 0, 2, 3, 0, 5, 0, 7, 0, 9 };
+
+    SparseMatrixCsr sparse(matrix, N); // creazione matrice CSR
+    sparse.print();                    // stampa della matrice CSR
+    sparse.print_coo();                // stampa della matrice in formato COO
+    sparse.print_original();           // stampa della matrice ri-creata 
+
+    std::cout << "=================== TEST #3 ===================\n";
+
+    sparse2.transpose();
+    sparse2.print();                    
+    sparse2.print_coo();                
+    sparse2.print_original();      
 
     delete matrix, matrix2; 
     return 0;
