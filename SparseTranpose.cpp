@@ -196,19 +196,11 @@ struct CustomLessThan
 
 void SparseMatrixCsr::transpose() {
 
-    std::cout << "***TRASPOSTA\n";
-
     int elements = this->indptr[this->N];
 
     // 1. genero gli indici di riga
     int* row_indices = new int[elements];
     this->generate_row_indices(row_indices);
-
-    std::cout << "***genero indici di riga\n";
-    for(int i = 0; i < elements; i++) {
-        std::cout << " " << row_indices[i];
-    }
-    std::cout << "\n";
 
     // 2. ordino per `indices`
     // 2.1 creo array di tuple per ordinare agevolmente con libreria c++
@@ -229,21 +221,6 @@ void SparseMatrixCsr::transpose() {
         this->indices[i] = std::get<1>(element);
         row_indices[i]   = std::get<2>(element);
     }
-
-    std::cout << "***ordinamento\n";
-    std::cout << "Data: ";
-    for(int i = 0; i < elements; i++) {
-        std::cout << " " << data[i];
-    }
-    std::cout << "\nIndices: ";
-    for(int i = 0; i < elements; i++) {
-        std::cout << " " << indices[i];
-    }
-    std::cout << "\nRow_indices: ";
-    for(int i = 0; i < elements; i++) {
-        std::cout << " " << row_indices[i];
-    }
-    std::cout << "\n";
 
     // 3. inverti le righe con le colonne: hai trasposto quindi portato da CSR a CSC
     int* col_indices = this->indices;
