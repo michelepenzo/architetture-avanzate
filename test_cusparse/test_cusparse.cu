@@ -121,7 +121,23 @@ int csr2csc_cusparse_devmemory(
     cudaMalloc(&cscRowIdx_dev,(nnz)*sizeof(int));
     cudaMalloc(&cscVal_dev   ,(nnz)*sizeof(float));
 
+    SAFE_CALL(cudaMemcpy(csrRowPtr_dev, csrRowPtr, (m+1)*sizeof(int), cudaMemcpyHostToDevice));
+    SAFE_CALL(cudaMemcpy(csrColIdx_dev, csrColIdx, (nnz)*sizeof(int), cudaMemcpyHostToDevice));
+    SAFE_CALL(cudaMemcpy(csrVal_dev,    csrVal,    (nnz)*sizeof(int), cudaMemcpyHostToDevice));
+    SAFE_CALL(cudaMemcpy(cscColPtr_dev, cscColPtr, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
+    SAFE_CALL(cudaMemcpy(cscRowIdx_dev, cscRowIdx, (nnz)*sizeof(int), cudaMemcpyHostToDevice));
+    SAFE_CALL(cudaMemcpy(cscVal_dev,    cscVal,    (nnz)*sizeof(int), cudaMemcpyHostToDevice));
+
+
     int ret = csr2csc_cusparse_internal(m, n, nnz, csrRowPtr_dev, csrColIdx_dev, csrVal_dev, cscColPtr_dev, cscRowIdx_dev, cscVal_dev);
+
+    SAFE_CALL(cudaMemcpy(csrRowPtr, csrRowPtr_dev, (m+1)*sizeof(int), cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(csrColIdx, csrColIdx_dev, (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(csrVal,    csrVal_dev,    (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(cscColPtr, cscColPtr_dev, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(cscRowIdx, cscRowIdx_dev, (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(cscVal,    cscVal_dev,    (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+
 
     cudaFree(csrRowPtr_dev);
     cudaFree(csrColIdx_dev);
@@ -232,7 +248,8 @@ void create_matrix_from_csr(int m, int n, int nnz, int* csrRowPtr, int* csrColId
 
     // genero indici di riga, in questo modo la coppia (row_indices, indices) mi porta ad avere la notazione COO
     int* csrRowIdx = new int[nnz];
-    // riempio l'array con gli indici di riga
+
+    // riempio l'array con gli indici di riga    
     for(int i = 0; i < m; i++) {
         int row_start = csrRowPtr[i], row_end = csrRowPtr[i+1];
         for(int j = row_start; j < row_end; j++) {
