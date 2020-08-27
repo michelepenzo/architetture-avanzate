@@ -300,6 +300,84 @@ void print_gpu_infos() {
 }
 
 
+__global__
+void scan_trans_kernel(const int* d_matrix_in,
+                           int        N,
+                           int*       d_matrix_out) {
+    int Row = blockIdx.y * blockDim.y + threadIdx.y;
+    int Col = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    d_matrix_out[Row * N + Col] = d_matrix_in[Col * N + Row];
+    
+}
+
+
+
+void scan_trans(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* csrVal, int* cscColPtr, int* cscRowIdx, float* cscVal){
+
+    int* intra;
+    int* inter;
+    //int* csrRowIdx_dev;
+    int* csrRowPtr_dev;
+    int* csrColIdx_dev;
+    float* csrVal_dev;
+    int* cscColPtr_dev;
+    int* cscRowIdx_dev;
+    float* cscVal_dev;
+
+
+    const int n_thread = nnz; 
+    const int BLOCK_SIZE_X = 16;
+    const int BLOCK_SIZE_y = 16;
+
+    cudaMalloc(&intra,    (nnz)*sizeof(int));
+    cudaMalloc(&inter,    ((n_thread+1)*n)*sizeof(int));
+    //cudaMalloc(&csrRowIdx_dev,(nnz)*sizeof(int));
+    cudaMalloc(&csrColIdx_dev,(nnz)*sizeof(int));
+    cudaMalloc(&csrVal_dev,   (nnz)*sizeof(float));
+    cudaMalloc(&csrRowPtr_dev,(m+1)*sizeof(int));
+    cudaMalloc(&cscColPtr_dev,(n+1)*sizeof(int));
+    cudaMalloc(&cscRowIdx_dev,(nnz)*sizeof(int));
+    cudaMalloc(&cscVal_dev,   (nnz)*sizeof(float));
+
+    SAFE_CALL(cudaMemcpy(csrRowPtr, csrRowPtr_dev, (m+1)*sizeof(int), cudaMemcpyHostToDevice)); 
+    SAFE_CALL(cudaMemcpy(csrColIdx, csrColIdx_dev, (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
+    SAFE_CALL(cudaMemcpy(csrVal,    csrVal_dev,    (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
+    //SAFE_CALL(cudaMemcpy(csrRowIdx, csrRowIdx_dev, (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
+    
+    // DEVICE INIT
+    dim3 DimGrid(N/BLOCK_SIZE_X, N/BLOCK_SIZE_Y, 1);
+    if (N%BLOCK_SIZE_X) DimGrid.x++;
+    if (N%BLOCK_SIZE_Y) DimGrid.y++;
+    dim3 DimBlock(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1);
+    
+    // -------------------------------------------------------------------------
+    // DEVICE EXECUTION
+    TM_device.start();
+
+    scan_trans_kernel<<< DimGrid,DimBlock>>> (m, n, nnz, csrRowPtr_dev, csrColIdx_dev, csrVal_dev, cscColPtr_dev, cscRowIdx_dev, cscVal_dev);
+
+
+    SAFE_CALL(cudaMemcpy(cscRowIdx_dev, cscRowIdx, (m+1)*sizeof(int), cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(cscColPtr_dev, cscColIdx, (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(cscVal_dev,    cscVal,    (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+    
+    cudaFree(intra);
+    cudaFree(inter);
+    cudaFree(csrRowIdx_dev);
+    cudaFree(csrRowPtr_dev);
+    cudaFree(csrColIdx_dev);
+    cudaFree(csrVal_dev);
+    cudaFree(cscColPtr_dev);
+    cudaFree(cscRowIdx_dev);
+    cudaFree(cscVal_dev);
+
+
+    return;
+}
+
+
+
 int main() {
 
     print_gpu_infos();
