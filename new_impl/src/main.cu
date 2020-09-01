@@ -1,10 +1,14 @@
 #include <iostream>
 #include <iomanip>
-#include <cuda_runtime_api.h>
-#include "SparseMatrix.hh"
-#include "FullMatrix.hh"
+#include "matrices/SparseMatrix.hh"
+#include "matrices/FullMatrix.hh"
+#include "transposers/SerialTransposer.hh"
+#include "transposers/CusparseTransposer.hh"
+#include "helper_cuda.h"
 
-int main() {
+int main(int argc, char **argv) {
+
+    findCudaDevice(argc, (const char **) argv);
 
     SparseMatrix* sm = new SparseMatrix(4, 5, 4);
     sm->print();
@@ -12,9 +16,14 @@ int main() {
     FullMatrix* fm = new FullMatrix(*sm);
     fm->print();
 
-    SparseMatrix* sm2 = fm->to_sparse();
-    sm2->print();
+    CusparseTransposer transposer(sm);
 
-    delete sm, fm, sm2;
+    SparseMatrix* sm_tr = transposer.transpose();
+    sm_tr->print();
+
+    FullMatrix* fm_tr = new FullMatrix(*sm_tr);
+    fm_tr->print();
+    
+    delete sm, fm, sm_tr, fm_tr;
     return 0;
 }
