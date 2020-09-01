@@ -301,14 +301,17 @@ void print_gpu_infos() {
 
 
 __global__
-void scan_trans_kernel(const int* d_matrix_in,
-                           int        N,
-                           int*       d_matrix_out) {
-    int Row = blockIdx.y * blockDim.y + threadIdx.y;
-    int Col = blockIdx.x * blockDim.x + threadIdx.x;
+void scan_trans_kernel(int m, int n, int nnz, int* csrRowPtr_dev, int* csrColIdx_dev, float* csrVal_dev, 
+                       int* cscColPtr_dev, int* cscRowIdx_dev, float* cscVal_dev, int* inter, int* intra){
     
-    d_matrix_out[Row * N + Col] = d_matrix_in[Col * N + Row];
-    
+    int global_id = blockIdx.x * blockDim.x + threadIdx.x;
+    int index;
+    // intra e inter
+    if(global_id < nnz){
+        index = (global_id+1) ∗ n + csrColIdx[global_id];
+        intra[global_id]=inter[index];     
+        inter[index] = inter[index]+1;
+    }    
 }
 
 
@@ -326,12 +329,12 @@ void scan_trans(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* cs
     float* cscVal_dev;
 
 
-    const int n_thread = nnz; 
-    const int BLOCK_SIZE_X = 16;
-    const int BLOCK_SIZE_y = 16;
+    const int N = nnz;              // n_thread
+    const int BLOCK_SIZE_X = 256;        
+    //const int BLOCK_SIZE_y = 16;
 
     cudaMalloc(&intra,    (nnz)*sizeof(int));
-    cudaMalloc(&inter,    ((n_thread+1)*n)*sizeof(int));
+    cudaMalloc(&inter,    ((N+1)*n)*sizeof(int));
     //cudaMalloc(&csrRowIdx_dev,(nnz)*sizeof(int));
     cudaMalloc(&csrColIdx_dev,(nnz)*sizeof(int));
     cudaMalloc(&csrVal_dev,   (nnz)*sizeof(float));
@@ -346,17 +349,21 @@ void scan_trans(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* cs
     //SAFE_CALL(cudaMemcpy(csrRowIdx, csrRowIdx_dev, (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
     
     // DEVICE INIT
-    dim3 DimGrid(N/BLOCK_SIZE_X, N/BLOCK_SIZE_Y, 1);
+    dim3 DimGrid(N/BLOCK_SIZE_X, 1, 1);
     if (N%BLOCK_SIZE_X) DimGrid.x++;
-    if (N%BLOCK_SIZE_Y) DimGrid.y++;
-    dim3 DimBlock(BLOCK_SIZE_X, BLOCK_SIZE_Y, 1);
+    //if (N%BLOCK_SIZE_Y) DimGrid.y++;
+    dim3 DimBlock(BLOCK_SIZE_X, 1, 1);
     
     // -------------------------------------------------------------------------
     // DEVICE EXECUTION
     TM_device.start();
 
-    scan_trans_kernel<<< DimGrid,DimBlock>>> (m, n, nnz, csrRowPtr_dev, csrColIdx_dev, csrVal_dev, cscColPtr_dev, cscRowIdx_dev, cscVal_dev);
+    // KERNEL
+    scan_trans_kernel<<<DimGrid,DimBlock>>> (m, n, nnz, csrRowPtr_dev, csrColIdx_dev, csrVal_dev, cscColPtr_dev, cscRowIdx_dev, cscVal_dev, inter, intra);
 
+    TM_device.stop();
+    CHECK_CUDA_ERROR
+    TM_device.print("tempo device: ");
 
     SAFE_CALL(cudaMemcpy(cscRowIdx_dev, cscRowIdx, (m+1)*sizeof(int), cudaMemcpyDeviceToHost));
     SAFE_CALL(cudaMemcpy(cscColPtr_dev, cscColIdx, (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
@@ -371,7 +378,6 @@ void scan_trans(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* cs
     cudaFree(cscColPtr_dev);
     cudaFree(cscRowIdx_dev);
     cudaFree(cscVal_dev);
-
 
     return;
 }
