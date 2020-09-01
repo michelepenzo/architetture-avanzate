@@ -11,118 +11,118 @@
 using namespace timer;
 
 
-#include <cublas_v2.h>
-#include <cusparse.h>
-#include <curand.h>
-#include <cuda_runtime_api.h>
+//#include <cublas_v2.h>
+//#include <cusparse.h>
+//#include <curand.h>
+//#include <cuda_runtime_api.h>
+//
+///* Need openacc for the stream definitions */
+//#include "openacc.h"
+//
+//int csr2csc_cusparse_internal(
+//        int m, int n, int nnz, 
+//        int* csrRowPtr, int* csrColIdx, float* csrVal, 
+//        int* cscColPtr, int* cscRowIdx, float* cscVal) {
+//
+//    cusparseHandle_t handle;
+//    cusparseStatus_t status;
+//    size_t buffer_size;
+//    
+//    // 1. allocate resources
+//    status = cusparseCreate(&handle);
+//    if(status != CUSPARSE_STATUS_SUCCESS) {
+//        std::cerr << "csr2csc_cusparse - Error while calling cusparseCreate: " << cusparseGetErrorName(status) << std::endl;
+//        return COMPUTATION_ERROR;
+//    }
+//
+//    status = cusparseSetStream(handle, (cudaStream_t) acc_get_cuda_stream(acc_async_sync));
+//    if(status != CUSPARSE_STATUS_SUCCESS) {
+//        std::cerr << "csr2csc_cusparse - Error while calling cusparseSetStream: " << cusparseGetErrorName(status) << std::endl;
+//        return COMPUTATION_ERROR;
+//    }
+//
+//    // 2. ask cusparse how much space it needs to operate
+//    status = cusparseCsr2cscEx2_bufferSize(
+//        handle,                     // link to cusparse engine
+//        m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
+//        CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
+//        CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
+//        CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
+//        CUSPARSE_CSR2CSC_ALG1,      // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
+//        &buffer_size);              // fill buffer_size variable
+//
+//    if(status != CUSPARSE_STATUS_SUCCESS) {
+//        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2_bufferSize: " << cusparseGetErrorName(status) << std::endl;
+//        cusparseDestroy(handle);
+//        return COMPUTATION_ERROR;
+//    } else if(buffer_size <= 0) {
+//        std::cerr << "csr2csc_cusparse - warning: buffer_size is not positive" << std::endl;
+//    }
+//
+//    // 3. callocate buffer space
+//    void* buffer = NULL;
+//    SAFE_CALL( cudaMalloc(&buffer, buffer_size) );
+//    std::cout << "Needed " << buffer_size << " bytes to esecute Csr2csc" << std::endl; 
+//
+//    // 4. call transpose
+//    status = cusparseCsr2cscEx2(
+//        handle, 
+//        m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
+//        CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
+//        CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
+//        CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
+//        CUSPARSE_CSR2CSC_ALG1,      // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
+//        buffer);                    // cuda buffer
+//
+//    if(status != CUSPARSE_STATUS_SUCCESS) {
+//        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorName(status) << std::endl;
+//        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorString(status) << std::endl;
+//        SAFE_CALL( cudaFree( buffer ) );
+//        cusparseDestroy(handle);
+//        return COMPUTATION_ERROR;
+//    }
+//
+//    SAFE_CALL( cudaFree( buffer ) );
+//    status = cusparseDestroy(handle);
+//    if(status != CUSPARSE_STATUS_SUCCESS) {
+//        std::cerr << "csr2csc_cusparse - Error while calling cusparseDestroy: " << cusparseGetErrorName(status) << std::endl;
+//        return COMPUTATION_ERROR;
+//    }
+//
+//    return COMPUTATION_OK;
+//}
 
-/* Need openacc for the stream definitions */
-#include "openacc.h"
 
-int csr2csc_cusparse_internal(
-        int m, int n, int nnz, 
-        int* csrRowPtr, int* csrColIdx, float* csrVal, 
-        int* cscColPtr, int* cscRowIdx, float* cscVal) {
-
-    cusparseHandle_t handle;
-    cusparseStatus_t status;
-    size_t buffer_size;
-    
-    // 1. allocate resources
-    status = cusparseCreate(&handle);
-    if(status != CUSPARSE_STATUS_SUCCESS) {
-        std::cerr << "csr2csc_cusparse - Error while calling cusparseCreate: " << cusparseGetErrorName(status) << std::endl;
-        return COMPUTATION_ERROR;
-    }
-
-    status = cusparseSetStream(handle, (cudaStream_t) acc_get_cuda_stream(acc_async_sync));
-    if(status != CUSPARSE_STATUS_SUCCESS) {
-        std::cerr << "csr2csc_cusparse - Error while calling cusparseSetStream: " << cusparseGetErrorName(status) << std::endl;
-        return COMPUTATION_ERROR;
-    }
-
-    // 2. ask cusparse how much space it needs to operate
-    status = cusparseCsr2cscEx2_bufferSize(
-        handle,                     // link to cusparse engine
-        m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
-        CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
-        CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
-        CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
-        CUSPARSE_CSR2CSC_ALG1,      // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
-        &buffer_size);              // fill buffer_size variable
-
-    if(status != CUSPARSE_STATUS_SUCCESS) {
-        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2_bufferSize: " << cusparseGetErrorName(status) << std::endl;
-        cusparseDestroy(handle);
-        return COMPUTATION_ERROR;
-    } else if(buffer_size <= 0) {
-        std::cerr << "csr2csc_cusparse - warning: buffer_size is not positive" << std::endl;
-    }
-
-    // 3. callocate buffer space
-    void* buffer = NULL;
-    SAFE_CALL( cudaMalloc(&buffer, buffer_size) );
-    std::cout << "Needed " << buffer_size << " bytes to esecute Csr2csc" << std::endl; 
-
-    // 4. call transpose
-    status = cusparseCsr2cscEx2(
-        handle, 
-        m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
-        CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
-        CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
-        CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
-        CUSPARSE_CSR2CSC_ALG1,      // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
-        buffer);                    // cuda buffer
-
-    if(status != CUSPARSE_STATUS_SUCCESS) {
-        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorName(status) << std::endl;
-        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorString(status) << std::endl;
-        SAFE_CALL( cudaFree( buffer ) );
-        cusparseDestroy(handle);
-        return COMPUTATION_ERROR;
-    }
-
-    SAFE_CALL( cudaFree( buffer ) );
-    status = cusparseDestroy(handle);
-    if(status != CUSPARSE_STATUS_SUCCESS) {
-        std::cerr << "csr2csc_cusparse - Error while calling cusparseDestroy: " << cusparseGetErrorName(status) << std::endl;
-        return COMPUTATION_ERROR;
-    }
-
-    return COMPUTATION_OK;
-}
-
-
-int csr2csc_cusparse(
-        int m, int n, int nnz, 
-        int* csrRowPtr, int* csrColIdx, float* csrVal, 
-        int* cscColPtr, int* cscRowIdx, float* cscVal) {
-
-    int* csrRowPtr_dev;
-    int* csrColIdx_dev;
-    float* csrVal_dev;
-    int* cscColPtr_dev;
-    int* cscRowIdx_dev;
-    float* cscVal_dev;
-
-    cudaMalloc(&csrRowPtr_dev,(m+1)*sizeof(int));
-    cudaMalloc(&csrColIdx_dev,(nnz)*sizeof(int));
-    cudaMalloc(&csrVal_dev   ,(nnz)*sizeof(float));
-    cudaMalloc(&cscColPtr_dev,(n+1)*sizeof(int));
-    cudaMalloc(&cscRowIdx_dev,(nnz)*sizeof(int));
-    cudaMalloc(&cscVal_dev   ,(nnz)*sizeof(float));
-
-    int ret = csr2csc_cusparse_internal(m, n, nnz, csrRowPtr_dev, csrColIdx_dev, csrVal_dev, cscColPtr_dev, cscRowIdx_dev, cscVal_dev);
-
-    cudaFree(csrRowPtr_dev);
-    cudaFree(csrColIdx_dev);
-    cudaFree(csrVal_dev);
-    cudaFree(cscColPtr_dev);
-    cudaFree(cscRowIdx_dev);
-    cudaFree(cscVal_dev);
-
-    return ret;
-}
+// int csr2csc_cusparse(
+//         int m, int n, int nnz, 
+//         int* csrRowPtr, int* csrColIdx, float* csrVal, 
+//         int* cscColPtr, int* cscRowIdx, float* cscVal) {
+// 
+//     int* csrRowPtr_dev;
+//     int* csrColIdx_dev;
+//     float* csrVal_dev;
+//     int* cscColPtr_dev;
+//     int* cscRowIdx_dev;
+//     float* cscVal_dev;
+// 
+//     cudaMalloc(&csrRowPtr_dev,(m+1)*sizeof(int));
+//     cudaMalloc(&csrColIdx_dev,(nnz)*sizeof(int));
+//     cudaMalloc(&csrVal_dev   ,(nnz)*sizeof(float));
+//     cudaMalloc(&cscColPtr_dev,(n+1)*sizeof(int));
+//     cudaMalloc(&cscRowIdx_dev,(nnz)*sizeof(int));
+//     cudaMalloc(&cscVal_dev   ,(nnz)*sizeof(float));
+// 
+//     int ret = csr2csc_cusparse_internal(m, n, nnz, csrRowPtr_dev, csrColIdx_dev, csrVal_dev, cscColPtr_dev, cscRowIdx_dev, cscVal_dev);
+// 
+//     cudaFree(csrRowPtr_dev);
+//     cudaFree(csrColIdx_dev);
+//     cudaFree(csrVal_dev);
+//     cudaFree(cscColPtr_dev);
+//     cudaFree(cscRowIdx_dev);
+//     cudaFree(cscVal_dev);
+// 
+//     return ret;
+// }
 
 void create_matrix_full(int m, int n, int nnz, float* full_matrix) {
 
@@ -301,14 +301,14 @@ void print_gpu_infos() {
 
 
 __global__
-void scan_trans_kernel(int m, int n, int nnz, int* csrRowPtr_dev, int* csrColIdx_dev, float* csrVal_dev, 
-                       int* cscColPtr_dev, int* cscRowIdx_dev, float* cscVal_dev, int* inter, int* intra){
+void scan_trans_kernel(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* csrVal, 
+                       int* cscColPtr, int* cscRowIdx, float* cscVal, int* inter, int* intra){
     
     int global_id = blockIdx.x * blockDim.x + threadIdx.x;
-    int index;
+
     // intra e inter
     if(global_id < nnz){
-        index = (global_id+1) ∗ n + csrColIdx[global_id];
+        int index = (global_id + 1) * n + csrColIdx[global_id];
         intra[global_id]=inter[index];     
         inter[index] = inter[index]+1;
     }    
@@ -343,9 +343,9 @@ void scan_trans(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* cs
     cudaMalloc(&cscRowIdx_dev,(nnz)*sizeof(int));
     cudaMalloc(&cscVal_dev,   (nnz)*sizeof(float));
 
-    SAFE_CALL(cudaMemcpy(csrRowPtr, csrRowPtr_dev, (m+1)*sizeof(int), cudaMemcpyHostToDevice)); 
-    SAFE_CALL(cudaMemcpy(csrColIdx, csrColIdx_dev, (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
-    SAFE_CALL(cudaMemcpy(csrVal,    csrVal_dev,    (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
+    SAFE_CALL(cudaMemcpy(csrRowPtr_dev, csrRowPtr, (m+1)*sizeof(int), cudaMemcpyHostToDevice)); 
+    SAFE_CALL(cudaMemcpy(csrColIdx_dev, csrColIdx, (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
+    SAFE_CALL(cudaMemcpy(csrVal_dev,    csrVal,    (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
     //SAFE_CALL(cudaMemcpy(csrRowIdx, csrRowIdx_dev, (nnz)*sizeof(int), cudaMemcpyHostToDevice)); 
     
     // DEVICE INIT
@@ -356,28 +356,49 @@ void scan_trans(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* cs
     
     // -------------------------------------------------------------------------
     // DEVICE EXECUTION
-    TM_device.start();
 
     // KERNEL
     scan_trans_kernel<<<DimGrid,DimBlock>>> (m, n, nnz, csrRowPtr_dev, csrColIdx_dev, csrVal_dev, cscColPtr_dev, cscRowIdx_dev, cscVal_dev, inter, intra);
 
-    TM_device.stop();
     CHECK_CUDA_ERROR
-    TM_device.print("tempo device: ");
 
-    SAFE_CALL(cudaMemcpy(cscRowIdx_dev, cscRowIdx, (m+1)*sizeof(int), cudaMemcpyDeviceToHost));
-    SAFE_CALL(cudaMemcpy(cscColPtr_dev, cscColIdx, (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
-    SAFE_CALL(cudaMemcpy(cscVal_dev,    cscVal,    (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+    int* intra_host = new int[nnz];
+    int* inter_host = new int[(N+1)*n];
+
+    SAFE_CALL(cudaMemcpy(cscRowIdx,  cscRowIdx_dev, (m+1)*sizeof(int),     cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(cscColPtr,  cscColPtr_dev, (nnz)*sizeof(int),     cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(cscVal,     cscVal_dev,    (nnz)*sizeof(int),     cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(intra_host, intra,         (nnz)*sizeof(int),     cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy(inter_host, inter,         ((N+1)*n)*sizeof(int), cudaMemcpyDeviceToHost));
     
+    std::cout << "Intra: " << std::endl;
+    for(int i = 0; i < nnz; i++) {
+        std::cout << intra_host[i] << std::endl;
+    }
+    std::cout << std::endl;
+
+    std::cout << "Inter: ";
+    for(int i = 0; i < (N+1); i++) {
+        std::cout << std::endl << "Row " << i-1 << ": ";
+        for(int j = 0; j < n; j++) {
+            std::cout << inter_host[i * n + j] << std::endl;
+        }
+    }
+    std::cout << std::endl;
+
+
+
     cudaFree(intra);
     cudaFree(inter);
-    cudaFree(csrRowIdx_dev);
     cudaFree(csrRowPtr_dev);
     cudaFree(csrColIdx_dev);
     cudaFree(csrVal_dev);
     cudaFree(cscColPtr_dev);
     cudaFree(cscRowIdx_dev);
     cudaFree(cscVal_dev);
+
+    delete[] intra_host;
+    delete[] inter_host;
 
     return;
 }
@@ -413,7 +434,7 @@ int main() {
     print_matrix_csr(m, nnz, csrRowPtr, csrColIdx, csrVal);
 
     // 3. traspongo (seriale)
-    csr2csc_cusparse(m, n, nnz, csrRowPtr, csrColIdx, csrVal, cscColPtr, cscRowIdx, cscVal);
+    scan_trans(m, n, nnz, csrRowPtr, csrColIdx, csrVal, cscColPtr, cscRowIdx, cscVal);
     print_matrix_csr(n, nnz, cscColPtr, cscRowIdx, cscVal); // (!) ora ho invertito `n` ed `m`
 
     // 4. riconverto in matrice `full`
