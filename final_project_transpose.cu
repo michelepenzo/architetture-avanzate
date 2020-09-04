@@ -19,78 +19,78 @@ using namespace timer;
 ///* Need openacc for the stream definitions */
 //#include "openacc.h"
 //
-//int csr2csc_cusparse_internal(
-//        int m, int n, int nnz, 
-//        int* csrRowPtr, int* csrColIdx, float* csrVal, 
-//        int* cscColPtr, int* cscRowIdx, float* cscVal) {
-//
-//    cusparseHandle_t handle;
-//    cusparseStatus_t status;
-//    size_t buffer_size;
-//    
-//    // 1. allocate resources
-//    status = cusparseCreate(&handle);
-//    if(status != CUSPARSE_STATUS_SUCCESS) {
-//        std::cerr << "csr2csc_cusparse - Error while calling cusparseCreate: " << cusparseGetErrorName(status) << std::endl;
-//        return COMPUTATION_ERROR;
-//    }
-//
-//    status = cusparseSetStream(handle, (cudaStream_t) acc_get_cuda_stream(acc_async_sync));
-//    if(status != CUSPARSE_STATUS_SUCCESS) {
-//        std::cerr << "csr2csc_cusparse - Error while calling cusparseSetStream: " << cusparseGetErrorName(status) << std::endl;
-//        return COMPUTATION_ERROR;
-//    }
-//
-//    // 2. ask cusparse how much space it needs to operate
-//    status = cusparseCsr2cscEx2_bufferSize(
-//        handle,                     // link to cusparse engine
-//        m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
-//        CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
-//        CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
-//        CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
-//        CUSPARSE_CSR2CSC_ALG1,      // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
-//        &buffer_size);              // fill buffer_size variable
-//
-//    if(status != CUSPARSE_STATUS_SUCCESS) {
-//        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2_bufferSize: " << cusparseGetErrorName(status) << std::endl;
-//        cusparseDestroy(handle);
-//        return COMPUTATION_ERROR;
-//    } else if(buffer_size <= 0) {
-//        std::cerr << "csr2csc_cusparse - warning: buffer_size is not positive" << std::endl;
-//    }
-//
-//    // 3. callocate buffer space
-//    void* buffer = NULL;
-//    SAFE_CALL( cudaMalloc(&buffer, buffer_size) );
-//    std::cout << "Needed " << buffer_size << " bytes to esecute Csr2csc" << std::endl; 
-//
-//    // 4. call transpose
-//    status = cusparseCsr2cscEx2(
-//        handle, 
-//        m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
-//        CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
-//        CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
-//        CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
-//        CUSPARSE_CSR2CSC_ALG1,      // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
-//        buffer);                    // cuda buffer
-//
-//    if(status != CUSPARSE_STATUS_SUCCESS) {
-//        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorName(status) << std::endl;
-//        std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorString(status) << std::endl;
-//        SAFE_CALL( cudaFree( buffer ) );
-//        cusparseDestroy(handle);
-//        return COMPUTATION_ERROR;
-//    }
-//
-//    SAFE_CALL( cudaFree( buffer ) );
-//    status = cusparseDestroy(handle);
-//    if(status != CUSPARSE_STATUS_SUCCESS) {
-//        std::cerr << "csr2csc_cusparse - Error while calling cusparseDestroy: " << cusparseGetErrorName(status) << std::endl;
-//        return COMPUTATION_ERROR;
-//    }
-//
-//    return COMPUTATION_OK;
-//}
+int csr2csc_cusparse_internal(
+       int m, int n, int nnz, 
+       int* csrRowPtr, int* csrColIdx, float* csrVal, 
+       int* cscColPtr, int* cscRowIdx, float* cscVal) {
+
+   cusparseHandle_t handle;
+   cusparseStatus_t status;
+   size_t buffer_size;
+   
+   // 1. allocate resources
+   status = cusparseCreate(&handle);
+   if(status != CUSPARSE_STATUS_SUCCESS) {
+       std::cerr << "csr2csc_cusparse - Error while calling cusparseCreate: " << cusparseGetErrorName(status) << std::endl;
+       return COMPUTATION_ERROR;
+   }
+
+   status = cusparseSetStream(handle, (cudaStream_t) acc_get_cuda_stream(acc_async_sync));
+   if(status != CUSPARSE_STATUS_SUCCESS) {
+       std::cerr << "csr2csc_cusparse - Error while calling cusparseSetStream: " << cusparseGetErrorName(status) << std::endl;
+       return COMPUTATION_ERROR;
+   }
+
+   // 2. ask cusparse how much space it needs to operate
+   status = cusparseCsr2cscEx2_bufferSize(
+       handle,                     // link to cusparse engine
+       m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
+       CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
+       CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
+       CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
+       CUSPARSE_CSR2CSC_ALG1,      // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
+       &buffer_size);              // fill buffer_size variable
+
+   if(status != CUSPARSE_STATUS_SUCCESS) {
+       std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2_bufferSize: " << cusparseGetErrorName(status) << std::endl;
+       cusparseDestroy(handle);
+       return COMPUTATION_ERROR;
+   } else if(buffer_size <= 0) {
+       std::cerr << "csr2csc_cusparse - warning: buffer_size is not positive" << std::endl;
+   }
+
+   // 3. callocate buffer space
+   void* buffer = NULL;
+   SAFE_CALL( cudaMalloc(&buffer, buffer_size) );
+   std::cout << "Needed " << buffer_size << " bytes to esecute Csr2csc" << std::endl; 
+
+   // 4. call transpose
+   status = cusparseCsr2cscEx2(
+       handle, 
+       m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
+       CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
+       CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
+       CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
+       CUSPARSE_CSR2CSC_ALG1,      // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
+       buffer);                    // cuda buffer
+
+   if(status != CUSPARSE_STATUS_SUCCESS) {
+       std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorName(status) << std::endl;
+       std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorString(status) << std::endl;
+       SAFE_CALL( cudaFree( buffer ) );
+       cusparseDestroy(handle);
+       return COMPUTATION_ERROR;
+   }
+
+   SAFE_CALL( cudaFree( buffer ) );
+   status = cusparseDestroy(handle);
+   if(status != CUSPARSE_STATUS_SUCCESS) {
+       std::cerr << "csr2csc_cusparse - Error while calling cusparseDestroy: " << cusparseGetErrorName(status) << std::endl;
+       return COMPUTATION_ERROR;
+   }
+
+   return COMPUTATION_OK;
+}
 
 
 // int csr2csc_cusparse(
