@@ -3,9 +3,9 @@
 
 namespace cuda_error {
 
-void getLastCudaError(const char* file, int line, const char* func_name) {
-    cudaErrorHandler(cudaGetLastError(), "", file, line, func_name);
-}
+//void getLastCudaError(const char* file, int line, const char* func_name) {
+//    cudaErrorHandler(cudaGetLastError(), "", file, line, func_name);
+//}
 
 void safe_call(cudaError_t error,
                const char* file,

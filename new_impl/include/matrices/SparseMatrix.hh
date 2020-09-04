@@ -33,7 +33,7 @@ private:
             int row = index / n;
             int val = values_distrib(generator);
 
-            std::cout << "Generate row " << row << " col " << col << " value " << val << std::endl;
+            //std::cout << "Generate row " << row << " col " << col << " value " << val << std::endl;
 
             csrRowPtr[row+1]++;
             csrColIdx[i] = col;
@@ -70,6 +70,33 @@ public:
         delete[] csrRowPtr;
         delete[] csrColIdx;
         delete[] csrVal;
+    }
+
+    bool equals(SparseMatrix* sm) {
+
+        if(m != sm->m || n != sm->n || nnz != sm->nnz) {
+            return false;
+        }
+
+        for(int i = 0; i < m+1; i++) {
+            if(csrRowPtr[i] != sm->csrRowPtr[i]) {
+                return false;
+            }
+        }
+
+        for(int i = 0; i < nnz; i++) {
+            if(csrColIdx[i] != sm->csrColIdx[i]) {
+                return false;
+            }
+        }
+
+        for(int i = 0; i < nnz; i++) {
+            if(csrVal[i] != sm->csrVal[i]) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     inline void print() {
