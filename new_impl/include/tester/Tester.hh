@@ -9,19 +9,6 @@
 #include "../transposers/CusparseTransposer.hh"
 using namespace timer;
 
-
-/// Contain statistics about the running time of each *Transposer
-struct Timing {
-    float mean, std, min, max;
-    Timing() {} 
-    Timing(float me, float s, float mi, float ma) {
-        mean = me;
-        std = s;
-        min = mi;
-        max = ma;
-    }
-};
-
 /// Contains matrices with error
 struct ErrorMatrices {
 
@@ -33,6 +20,12 @@ struct ErrorMatrices {
         reference = ref;
         serial = ser;
         cusparse = cus;
+    }
+
+    ~ErrorMatrices() {
+        if(reference != 0) { delete reference; }
+        if(serial != 0)    { delete serial; }
+        if(cusparse != 0)  { delete cusparse; }
     }
 };
 
@@ -48,25 +41,17 @@ struct TestInstance {
 
     int repetitions;
 
-    Timing serial_timing;
+    float mean_serial_timing;
 
-    Timing cusparse_timing;
+    float mean_cusparse_timing;
 
     std::vector<ErrorMatrices> errors;
 
-    TestInstance(int m, int n, int nnz, int rep) : 
-        serial_timing(),
-        cusparse_timing(),
-        errors()
-    {
+    TestInstance(int m, int n, int nnz, int rep) : errors() {
         this->m = m;
         this->n = n;
         this->nnz = nnz;
         this->repetitions = rep;
-    }
-
-    bool has_error() {
-        return errors.size() == 0;
     }
 };
 
@@ -82,9 +67,7 @@ private:
 
 public:
 
-    Tester(): timer_serial(), timer_cusparse(), test_instances() { 
-
-    }
+    Tester(): timer_serial(), timer_cusparse(), test_instances() { }
 
     void add_test(int m, int n, int nnz, int rep) {
         test_instances.push_back(TestInstance(m, n, nnz, rep));
@@ -138,8 +121,8 @@ public:
             }
 
             // at the end of each repetition, save time
-            test.serial_timing = Timing(timer_serial.average(), timer_serial.std_deviation(), timer_serial.min(), timer_serial.max());
-            test.cusparse_timing = Timing(timer_cusparse.average(), timer_cusparse.std_deviation(), timer_cusparse.min(), timer_cusparse.max());
+            test.mean_serial_timing = timer_serial.average(); 
+            test.mean_cusparse_timing = timer_cusparse.average();
 
             // reset timers
             timer_serial.reset();
@@ -152,21 +135,22 @@ public:
         return any_error;
     }
 
+    /// Print table with average execution time and speedup
     void print() {
 
-        printf("|=====================================================================================|\n");
-        printf("| %-27s | %-25s | %-25s |\n", "TEST SPECS", "SERIAL", "CUSPARSE");
-        printf("|-------------------------------------------------------------------------------------|\n");
-        printf("| %-6s | %-6s | %-9s | %-13s | %-9s | %-13s | %-9s |\n", "M", "N", "NNZ", "MEAN", "SPEEDUP", "MEAN", "SPEEDUP");
-        printf("|-------------------------------------------------------------------------------------|\n");
+        printf("╔═════════════════════════════╤═══════════════════════════╤═══════════════════════════╗\n");
+        printf("║ %-27s │ %-25s │ %-25s ║\n", "TEST SPECS", "SERIAL", "CUSPARSE");
+        printf("╟────────┬────────┬───────────┼───────────────┬───────────┼───────────────┬───────────╢\n");
+        printf("║ %-6s │ %-6s │ %-9s │ %-13s │ %-9s │ %-13s │ %-9s ║\n", "M", "N", "NNZ", "MEAN", "SPEEDUP", "MEAN", "SPEEDUP");
+        printf("╟────────┼────────┼───────────┼───────────────┼───────────┼───────────────┼───────────╢\n");
         for(TestInstance const& test: test_instances) {
             // calculate speedups
-            float cusparse_speedup = test.serial_timing.mean / test.cusparse_timing.mean;
+            float cusparse_speedup = test.mean_serial_timing / test.mean_cusparse_timing;
             // print row
-            printf("| %6i | %6i | %9i | %13.5f | %8.2fx | %13.5f | %8.2fx |\n", test.m, test.n, test.nnz, 
-                test.serial_timing.mean, 1.0f, test.cusparse_timing.mean, cusparse_speedup);
+            printf("║ %6i │ %6i │ %9i │ %13.5f │ %8.2fx │ %13.5f │ %8.2fx ║\n", test.m, test.n, test.nnz, 
+                test.mean_serial_timing, 1.0f, test.mean_cusparse_timing, cusparse_speedup);
         }
-        printf("|=====================================================================================|\n");       
+        printf("╚════════╧════════╧═══════════╧═══════════════╧═══════════╧═══════════════╧═══════════╝\n");       
     }
 
 };

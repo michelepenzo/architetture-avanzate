@@ -13,15 +13,11 @@ else
 	GENCODE_FLAGS = -Xcudafe "--diag_suppress=code_is_unreachable" $(GENCODE_CUDA11)
 endif
 
-# NOTES
-# $@ is the target (eg: main.o)
-# $< is the source (eg: main.cu)
-
 # This is the whole executable
 $(EXE): $(LOCAL_BUILD)/main.o
 	nvcc $(GENCODE_FLAGS) -o $(EXE) $(LOCAL_BUILD)/main.o
 
-# Just main.cu
+# Just main.cu. $@ is the target (eg: main.o) and $< is the source (eg: main.cu)
 $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
