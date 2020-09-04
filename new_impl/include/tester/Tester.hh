@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdio>
 #include <tuple>
 #include <vector>
 #include "../Timer.cuh"
@@ -23,8 +24,11 @@ struct Timing {
 
 /// Contains matrices with error
 struct ErrorMatrices {
+
     SparseMatrix *reference, *serial, *cusparse;
+
     ErrorMatrices() : reference(0), serial(0), cusparse(0) {}
+
     ErrorMatrices(SparseMatrix* ref, SparseMatrix* ser, SparseMatrix* cus) {
         reference = ref;
         serial = ser;
@@ -82,11 +86,11 @@ public:
 
     }
 
-    void add_test_instance(int m, int n, int nnz, int rep) {
+    void add_test(int m, int n, int nnz, int rep) {
         test_instances.push_back(TestInstance(m, n, nnz, rep));
     }
 
-    /// 
+    /// Run each of the test you've added previously
     /// @return: false if we have without error
     bool run() {
 
@@ -97,6 +101,8 @@ public:
 
             // foreach repetition run each transposer
             for(int i = 0; i < test.repetitions; i++) {
+                // see progress on screen
+                std::cout << "." << std::flush;
 
                 // create this random matrix
                 SparseMatrix* sm = new SparseMatrix(test.m, test.n, test.nnz, RANDOM_INITIALIZATION);
@@ -140,20 +146,27 @@ public:
             timer_cusparse.reset();
         }
 
+        // newline after the points
+        std::cout << std::endl;
+
         return any_error;
     }
 
     void print() {
 
-        std::cout << "*** Tester ***" << std::endl;
-
+        printf("|=====================================================================================|\n");
+        printf("| %-27s | %-25s | %-25s |\n", "TEST SPECS", "SERIAL", "CUSPARSE");
+        printf("|-------------------------------------------------------------------------------------|\n");
+        printf("| %-6s | %-6s | %-9s | %-13s | %-9s | %-13s | %-9s |\n", "M", "N", "NNZ", "MEAN", "SPEEDUP", "MEAN", "SPEEDUP");
+        printf("|-------------------------------------------------------------------------------------|\n");
         for(TestInstance const& test: test_instances) {
-
-            std::cout << "Run instance with m=" << test.m << ", n=" << test.n << ", nnz=" << test.nnz << std::endl;
-            std::cout << "Serial:   mean=" << test.serial_timing.mean << std::endl;
-            std::cout << "Cusparse: mean=" << test.cusparse_timing.mean << std::endl;
-            std::cout << std::endl;
+            // calculate speedups
+            float cusparse_speedup = test.serial_timing.mean / test.cusparse_timing.mean;
+            // print row
+            printf("| %6i | %6i | %9i | %13.5f | %8.2fx | %13.5f | %8.2fx |\n", test.m, test.n, test.nnz, 
+                test.serial_timing.mean, 1.0f, test.cusparse_timing.mean, cusparse_speedup);
         }
+        printf("|=====================================================================================|\n");       
     }
 
 };
