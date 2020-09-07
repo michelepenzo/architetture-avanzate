@@ -31,4 +31,8 @@ public:
         } 
     }
 
+    virtual bool is_reference_implementation () {
+        return false;
+    }
+
 };

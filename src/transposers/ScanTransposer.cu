@@ -23,24 +23,23 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
 {
 
     const int N = nnz;
-    const int BLOCK_SIZE_X = 256;
+    const int BLOCK_SIZE = 256;
     int *intra, *inter, *intra_host, *inter_host;
 
     // resource allocation
-    intra_host = new int[nnz]();
-    inter_host = new int[(N + 1) * n]();
+    intra_host = new int[nnz];
+    inter_host = new int[(N + 1) * n];
     cudaMalloc(&intra, (nnz) * sizeof(int));
     cudaMalloc(&inter, ((N + 1) * n) * sizeof(int));
 
-    // pass info
-    SAFE_CALL(cudaMemcpy(intra, intra_host, (nnz) * sizeof(int),         cudaMemcpyHostToDevice));
-    SAFE_CALL(cudaMemcpy(inter, inter_host, ((N + 1) * n) * sizeof(int), cudaMemcpyHostToDevice));
+    // `cudaMemset` più efficiente che `cudaMemcpy` di tutti zeri
+    SAFE_CALL(cudaMemset(intra, 0, (nnz) * sizeof(int)))
+    SAFE_CALL(cudaMemset(inter, 0, ((N + 1) * n) * sizeof(int)))
 
     // kernel execution
-    dim3 DimGrid(N / BLOCK_SIZE_X, 1, 1);
-    if (N % BLOCK_SIZE_X)
-        DimGrid.x++;
-    dim3 DimBlock(BLOCK_SIZE_X, 1, 1);
+    dim3 DimGrid(N / BLOCK_SIZE, 1, 1);
+    if (N % BLOCK_SIZE) DimGrid.x++;
+    dim3 DimBlock(BLOCK_SIZE, 1, 1);
 
     scan_trans_kernel<<<DimGrid, DimBlock>>>(
         m, n, nnz,
@@ -54,29 +53,31 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
     SAFE_CALL(cudaMemcpy(inter_host, inter, ((N + 1) * n) * sizeof(int), cudaMemcpyDeviceToHost));
 
     // debug prints
-    std::cout << "Intra: " << std::endl;
-    for (int i = 0; i < nnz; i++)
-    {
-        std::cout << intra_host[i] << " ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "Inter: ";
-    for (int i = 0; i < (N + 1); i++)
-    {
-        std::cout << std::endl << "Row " << i - 1 << ": ";
-        for (int j = 0; j < n; j++)
+    if(SCANTRANS_DEBUG_ENABLE) {
+        std::cout << "Intra: " << std::endl;
+        for (int i = 0; i < nnz; i++)
         {
-            std::cout << inter_host[i * n + j] << " ";
+            std::cout << intra_host[i] << " ";
         }
-    }
-    std::cout << std::endl;
+        std::cout << std::endl;
 
+        std::cout << "Inter: ";
+        for (int i = 0; i < (N + 1); i++)
+        {
+            std::cout << std::endl << "Row " << i - 1 << ": ";
+            for (int j = 0; j < n; j++)
+            {
+                std::cout << inter_host[i * n + j] << " ";
+            }
+        }
+        std::cout << std::endl;
+    }
+    
     // resource deallocation
     delete[] intra_host;
     delete[] inter_host;
     cudaFree(intra);
     cudaFree(inter);
 
-    return COMPUTATION_ERROR;
+    return COMPUTATION_OK;
 }

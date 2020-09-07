@@ -100,7 +100,7 @@ public:
     }
 
     inline void print() {
-        std::cout << std::endl << "csrRowPtr: ";
+        std::cout << "csrRowPtr: ";
         for(int i = 0; i < m + 1; i++) {
             std::cout << csrRowPtr[i] << " ";
         }

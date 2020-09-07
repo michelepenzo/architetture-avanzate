@@ -38,15 +38,15 @@ protected:
         SAFE_CALL(cudaMemcpy(csrRowPtr_dev, csrRowPtr, (m+1)*sizeof(int), cudaMemcpyHostToDevice));
         SAFE_CALL(cudaMemcpy(csrColIdx_dev, csrColIdx, (nnz)*sizeof(int), cudaMemcpyHostToDevice));
         SAFE_CALL(cudaMemcpy(csrVal_dev,    csrVal,    (nnz)*sizeof(int), cudaMemcpyHostToDevice));
-        SAFE_CALL(cudaMemcpy(cscColPtr_dev, cscColPtr, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
-        SAFE_CALL(cudaMemcpy(cscRowIdx_dev, cscRowIdx, (nnz)*sizeof(int), cudaMemcpyHostToDevice));
-        SAFE_CALL(cudaMemcpy(cscVal_dev,    cscVal,    (nnz)*sizeof(int), cudaMemcpyHostToDevice));
+        // SAFE_CALL(cudaMemcpy(cscColPtr_dev, cscColPtr, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
+        // SAFE_CALL(cudaMemcpy(cscRowIdx_dev, cscRowIdx, (nnz)*sizeof(int), cudaMemcpyHostToDevice));
+        // SAFE_CALL(cudaMemcpy(cscVal_dev,    cscVal,    (nnz)*sizeof(int), cudaMemcpyHostToDevice));
 
         int ret = csr2csc_gpumemory(m, n, nnz, csrRowPtr_dev, csrColIdx_dev, csrVal_dev, cscColPtr_dev, cscRowIdx_dev, cscVal_dev);
 
-        SAFE_CALL(cudaMemcpy(csrRowPtr, csrRowPtr_dev, (m+1)*sizeof(int), cudaMemcpyDeviceToHost));
-        SAFE_CALL(cudaMemcpy(csrColIdx, csrColIdx_dev, (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
-        SAFE_CALL(cudaMemcpy(csrVal,    csrVal_dev,    (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+        // SAFE_CALL(cudaMemcpy(csrRowPtr, csrRowPtr_dev, (m+1)*sizeof(int), cudaMemcpyDeviceToHost));
+        // SAFE_CALL(cudaMemcpy(csrColIdx, csrColIdx_dev, (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
+        // SAFE_CALL(cudaMemcpy(csrVal,    csrVal_dev,    (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
         SAFE_CALL(cudaMemcpy(cscColPtr, cscColPtr_dev, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
         SAFE_CALL(cudaMemcpy(cscRowIdx, cscRowIdx_dev, (nnz)*sizeof(int), cudaMemcpyDeviceToHost));
         SAFE_CALL(cudaMemcpy(cscVal,    cscVal_dev,    (nnz)*sizeof(int), cudaMemcpyDeviceToHost));

@@ -2,6 +2,8 @@
 
 #include "CudaTransposer.hh"
 
+#define SCANTRANS_DEBUG_ENABLE 1
+
 class ScanTransposer : public CudaTransposer
 {
 protected:

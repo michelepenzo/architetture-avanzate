@@ -2,176 +2,219 @@
 
 #include <cstdio>
 #include <tuple>
+#include <string>
 #include <vector>
 #include "../Timer.cuh"
 using namespace timer;
 
 #include "../matrices/SparseMatrix.hh"
+#include "../transposers/AbstractTransposer.hh"
 #include "../transposers/SerialTransposer.hh"
-#include "../transposers/CusparseTransposer.hh"
-#include "../transposers/ScanTransposer.hh"
-
-/// Contains matrices with error
-struct ErrorMatrices {
-
-    SparseMatrix *reference, *serial, *cusparse, *scantrans;
-
-    ErrorMatrices() : reference(0), serial(0), cusparse(0), scantrans(0) {}
-
-    ErrorMatrices(SparseMatrix* ref, SparseMatrix* ser, SparseMatrix* cus, SparseMatrix* sct) {
-        reference = ref;
-        serial = ser;
-        cusparse = cus;
-        scantrans = sct;
-    }
-
-    ~ErrorMatrices() {
-        if(reference != 0) { delete reference; }
-        if(serial != 0)    { delete serial; }
-        if(cusparse != 0)  { delete cusparse; }
-        if(scantrans != 0) { delete scantrans; }
-    }
-};
-
-/// Contains the necessary data to generate a single test instance
-/// and its results. 
-struct TestInstance {
-
-    int m;
-
-    int n;
-
-    int nnz;
-
-    int repetitions;
-
-    float mean_serial_timing;
-
-    float mean_cusparse_timing;
-
-    float mean_scantrans_timing;
-
-    std::vector<ErrorMatrices> errors;
-
-    TestInstance(int m, int n, int nnz, int rep) : errors() {
-        this->m = m;
-        this->n = n;
-        this->nnz = nnz;
-        this->repetitions = rep;
-    }
-};
 
 /// Run the tests
 class Tester {
 private:
 
-    std::vector<TestInstance> test_instances;
+    struct TestSpecification {
+        int m, n, nnz, repetitions;
+    };
 
-    Timer<HOST> timer_serial;
+    struct Processor {
+        AbstractTransposer *at;
+        std::string name;
+        Timer<HOST> timer;
+        bool any_error;
+    };
 
-    Timer<DEVICE> timer_cusparse;
+    std::vector<TestSpecification> test_specifications;
 
-    Timer<DEVICE> timer_scantrans;
+    std::vector<Processor> processors;
+
+    float** mean_timing;
+
+    void allocate_mean_timing() {
+        size_t ntest = test_specifications.size();
+        size_t nproc = processors.size();
+        mean_timing = new float*[ntest];
+        for(int i = 0; i < ntest; i++) {
+            mean_timing[i] = new float[nproc];
+        }
+    }
+
+    void deallocate_mean_timing() {
+        if(mean_timing != NULL) {
+            for(int i = 0; i < test_specifications.size(); i++) {
+                if(mean_timing[i] != NULL) { 
+                    delete[] mean_timing[i]; 
+                    mean_timing[i] = NULL; 
+                }
+            }
+            delete[] mean_timing;
+            mean_timing = NULL;
+        }
+    }
 
 public:
 
-    Tester(): timer_serial(), timer_cusparse(), timer_scantrans(), test_instances() { }
-
-    void add_test(int m, int n, int nnz, int rep) {
-        test_instances.push_back(TestInstance(m, n, nnz, rep));
+    Tester(): test_specifications(), processors(), mean_timing(NULL) { 
+        add_processor(new SerialTransposer(), "SERIAL");
     }
 
-    /// Run each of the test you've added previously
-    /// @return: false if we have without error
-    bool run() {
+    ~Tester() { 
+        deallocate_mean_timing();
+    }
 
+    void add_test(int m, int n, int nnz, int rep) {
+        TestSpecification ts = { .m = m, .n = n, .nnz = nnz, .repetitions = rep };
+        test_specifications.push_back(ts);
+    }
+
+    void add_processor(AbstractTransposer *at, std::string name) {
+        Timer<HOST> timer;
+        Processor pr = {.at = at, .name = name, .timer = timer, .any_error = false};
+        processors.push_back(pr);
+    }
+
+    bool run(bool debug=false) {
+
+        // keep `any_error` variable
         bool any_error = false;
 
-        // run each single test instance
-        for(TestInstance& test: test_instances) {
+        // initialize `mean_timing` structure
+        deallocate_mean_timing();
+        allocate_mean_timing();        
 
-            // foreach repetition run each transposer
-            for(int i = 0; i < test.repetitions; i++) {
-                // see progress on screen
-                std::cout << "." << std::flush;
+        // start execution
+        size_t test_index = 0;
+        for(const TestSpecification& test : test_specifications) {
+            
+            // PERFORMANCE EVALUATION
+            for(int _i = 0; _i < test.repetitions; _i++) {
 
                 // create this random matrix
                 SparseMatrix* sm = new SparseMatrix(test.m, test.n, test.nnz, RANDOM_INITIALIZATION);
 
-                // create transposer objects
-                SerialTransposer serial_transposer;
-                CusparseTransposer cusparse_transposer;
-                ScanTransposer scantrans_transposer;
+                // run reference implementation
+                processors[0].timer.start();
+                SparseMatrix* transposed_sm = processors[0].at->transpose(sm);
+                processors[0].timer.stop();
 
-                // run SERIAL transposition
-                timer_serial.start();
-                SparseMatrix* serial_sm = serial_transposer.transpose(sm);
-                timer_serial.stop();
-
-                // run CUSPARSE transposition
-                timer_cusparse.start();
-                SparseMatrix* cusparse_sm = cusparse_transposer.transpose(sm);
-                timer_cusparse.stop();
-
-                // run SCAN TRANS transposition
-                timer_scantrans.start();
-                SparseMatrix* scantrans_sm = scantrans_transposer.transpose(sm);
-                timer_scantrans.stop();
-
-                // check if there is any error (compare to reference impl 'Serial')
-                bool error = false;
-                if(cusparse_sm == NULL || !serial_sm->equals(cusparse_sm)) {
-                    error = true;
-                    test.errors.push_back(ErrorMatrices(sm, serial_sm, cusparse_sm, scantrans_sm));
+                // print infos 
+                if(debug) {
+                    std::cout << "ORIGINAL" << std::endl;
+                    sm->print();
+                    std::cout << "REFERENCE" << std::endl;
+                    transposed_sm->print();
+                } else {
+                    // see progress on screen
+                    std::cout << "." << std::flush;
                 }
-                if(scantrans_sm == NULL || !serial_sm->equals(scantrans_sm)) {
-                    error = true;
-                    test.errors.push_back(ErrorMatrices(sm, serial_sm, cusparse_sm, scantrans_sm));
-                }
-                any_error = any_error || error;
 
-                // deallocate resources only without any error
-                if(!error) {
-                    delete sm;
-                    delete serial_sm;
-                    delete cusparse_sm;
-                    delete scantrans_sm;
+                // run any other implementation
+                for(int j = 1; j < processors.size(); j++) {
+
+                    // print infos
+                    if(debug) {
+                        std::cout << processors[j].name << std::endl;
+                    }
+
+                    // run with timer
+                    processors[j].timer.start();
+                    SparseMatrix* other_sm = processors[j].at->transpose(sm);
+                    processors[j].timer.stop();
+
+                    // check error
+                    if(other_sm == NULL) {
+                        processors[j].any_error = true;
+                        any_error = true;
+                        if(debug) { std::cout << "computation error" << std::endl; }
+                    } else if(!transposed_sm->equals(other_sm)) {
+                        processors[j].any_error = true;
+                        any_error = true;
+                        if(debug) { std::cout << "computation error" << std::endl; }
+                        if(debug) { other_sm->print(); }
+                        delete other_sm;
+                    } else {
+                        if(debug) { other_sm->print(); }
+                        delete other_sm;
+                    }
+                }
+
+                // deallocate resource
+                delete transposed_sm;
+                delete sm;
+
+                // print info
+                if(debug) {
+                    std::cout << std::endl;
                 }
             }
 
-            // at the end of each repetition, save time
-            test.mean_serial_timing = timer_serial.average(); 
-            test.mean_cusparse_timing = timer_cusparse.average();
-            test.mean_scantrans_timing = timer_scantrans.average();
-
-            // reset timers
-            timer_serial.reset();
-            timer_cusparse.reset();
-            timer_scantrans.reset();
+            // SAVE TIMINGS
+            for(int i = 0; i < processors.size(); i++) {
+                mean_timing[test_index][i] = processors[i].timer.average();
+                processors[i].timer.reset();
+            }
+            
+            test_index++;
         }
-
-        // newline after the points
-        std::cout << std::endl;
 
         return any_error;
     }
 
+
     /// Print table with average execution time and speedup
     void print() {
 
-        printf("╔═════════════════════════════╤═══════════════════════════╤═══════════════════════════╗\n");
-        printf("║ %-27s │ %-25s │ %-25s ║\n", "TEST SPECS", "SERIAL", "CUSPARSE");
-        printf("╟────────┬────────┬───────────┼───────────────┬───────────┼───────────────┬───────────╢\n");
-        printf("║ %-6s │ %-6s │ %-9s │ %-13s │ %-9s │ %-13s │ %-9s ║\n", "M", "N", "NNZ", "MEAN", "SPEEDUP", "MEAN", "SPEEDUP");
-        printf("╟────────┼────────┼───────────┼───────────────┼───────────┼───────────────┼───────────╢\n");
-        for(TestInstance const& test: test_instances) {
-            // calculate speedups
-            float cusparse_speedup = test.mean_serial_timing / test.mean_cusparse_timing;
-            // print row
-            printf("║ %6i │ %6i │ %9i │ %13.5f │ %8.2fx │ %13.5f │ %8.2fx ║\n", test.m, test.n, test.nnz, 
-                test.mean_serial_timing, 1.0f, test.mean_cusparse_timing, cusparse_speedup);
+        fort::char_table table;
+        table.set_border_style(FT_DOUBLE2_STYLE);
+
+        // print (first) header
+        table << fort::header << "SPECIFICATION" << "" << "";
+        table[0][0].set_cell_span(3);
+        int i = 0;
+        for(const Processor& proc : processors) {
+            table << proc.name << "";
+            table[0][3+i*2].set_cell_span(2);
+            i++;
         }
-        printf("╚════════╧════════╧═══════════╧═══════════════╧═══════════╧═══════════════╧═══════════╝\n");       
+        table << fort::endr;
+
+        // print (second) header
+        table << fort::header << "M" << "N" << "NNZ";
+        for(const Processor& proc : processors) {
+            table << "MEAN TIME" << "SPEEDUP";
+        }
+        table << fort::endr;
+
+        // print values
+        for(int i = 0; i < test_specifications.size(); i++) {
+
+            // print specs
+            TestSpecification& test = test_specifications[i];
+            table << test.m << test.n << test.nnz;
+
+            // print timing
+            for(int j = 0; j < processors.size(); j++) {
+                Processor& proc = processors[j];
+                if(proc.any_error) {
+                    table << "error" << "error";
+                } else {
+                    table 
+                        << std::fixed << std::setprecision(3) << mean_timing[i][j]
+                        << std::fixed << std::setprecision(3) << (mean_timing[i][0] / mean_timing[i][j]);
+                }
+            }
+
+            table << fort::endr;
+        }
+
+        // setting alignment
+        for(int i = 0; i < 3 + 2*processors.size(); i++) {
+            table.column(i).set_cell_text_align(fort::text_align::right);
+        }
+
+        std::cout << std::endl << table.to_string() << std::endl;
     }
 
 };
