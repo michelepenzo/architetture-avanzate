@@ -7,6 +7,7 @@
 #include "../matrices/SparseMatrix.hh"
 #include "../transposers/SerialTransposer.hh"
 #include "../transposers/CusparseTransposer.hh"
+#include "../transposers/ScanTransposer.hh"
 using namespace timer;
 
 /// Contains matrices with error
@@ -44,6 +45,8 @@ struct TestInstance {
     float mean_serial_timing;
 
     float mean_cusparse_timing;
+
+    float mean_scantrans_timing;
 
     std::vector<ErrorMatrices> errors;
 
