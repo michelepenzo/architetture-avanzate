@@ -40,6 +40,4 @@
 *.fatbin
 
 # others
-s-blas/
-
-sparse_mat
+run_transposer_app
