@@ -42,8 +42,4 @@ public:
 
     SerialTransposer() : AbstractTransposer() { }
 
-    virtual bool is_reference_implementation () {
-        return true;
-    }
-
 };
