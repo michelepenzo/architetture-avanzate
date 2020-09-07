@@ -4,29 +4,32 @@
 #include <tuple>
 #include <vector>
 #include "../Timer.cuh"
+using namespace timer;
+
 #include "../matrices/SparseMatrix.hh"
 #include "../transposers/SerialTransposer.hh"
 #include "../transposers/CusparseTransposer.hh"
 #include "../transposers/ScanTransposer.hh"
-using namespace timer;
 
 /// Contains matrices with error
 struct ErrorMatrices {
 
-    SparseMatrix *reference, *serial, *cusparse;
+    SparseMatrix *reference, *serial, *cusparse, *scantrans;
 
-    ErrorMatrices() : reference(0), serial(0), cusparse(0) {}
+    ErrorMatrices() : reference(0), serial(0), cusparse(0), scantrans(0) {}
 
-    ErrorMatrices(SparseMatrix* ref, SparseMatrix* ser, SparseMatrix* cus) {
+    ErrorMatrices(SparseMatrix* ref, SparseMatrix* ser, SparseMatrix* cus, SparseMatrix* sct) {
         reference = ref;
         serial = ser;
         cusparse = cus;
+        scantrans = sct;
     }
 
     ~ErrorMatrices() {
         if(reference != 0) { delete reference; }
         if(serial != 0)    { delete serial; }
         if(cusparse != 0)  { delete cusparse; }
+        if(scantrans != 0) { delete scantrans; }
     }
 };
 
@@ -68,9 +71,11 @@ private:
 
     Timer<DEVICE> timer_cusparse;
 
+    Timer<DEVICE> timer_scantrans;
+
 public:
 
-    Tester(): timer_serial(), timer_cusparse(), test_instances() { }
+    Tester(): timer_serial(), timer_cusparse(), timer_scantrans(), test_instances() { }
 
     void add_test(int m, int n, int nnz, int rep) {
         test_instances.push_back(TestInstance(m, n, nnz, rep));
@@ -96,6 +101,7 @@ public:
                 // create transposer objects
                 SerialTransposer serial_transposer(sm);
                 CusparseTransposer cusparse_transposer(sm);
+                ScanTransposer scantrans_transposer(sm);
 
                 // run SERIAL transposition
                 timer_serial.start();
@@ -107,29 +113,41 @@ public:
                 SparseMatrix* cusparse_sm = cusparse_transposer.transpose();
                 timer_cusparse.stop();
 
+                // run SCAN TRANS transposition
+                timer_scantrans.start();
+                SparseMatrix* scantrans_sm = scantrans_transposer.transpose();
+                timer_scantrans.stop();
+
                 // check if there is any error (compare to reference impl 'Serial')
                 bool error = false;
-                any_error = any_error || error;
-                if(! serial_sm->equals(cusparse_sm)) {
+                if(cusparse_sm == NULL || !serial_sm->equals(cusparse_sm)) {
                     error = true;
-                    test.errors.push_back(ErrorMatrices(sm, serial_sm, cusparse_sm));
+                    test.errors.push_back(ErrorMatrices(sm, serial_sm, cusparse_sm, scantrans_sm));
                 }
+                if(scantrans_sm == NULL || !serial_sm->equals(scantrans_sm)) {
+                    error = true;
+                    test.errors.push_back(ErrorMatrices(sm, serial_sm, cusparse_sm, scantrans_sm));
+                }
+                any_error = any_error || error;
 
                 // deallocate resources only without any error
                 if(!error) {
                     delete sm;
                     delete serial_sm;
                     delete cusparse_sm;
+                    delete scantrans_sm;
                 }
             }
 
             // at the end of each repetition, save time
             test.mean_serial_timing = timer_serial.average(); 
             test.mean_cusparse_timing = timer_cusparse.average();
+            test.mean_scantrans_timing = timer_scantrans.average();
 
             // reset timers
             timer_serial.reset();
             timer_cusparse.reset();
+            timer_scantrans.reset();
         }
 
         // newline after the points

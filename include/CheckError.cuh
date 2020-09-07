@@ -1,8 +1,9 @@
+#pragma once
 
 #define CHECK_CUDA_ERROR                                                       \
     {                                                                          \
         cudaDeviceSynchronize();                                               \
-        //cuda_error::getLastCudaError(__FILE__, __LINE__, __func__);            \
+        /*cuda_error::getLastCudaError(__FILE__, __LINE__, __func__);*/        \
     }
 
 #define SAFE_CALL(function)                                                    \
@@ -14,14 +15,14 @@
 
 namespace cuda_error {
 
-//void getLastCudaError(const char* file, int line, const char* func_name);
+//inline void getLastCudaError(const char* file, int line, const char* func_name);
 
-void safe_call(cudaError_t error,
+inline void safe_call(cudaError_t error,
                const char* file,
                int         line,
                const char* func_name);
 
-void cudaErrorHandler(cudaError_t error,
+inline void cudaErrorHandler(cudaError_t error,
                       const char* error_message,
                       const char* file,
                       int         line,
