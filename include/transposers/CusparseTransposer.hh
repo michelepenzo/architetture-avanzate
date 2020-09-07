@@ -129,6 +129,6 @@ protected:
 
 public:
 
-    CusparseTransposer(SparseMatrix* sm) : CudaTransposer(sm) { }
+    CusparseTransposer() : CudaTransposer() { }
 
 };

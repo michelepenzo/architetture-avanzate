@@ -22,8 +22,8 @@ int main(int argc, char **argv) {
     SparseMatrix* sm = new SparseMatrix(5, 5, 10, RANDOM_INITIALIZATION);
     sm->print();
 
-    ScanTransposer sctr(sm);
-    SparseMatrix* sm_transposed = sctr.transpose();
+    ScanTransposer sctr;
+    SparseMatrix* sm_transposed = sctr.transpose(sm);
     if( sm_transposed != NULL ) {
         sm_transposed->print();
     } 

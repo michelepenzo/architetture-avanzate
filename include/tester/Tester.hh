@@ -99,23 +99,23 @@ public:
                 SparseMatrix* sm = new SparseMatrix(test.m, test.n, test.nnz, RANDOM_INITIALIZATION);
 
                 // create transposer objects
-                SerialTransposer serial_transposer(sm);
-                CusparseTransposer cusparse_transposer(sm);
-                ScanTransposer scantrans_transposer(sm);
+                SerialTransposer serial_transposer;
+                CusparseTransposer cusparse_transposer;
+                ScanTransposer scantrans_transposer;
 
                 // run SERIAL transposition
                 timer_serial.start();
-                SparseMatrix* serial_sm = serial_transposer.transpose();
+                SparseMatrix* serial_sm = serial_transposer.transpose(sm);
                 timer_serial.stop();
 
                 // run CUSPARSE transposition
                 timer_cusparse.start();
-                SparseMatrix* cusparse_sm = cusparse_transposer.transpose();
+                SparseMatrix* cusparse_sm = cusparse_transposer.transpose(sm);
                 timer_cusparse.stop();
 
                 // run SCAN TRANS transposition
                 timer_scantrans.start();
-                SparseMatrix* scantrans_sm = scantrans_transposer.transpose();
+                SparseMatrix* scantrans_sm = scantrans_transposer.transpose(sm);
                 timer_scantrans.stop();
 
                 // check if there is any error (compare to reference impl 'Serial')

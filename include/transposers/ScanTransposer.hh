@@ -10,5 +10,5 @@ protected:
 
 public:
 
-    ScanTransposer(SparseMatrix *sm) : CudaTransposer(sm) {}
+    ScanTransposer() : CudaTransposer() {}
 };

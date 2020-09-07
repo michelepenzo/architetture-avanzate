@@ -8,15 +8,13 @@ class AbstractTransposer {
 
 protected:
 
-    SparseMatrix* sm;
-
     virtual int csr2csc(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* csrVal, int* cscColPtr, int* cscRowIdx, float* cscVal) = 0;
 
 public:
 
-    AbstractTransposer(SparseMatrix* sm) : sm(sm) { }
+    AbstractTransposer() { }
 
-    inline SparseMatrix* transpose() {
+    inline SparseMatrix* transpose(SparseMatrix* sm) {
 
         SparseMatrix* result = new SparseMatrix(sm->n, sm->m, sm->nnz, ALL_ZEROS_INITIALIZATION);
 

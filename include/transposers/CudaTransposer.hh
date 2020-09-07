@@ -1,8 +1,18 @@
 #pragma once
 
 #include "AbstractTransposer.hh"
-#include "../CheckError.cuh"
+#include <cassert>
 #include <cuda_runtime.h>
+
+#define CHECK_CUDA_ERROR                                                          \
+    {                                                                             \
+        CudaTransposer::get_last_cuda_error(__FILE__, __LINE__, __func__);        \
+    }
+
+#define SAFE_CALL(function)                                                       \
+    {                                                                             \
+        CudaTransposer::check_cuda_error(function, __FILE__, __LINE__, __func__); \
+    }
 
 
 class CudaTransposer : public AbstractTransposer {
@@ -55,6 +65,29 @@ protected:
 
 public:
 
-    CudaTransposer(SparseMatrix* sm) : AbstractTransposer(sm) { }
+    CudaTransposer() : AbstractTransposer() { }
+
+    static inline void check_cuda_error(cudaError_t error, const char* file, int line, const char* func_name) {
+        
+        if (cudaSuccess != error) {
+            std::cerr << "\nCUDA error\n" << file << "(" << line << ")"
+                    << " [ " << func_name << " ] : "
+                    << " -> " << cudaGetErrorString(error)
+                    << "(" << static_cast<int>(error) << ")\n"
+                    << std::endl;
+            assert(false);                                                  //NOLINT
+            std::atexit(reinterpret_cast<void(*)()>(cudaDeviceReset));
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
+    static inline void get_last_cuda_error(const char* file, int line, const char* func_name) {
+        
+        // wait until kernel stops
+        cudaDeviceSynchronize();
+
+        // check any error
+        CudaTransposer::check_cuda_error(cudaGetLastError(), file, line, func_name);
+    }
 
 };

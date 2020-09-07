@@ -40,6 +40,6 @@ private:
 
 public:
 
-    SerialTransposer(SparseMatrix* sm) : AbstractTransposer(sm) { }
+    SerialTransposer() : AbstractTransposer() { }
 
 };
