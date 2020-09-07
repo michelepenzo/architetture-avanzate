@@ -130,7 +130,7 @@ void TimerBase<type, ChronoPrecision>::register_time() noexcept {
 template<timer_type type, typename ChronoPrecision>
 void TimerBase<type, ChronoPrecision>::print(const std::string& str)    //NOLINT
                                              const noexcept {
-    xlib::IosFlagSaver tmp;
+
     std::cout << _default_color
               << std::fixed << std::setprecision(_decimals)
               << std::right << std::setw(_space - 2) << str << "  "
@@ -141,7 +141,7 @@ void TimerBase<type, ChronoPrecision>::print(const std::string& str)    //NOLINT
 template<timer_type type, typename ChronoPrecision>
 void TimerBase<type, ChronoPrecision>::printAll(const std::string& str) //NOLINT
                                                 const noexcept {
-    xlib::IosFlagSaver tmp;
+
     std::cout << _default_color
               << std::right << std::setw(_space - 2) << str << ":"
               << std::fixed << std::setprecision(_decimals)
@@ -230,7 +230,7 @@ void Timer<SYS, ChronoPrecision>::stop() noexcept {
 template<typename ChronoPrecision>
 void Timer<SYS, ChronoPrecision>::print(const std::string& str)  //NOLINT
                                         const noexcept {
-    xlib::IosFlagSaver tmp;
+
     auto  wall_time_ms = std::chrono::duration_cast<ChronoPrecision>(
                                              _stop_time - _start_time ).count();
 
