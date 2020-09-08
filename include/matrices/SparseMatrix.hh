@@ -103,16 +103,19 @@ public:
         std::cout << "csrRowPtr: ";
         for(int i = 0; i < m + 1; i++) {
             std::cout << csrRowPtr[i] << " ";
+            if(i % 100 == 0) { std::cout << std::endl; }
         }
 
         std::cout << std::endl << "csrColIdx: ";
         for(int i = 0; i < nnz; i++) {
             std::cout << csrColIdx[i] << " ";
+            if(i % 100 == 0) { std::cout << std::endl; }
         }
 
         std::cout << std::endl << "csrVal: ";
         for(int i = 0; i < nnz; i++) {
             std::cout << csrVal[i] << " ";
+            if(i % 100 == 0) { std::cout << std::endl; }
         }
 
         std::cout << std::endl;

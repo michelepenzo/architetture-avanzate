@@ -163,7 +163,7 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
     // 2. fill `inter`, `intra`
     //std::cout << "2. inter_intra_caller" << std::endl;
     inter_intra_caller(n, nnz, inter, intra, csrColIdx);
-    if(SCANTRANS_DEBUG_ENABLE) {
+    if(0) {
         int* intra_host = new int[nnz];
         int* inter_host = new int[nnz];
         SAFE_CALL(cudaMemcpy(intra_host, intra, nnz*sizeof(int),              cudaMemcpyDeviceToHost));
@@ -184,7 +184,7 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
     // 3. apply vertical scan
     //std::cout << "3. vertical_scan_caller" << std::endl;
     vertical_scan_caller(n, inter, cscColPtr);
-    if(SCANTRANS_DEBUG_ENABLE) {
+    if(0) {
         int* inter_host = new int[nnz];
         SAFE_CALL(cudaMemcpy(inter_host, inter, ((N_THREAD+1)*n)*sizeof(int), cudaMemcpyDeviceToHost));
         std::cout << "inter: " << std::endl;
@@ -200,17 +200,17 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
 
     // 4. apply prefix sum
     {
-        //scan_on_cuda(cscColPtr, cscColPtr, n, true);
+        scan_on_cuda(cscColPtr, cscColPtr, n+1, true);
 
-        int *cscColPtr_host = new int[n+1];
-        SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
-        prefix_sum(n, cscColPtr_host);
-        cscColPtr_host[0] = 0;
-        SAFE_CALL(cudaMemcpy(cscColPtr, cscColPtr_host, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
-        if(SCANTRANS_DEBUG_ENABLE) {
-            print_array("cscColPtr", cscColPtr_host, n+1);
-        }
-        delete cscColPtr_host;
+        //int *cscColPtr_host = new int[n+1];
+        //SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
+        //prefix_sum(n, cscColPtr_host);
+        //cscColPtr_host[0] = 0;
+        //SAFE_CALL(cudaMemcpy(cscColPtr, cscColPtr_host, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
+        //if(SCANTRANS_DEBUG_ENABLE) {
+        //    print_array("cscColPtr", cscColPtr_host, n+1);
+        //}
+        //delete cscColPtr_host;
     }
 
     // 5. reorder elements

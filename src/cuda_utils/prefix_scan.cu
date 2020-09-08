@@ -1,6 +1,6 @@
 #include "cuda_utils/prefix_scan.hh"
 
-int THREADS_PER_BLOCK = 512;
+int THREADS_PER_BLOCK = 32; //512;
 int ELEMENTS_PER_BLOCK = THREADS_PER_BLOCK * 2;
 
 long sequential_scan(int* output, int* input, int length) {

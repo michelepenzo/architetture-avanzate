@@ -131,8 +131,9 @@ public:
                     } else if(!transposed_sm->equals(other_sm)) {
                         processors[j].any_error = true;
                         any_error = true;
-                        if(debug) { std::cout << "computation error" << std::endl; }
-                        if(debug) { other_sm->print(); }
+                        if(1) { std::cout << "\n\ncomputation error" << std::endl; }
+                        if(1) { transposed_sm->print(); }
+                        if(1) { other_sm->print(); }
                         delete other_sm;
                     } else {
                         if(debug) { other_sm->print(); }
