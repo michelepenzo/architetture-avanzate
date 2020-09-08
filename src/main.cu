@@ -6,7 +6,7 @@
 #include "transposers/ScanTransposer.hh"
 #include "transposers/CusparseTransposer.hh"
 
-#define REPETITION_NUMBER 1
+#define REPETITION_NUMBER 50
 
 int main(int argc, char **argv) {
 
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     tester.add_processor(&sc, "SCAN256-256");
     tester.add_processor(&sc2, "SCAN256-1k");
     tester.add_processor(&sc3, "SCAN256-1.5k");
-    tester.run();
+    tester.run(false);
     tester.print();
 
     // ScanTransposer sc(256, 256);

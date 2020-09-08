@@ -71,7 +71,6 @@ void vertical_scan_kernel(int n, int nthread, int *inter, int *cscColPtr) {
             inter[(j+1)*n+i] += inter[j*n+i]; // inter[j+1][i] += inter[j][i];
         }
         // last element goes into `cscColPtr`
-        // since `scan` shift all elements by 1, I choose `i` instead of `i+1`
         cscColPtr[i] = inter[nthread*n+i]; // cscColPtr[i+1] = inter[nthread][i];
     }
 }
@@ -92,6 +91,9 @@ void ScanTransposer::vertical_scan_caller(int n, int *inter, int *cscColPtr) {
 void ScanTransposer::prefix_sum(int n, int *cscColPtr) {
     for(int i = 0; i < n; i++) {
         cscColPtr[i+1] += cscColPtr[i];
+    }
+    for(int i = n-1; i >= 0; i--) {
+        cscColPtr[i+1] = cscColPtr[i];
     }
 }
 
@@ -198,13 +200,12 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
 
     // 4. apply prefix sum
     {
-        //scan_on_cuda(cscColPtr, cscColPtr, n+1, true);
-
+        //scan_on_cuda(cscColPtr, cscColPtr, n, true);
 
         int *cscColPtr_host = new int[n+1];
         SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
-        cscColPtr_host[0] = 0;
         prefix_sum(n, cscColPtr_host);
+        cscColPtr_host[0] = 0;
         SAFE_CALL(cudaMemcpy(cscColPtr, cscColPtr_host, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
         if(SCANTRANS_DEBUG_ENABLE) {
             print_array("cscColPtr", cscColPtr_host, n+1);
