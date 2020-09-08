@@ -14,8 +14,8 @@ else
 endif
 
 # This is the whole executable
-$(EXE): $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o
-	nvcc $(GENCODE_FLAGS) -o $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o
+$(EXE): $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o $(LOCAL_BUILD)/prefix_scan.o
+	nvcc $(GENCODE_FLAGS) -o $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o $(LOCAL_BUILD)/prefix_scan.o
 
 # Just main.cu. $@ is the target (eg: main.o) and $< is the source (eg: main.cu)
 $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
@@ -24,14 +24,19 @@ $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
 $(LOCAL_BUILD)/ScanTransposer.o: $(LOCAL_SRC)/transposers/ScanTransposer.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
+$(LOCAL_BUILD)/prefix_scan.o: $(LOCAL_SRC)/cuda_utils/prefix_scan.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
 $(LOCAL_BUILD)/fort.o: $(LOCAL_SRC)/libfort/fort.c
 	gcc -I$(LOCAL_INCLUDE) -c $< -o $@
+
+
 
 # The .PHONY rule keeps make from doing something with a file named clean.
 .PHONY: clean test
 
 clean:
-	@rm -f $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o
+	@rm -f $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o $(LOCAL_BUILD)/prefix_scan.o
 
 test:
 	@echo "Starting test application...\n\n"

@@ -1,4 +1,5 @@
 #include "transposers/ScanTransposer.hh"
+#include "cuda_utils/prefix_scan.hh"
 
 #define DIV_THEN_CEIL(a,b) a%b?((a/b)+1):(a/b)
 
@@ -70,7 +71,8 @@ void vertical_scan_kernel(int n, int nthread, int *inter, int *cscColPtr) {
             inter[(j+1)*n+i] += inter[j*n+i]; // inter[j+1][i] += inter[j][i];
         }
         // last element goes into `cscColPtr`
-        cscColPtr[i+1] = inter[nthread*n+i]; // cscColPtr[i+1] = inter[nthread][i];
+        // since `scan` shift all elements by 1, I choose `i` instead of `i+1`
+        cscColPtr[i] = inter[nthread*n+i]; // cscColPtr[i+1] = inter[nthread][i];
     }
 }
 
@@ -196,6 +198,9 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
 
     // 4. apply prefix sum
     {
+        //scan_on_cuda(cscColPtr, cscColPtr, n+1, true);
+
+
         int *cscColPtr_host = new int[n+1];
         SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
         cscColPtr_host[0] = 0;
