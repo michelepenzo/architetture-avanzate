@@ -21,7 +21,12 @@ protected:
         }
     }
 
-    int csr2csc_gpumemory(int m, int n, int nnz, int* csrRowPtr, int* csrColIdx, float* csrVal, int* cscColPtr, int* cscRowIdx, float* cscVal) {
+    int csr2csc_gpumemory(
+        int m, int n, int nnz, 
+        int* csrRowPtr, int* csrColIdx, float* csrVal, 
+        int* cscColPtr, int* cscRowIdx, float* cscVal,
+        int* csrRowPtr_host, int* csrColIdx_host, float* csrVal_host, 
+        int* cscColPtr_host, int* cscRowIdx_host, float* cscVal_host) {
 
         #if (CUDART_VERSION >= 9000) && (CUDART_VERSION < 10000)
 

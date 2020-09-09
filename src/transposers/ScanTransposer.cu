@@ -139,7 +139,12 @@ void ScanTransposer::reorder_elements_caller(
 /// =============================================================
 /// =============================================================
 
-int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int *csrColIdx, float *csrVal, int *cscColPtr, int *cscRowIdx, float *cscVal)
+int ScanTransposer::csr2csc_gpumemory(
+    int m, int n, int nnz, 
+    int *csrRowPtr, int *csrColIdx, float *csrVal, 
+    int *cscColPtr, int *cscRowIdx, float *cscVal,
+    int* csrRowPtr_host, int* csrColIdx_host, float* csrVal_host, 
+    int* cscColPtr_host, int* cscRowIdx_host, float* cscVal_host)
 {
     int *intra, *inter, *csrRowIdx;
 
@@ -165,7 +170,7 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
     inter_intra_caller(n, nnz, inter, intra, csrColIdx);
     if(0) {
         int* intra_host = new int[nnz];
-        int* inter_host = new int[nnz];
+        int* inter_host = new int[((N_THREAD + 1) * n)];
         SAFE_CALL(cudaMemcpy(intra_host, intra, nnz*sizeof(int),              cudaMemcpyDeviceToHost));
         SAFE_CALL(cudaMemcpy(inter_host, inter, ((N_THREAD+1)*n)*sizeof(int), cudaMemcpyDeviceToHost));
         print_array("intra", intra_host, nnz);
@@ -185,7 +190,7 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
     //std::cout << "3. vertical_scan_caller" << std::endl;
     vertical_scan_caller(n, inter, cscColPtr);
     if(0) {
-        int* inter_host = new int[nnz];
+        int* inter_host = new int[((N_THREAD + 1) * n)];
         SAFE_CALL(cudaMemcpy(inter_host, inter, ((N_THREAD+1)*n)*sizeof(int), cudaMemcpyDeviceToHost));
         std::cout << "inter: " << std::endl;
         for(int i = 0; i < N_THREAD+1; i++) {
@@ -200,17 +205,17 @@ int ScanTransposer::csr2csc_gpumemory(int m, int n, int nnz, int *csrRowPtr, int
 
     // 4. apply prefix sum
     {
-        scan_on_cuda(cscColPtr, cscColPtr, n+1, true);
+        //scan_on_cuda(cscColPtr, cscColPtr, n+1, true);
 
-        //int *cscColPtr_host = new int[n+1];
-        //SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
-        //prefix_sum(n, cscColPtr_host);
-        //cscColPtr_host[0] = 0;
-        //SAFE_CALL(cudaMemcpy(cscColPtr, cscColPtr_host, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
-        //if(SCANTRANS_DEBUG_ENABLE) {
-        //    print_array("cscColPtr", cscColPtr_host, n+1);
-        //}
-        //delete cscColPtr_host;
+        int *cscColPtr_host = new int[n+1];
+        SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
+        prefix_sum(n, cscColPtr_host);
+        cscColPtr_host[0] = 0;
+        SAFE_CALL(cudaMemcpy(cscColPtr, cscColPtr_host, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
+        if(SCANTRANS_DEBUG_ENABLE) {
+            print_array("cscColPtr", cscColPtr_host, n+1);
+        }
+        delete cscColPtr_host;
     }
 
     // 5. reorder elements
