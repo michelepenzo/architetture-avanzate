@@ -171,7 +171,7 @@ int ScanTransposer::csr2csc_gpumemory(
     csrrowidx_caller(m, csrRowPtr, csrRowIdx);
 
     // debug check
-    if(SCANTRANS_DEBUG_ENABLE) {
+#if SCANTRANS_DEBUG_ENABLE==1
         std::cout << "Step 1: csrrowidx_caller" << std::endl;
         // retrieve value from GPU
         SAFE_CALL(cudaMemcpy(csrRowIdx_host, csrRowIdx, nnz*sizeof(int), cudaMemcpyDeviceToHost));
@@ -190,13 +190,13 @@ int ScanTransposer::csr2csc_gpumemory(
                 }
             }
         }
-    }
+#endif
 
     // 2. fill `inter`, `intra`
     inter_intra_caller(n, nnz, inter, intra, csrColIdx);
 
     // debug check
-    if(SCANTRANS_DEBUG_ENABLE) {
+#if SCANTRANS_DEBUG_ENABLE==1
 
         std::cout << "Step 2: inter_intra_caller" << std::endl;
 
@@ -229,14 +229,12 @@ int ScanTransposer::csr2csc_gpumemory(
                 return COMPUTATION_ERROR;
             }
         }
-        
-       
-    }
+#endif
 
     // 3. apply vertical scan
     vertical_scan_caller(n, inter, cscColPtr);
 
-    if(SCANTRANS_DEBUG_ENABLE) {
+#if SCANTRANS_DEBUG_ENABLE==1
         std::cout << "Step 3: vertical_scan_caller" << std::endl;
 
         SAFE_CALL(cudaMemcpy(inter_host, inter, ((N_THREAD+1)*n)*sizeof(int), cudaMemcpyDeviceToHost));
@@ -254,22 +252,28 @@ int ScanTransposer::csr2csc_gpumemory(
             }
             cscColPtr_temp[i] = inter_temp[N_THREAD*n+i]; // cscColPtr[i+1] = inter[nthread][i];
         }
-    }
+#endif
 
     // 4. apply prefix sum
-    std::cout << "Step 4: scan_on_cuda" << std::endl;
-    scan_on_cuda(cscColPtr, cscColPtr, n, true);
+    int* ping; 
+    SAFE_CALL(cudaMalloc(&ping, (n+1)*sizeof(int)));
+    SAFE_CALL(cudaMemcpy(ping, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToDevice));
+        
+    scan_on_cuda(cscColPtr, ping, n+1, true);
 
-    if(SCANTRANS_DEBUG_ENABLE) {
+    cudaFree(ping);
+
+#if SCANTRANS_DEBUG_ENABLE==1
+
         SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
         
         prefix_sum(n, cscColPtr_temp);
 
         std::cout << "### scan_on_cuda: cscColPtr_ : ";
-        for(int i = 0; i < n+1; i++) {
+        for(int i = 0; i < n; i++) {
             std::cout << std::setw(2) << cscColPtr_temp[i] << " ";
         }
-        std::cout << "\n";
+        std::cout << " (" << cscColPtr_temp[n] << ")\n";
         
         for(int i = 0; i < n+1; i++) {
             if(cscColPtr_host[i] != cscColPtr_temp[i]) {
@@ -277,7 +281,7 @@ int ScanTransposer::csr2csc_gpumemory(
                 return COMPUTATION_ERROR;
             }
         }
-    }
+#endif
 
     // 5. reorder elements
     reorder_elements_caller(n, nnz, inter, intra, csrRowIdx, csrColIdx, csrVal, cscColPtr, cscRowIdx, cscVal);

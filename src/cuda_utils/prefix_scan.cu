@@ -3,7 +3,7 @@
 #include <iostream>
 #include <iomanip>
 
-int THREADS_PER_BLOCK = 8;
+int THREADS_PER_BLOCK = 512;
 int ELEMENTS_PER_BLOCK = THREADS_PER_BLOCK * 2;
 
 long sequential_scan(int* output, int* input, int length) {
@@ -67,133 +67,52 @@ float scan(int *output, int *input, int length, bool bcao) {
 	cudaMemcpy(d_out, output, arraySize, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_in, input, arraySize, cudaMemcpyHostToDevice);
 
-	// start timer
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-	cudaEventRecord(start);
-
 	if (length > ELEMENTS_PER_BLOCK) {
 		scanLargeDeviceArray(d_out, d_in, length, bcao);
 	}
 	else {
 		scanSmallDeviceArray(d_out, d_in, length, bcao);
 	}
-
-	// end timer
-	cudaEventRecord(stop);
-	cudaEventSynchronize(stop);
-	float elapsedTime = 0;
-	cudaEventElapsedTime(&elapsedTime, start, stop);
 
 	cudaMemcpy(output, d_out, arraySize, cudaMemcpyDeviceToHost);
 
 	cudaFree(d_out);
 	cudaFree(d_in);
-	cudaEventDestroy(start);
-	cudaEventDestroy(stop);
 
-	return elapsedTime;
+	return 0;
 }
 
 void scan_on_cuda(int *d_out, int *d_in, int length, bool bcao) {
 
-	int *d_in_host  = new int[length];
-	int *d_out_host = new int[length];
-
-	SAFE_CALL(cudaMemcpy( d_in_host,  d_in, length*sizeof(int), cudaMemcpyDeviceToHost));
-	std::cout << "\n\n### scan_on_cuda: d_in_host  : ";
-	for(int i = 0; i < length; i++) {
-        std::cout << std::setw(2) << d_in_host[i] << " ";
-    }
-	std::cout << " (" << d_in_host[length] << ")" << "\n";
-	
 	if (length > ELEMENTS_PER_BLOCK) {
-		std::cout << "scan_on_cuda: length=" << length << " chooses scanLargeDeviceArray\n";
 		scanLargeDeviceArray(d_out, d_in, length, bcao);
 	}
 	else {
-		std::cout << "scan_on_cuda: length=" << length << " chooses scanSmallDeviceArray\n";
 		scanSmallDeviceArray(d_out, d_in, length, bcao);
-		std::cout << "scan_on_cuda: ended scanSmallDeviceArray" << std::endl;
 	}
 
-	SAFE_CALL(cudaMemcpy( d_in_host,  d_in, length*sizeof(int), cudaMemcpyDeviceToHost));
-	std::cout << "\n\n### scan_on_cuda: d_in_host  : ";
-	for(int i = 0; i < length; i++) {
-        std::cout << std::setw(2) << d_in_host[i] << " ";
-    }
-	std::cout << " (" << d_in_host[length] << ")" << "\n";
-
-	SAFE_CALL(cudaMemcpy(d_out_host, d_out, length*sizeof(int), cudaMemcpyDeviceToHost));
-    std::cout << "### scan_on_cuda: d_out_host : ";
-	for(int i = 0; i < length; i++) {
-        std::cout << std::setw(2) << d_out_host[i] << " ";
-    }
-	std::cout << " (" << d_out_host[length] << ")" << "\n";
-
-	delete d_in_host;
-	delete d_out_host;
-	
-}
-
-__global__ void my_add(int *array, int len) {
-
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-
-	if(i < len) {
-
-		const int OFFSET = *(array - 1);
-
-		array[i] = array[i] + OFFSET;
-	}
+	return;
 }
 
 void scanLargeDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
 	int remainder = length % (ELEMENTS_PER_BLOCK);
-	std::cout << "scanLargeDeviceArray: remainder " << remainder << "\n";
 	if (remainder == 0) {
 		scanLargeEvenDeviceArray(d_out, d_in, length, bcao);
 	}
 	else {
 		// perform a large scan on a compatible multiple of elements
 		int lengthMultiple = length - remainder;
-		std::cout << "scanLargeDeviceArray: **** 16 elem ARRAY **** from=0 to=" << lengthMultiple << "\n";
 		scanLargeEvenDeviceArray(d_out, d_in, lengthMultiple, bcao);
 
 		// scan the remaining elements and add the (inclusive) last element of the large scan to this
 		int *startOfOutputArray = &(d_out[lengthMultiple]);
-		std::cout << "scanLargeDeviceArray: **** 1 elem ARRAY **** from=" << lengthMultiple << " len=" << remainder << "\n";
 		scanSmallDeviceArray(startOfOutputArray, &(d_in[lengthMultiple]), remainder, bcao);
 
-		std::cout << "scanLargeDeviceArray: add\n";
-
-		//const int OFFSET = d_out[lengthMultiple-1]; // ultimo elemento processato da `scanLargeEvenDeviceArray`
-
-		// a tutti gli elementi di d_out[lengthMultiple...length] aggiungo OFFSET
-		//for(int j = lengthMultiple; j < length; j++) {
-		//	d_out[j] += OFFSET;
-		//}
-
-		my_add<<<1, remainder>>>(startOfOutputArray, remainder);
-
-		//add<<<1, remainder>>>(startOfOutputArray, remainder, &(d_in[lengthMultiple - 1]), &(d_out[lengthMultiple - 1]));
-	
-		
-		/*__global__ void add(int *output, int length, int *n1, int *n2) {
-	int blockID = blockIdx.x;
-	int threadID = threadIdx.x;
-	int blockOffset = blockID * length;
-
-	output[blockOffset + threadID] += n1[blockID] + n2[blockID];
-}*/
-	
-	
+		add<<<1, remainder>>>(startOfOutputArray, remainder, &(d_in[lengthMultiple - 1]), &(d_out[lengthMultiple - 1]));
 	}
 }
 
 void scanSmallDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
-	
 	int powerOfTwo = nextPowerOfTwo(length);
 
 	if (bcao) {
@@ -202,57 +121,9 @@ void scanSmallDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
 	else {
 		prescan_arbitrary_unoptimized<<<1, (length + 1) / 2, 2 * powerOfTwo * sizeof(int)>>>(d_out, d_in, length, powerOfTwo);
 	}
-	
-	/*std::cout << "\t scanSmallDeviceArray: length=" << length << "; powerOfTwo=" << powerOfTwo << "\n";
-
-	int *d_out_host = new int[length];
-	int *d_in_host  = new int[length];
-	//SAFE_CALL(cudaMemcpy(d_out_host, d_out, length*sizeof(int), cudaMemcpyDeviceToHost));
-    SAFE_CALL(cudaMemcpy( d_in_host,  d_in, length*sizeof(int), cudaMemcpyDeviceToHost));
-	
-	std::cout << "d_in_host : ";
-	for(int i = 0; i < length; i++) {
-        std::cout << std::setw(2) << d_in_host[i] << " ";
-    }
-	std::cout << "\n";
-	
-	int n = length;	
-
-
-	// copio `d_in_host` dentro `d_out_host`
-	for(int i = 0; i < length; i++) {
-		const int temp = d_in_host[i];
-        d_out_host[i] = temp;
-    }
-
-	// applico prefix sum "in-place" che so che funziona (?)
-	for(int i = 0; i < n; i++) {
-        d_out_host[i+1] += d_out_host[i];
-    }
-    for(int i = n-1; i >= 0; i--) {
-        d_out_host[i+1] = d_out_host[i];
-    }
-    d_out_host[0] = 0;
-
-
-
-	std::cout << "d_out_host: ";
-	for(int i = 0; i < length; i++) {
-        std::cout << std::setw(2) << d_out_host[i] << " ";
-    }
-	std::cout << "\n";
-
-	SAFE_CALL(cudaMemcpy(d_out, d_out_host, length*sizeof(int), cudaMemcpyHostToDevice));
-    //SAFE_CALL(cudaMemcpy( d_in,  d_in_host, length*sizeof(int), cudaMemcpyHostToDevice));
-    
-	delete d_out_host;
-	delete d_in_host; */
 }
 
 void scanLargeEvenDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
-
-	std::cout << "\t scanLargeEvenDeviceArray: length " << length << "\n";
-	
 	const int blocks = length / ELEMENTS_PER_BLOCK;
 	const int sharedMemArraySize = ELEMENTS_PER_BLOCK * sizeof(int);
 
@@ -283,6 +154,11 @@ void scanLargeEvenDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
 	cudaFree(d_incr);
 }
 
+
+
+/*///////////////////////////////////*/
+/*            kernels.cu             */
+/*///////////////////////////////////*/
 #define SHARED_MEMORY_BANKS 32
 #define LOG_MEM_BANKS 5
 
@@ -529,6 +405,32 @@ __global__ void add(int *output, int length, int *n1, int *n2) {
 	output[blockOffset + threadID] += n1[blockID] + n2[blockID];
 }
 
+
+/*///////////////////////////////////*/
+/*            utils.cpp              */
+/*///////////////////////////////////*/
+void _checkCudaError(const char *message, cudaError_t err, const char *caller) {
+	if (err != cudaSuccess) {
+		fprintf(stderr, "Error in: %s\n", caller);
+		fprintf(stderr, message);
+		fprintf(stderr, ": %s\n", cudaGetErrorString(err));
+		exit(0);
+	}
+}
+
+void printResult(const char* prefix, int result, long nanoseconds) {
+	printf("  ");
+	printf(prefix);
+	printf(" : %i in %ld ms \n", result, nanoseconds / 1000);
+}
+
+void printResult(const char* prefix, int result, float milliseconds) {
+	printf("  ");
+	printf(prefix);
+	printf(" : %i in %f ms \n", result, milliseconds);
+}
+
+
 // from https://stackoverflow.com/a/3638454
 bool isPowerOfTwo(int x) {
 	return x && !(x & (x - 1));
@@ -551,3 +453,79 @@ long get_nanos() {
 	timespec_get(&ts, TIME_UTC);
 	return (long)ts.tv_sec * 1000000000L + ts.tv_nsec;
 }
+
+
+/*
+	Timings
+	'level 1' = blockscan
+	'l1 bcao' = blockscan with bcao
+	The number before the time is the final element of the scanned array
+	20000000 Elements
+	  host     : 89997032 in 42338 ms
+	  gpu      : 89997032 in 16.285631 ms
+	  gpu bcao : 89997032 in 8.554880 ms
+	10000000 Elements
+	  host     : 44983528 in 20749 ms
+	  gpu      : 44983528 in 7.860768 ms
+	  gpu bcao : 44983528 in 4.304064 ms
+	1000000 Elements
+	  host     : 4494474 in 2105 ms
+	  gpu      : 4494474 in 0.975648 ms
+	  gpu bcao : 4494474 in 0.600416 ms
+	10000 Elements
+	  host     : 45078 in 19 ms
+	  gpu      : 45078 in 0.213760 ms
+	  gpu bcao : 45078 in 0.192128 ms
+	5000 Elements
+	  host     : 22489 in 11 ms
+	  gpu      : 22489 in 0.169312 ms
+	  gpu bcao : 22489 in 0.148832 ms
+	4096 Elements
+	  host     : 18294 in 9 ms
+	  gpu      : 18294 in 0.132672 ms
+	  gpu bcao : 18294 in 0.128480 ms
+	2048 Elements
+	  host     : 9149 in 4 ms
+	  gpu      : 9149 in 0.140736 ms
+	  gpu bcao : 9149 in 0.126944 ms
+	2000 Elements
+	  host     : 8958 in 3 ms
+	  gpu      : 8958 in 0.178912 ms
+	  gpu bcao : 8958 in 0.214464 ms
+	1000 Elements
+	  host     : 4483 in 2 ms
+	  gpu      : 4483 in 0.020128 ms
+	  gpu bcao : 4483 in 0.010784 ms
+	  level 1  : 4483 in 0.018080 ms
+	  l1 bcao  : 4483 in 0.010400 ms
+	500 Elements
+	  host     : 2203 in 4 ms
+	  gpu      : 2203 in 0.013440 ms
+	  gpu bcao : 2203 in 0.009664 ms
+	  level 1  : 2203 in 0.013280 ms
+	  l1 bcao  : 2203 in 0.010176 ms
+	100 Elements
+	  host     : 356 in 0 ms
+	  gpu      : 356 in 0.008512 ms
+	  gpu bcao : 356 in 0.009280 ms
+	  level 1  : 356 in 0.008896 ms
+	  l1 bcao  : 356 in 0.009056 ms
+	64 Elements
+	  host     : 221 in 0 ms
+	  gpu      : 221 in 0.007584 ms
+	  gpu bcao : 221 in 0.008960 ms
+	  level 1  : 221 in 0.007360 ms
+	  l1 bcao  : 221 in 0.008352 ms
+	8 Elements
+	  host     : 24 in 0 ms
+	  gpu      : 24 in 0.006240 ms
+	  gpu bcao : 24 in 0.007392 ms
+	  level 1  : 24 in 0.006176 ms
+	  l1 bcao  : 24 in 0.007424 ms
+	5 Elements
+	  host     : 12 in 0 ms
+	  gpu      : 12 in 0.006144 ms
+	  gpu bcao : 12 in 0.007296 ms
+	  level 1  : 12 in 0.006048 ms
+	  l1 bcao  : 12 in 0.007328 ms
+*/

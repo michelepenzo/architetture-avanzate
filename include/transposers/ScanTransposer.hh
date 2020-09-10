@@ -2,7 +2,7 @@
 
 #include "CudaTransposer.hh"
 
-#define SCANTRANS_DEBUG_ENABLE 1
+#define SCANTRANS_DEBUG_ENABLE 0
 
 class ScanTransposer : public CudaTransposer
 {
