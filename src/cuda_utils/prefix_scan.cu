@@ -1,6 +1,9 @@
 #include "cuda_utils/prefix_scan.hh"
+#include "transposers/CudaTransposer.hh"
+#include <iostream>
+#include <iomanip>
 
-int THREADS_PER_BLOCK = 512;
+int THREADS_PER_BLOCK = 8;
 int ELEMENTS_PER_BLOCK = THREADS_PER_BLOCK * 2;
 
 long sequential_scan(int* output, int* input, int length) {
@@ -95,35 +98,102 @@ float scan(int *output, int *input, int length, bool bcao) {
 
 void scan_on_cuda(int *d_out, int *d_in, int length, bool bcao) {
 
+	int *d_in_host  = new int[length];
+	int *d_out_host = new int[length];
+
+	SAFE_CALL(cudaMemcpy( d_in_host,  d_in, length*sizeof(int), cudaMemcpyDeviceToHost));
+	std::cout << "\n\n### scan_on_cuda: d_in_host  : ";
+	for(int i = 0; i < length; i++) {
+        std::cout << std::setw(2) << d_in_host[i] << " ";
+    }
+	std::cout << " (" << d_in_host[length] << ")" << "\n";
+	
 	if (length > ELEMENTS_PER_BLOCK) {
+		std::cout << "scan_on_cuda: length=" << length << " chooses scanLargeDeviceArray\n";
 		scanLargeDeviceArray(d_out, d_in, length, bcao);
 	}
 	else {
+		std::cout << "scan_on_cuda: length=" << length << " chooses scanSmallDeviceArray\n";
 		scanSmallDeviceArray(d_out, d_in, length, bcao);
+		std::cout << "scan_on_cuda: ended scanSmallDeviceArray" << std::endl;
 	}
 
+	SAFE_CALL(cudaMemcpy( d_in_host,  d_in, length*sizeof(int), cudaMemcpyDeviceToHost));
+	std::cout << "\n\n### scan_on_cuda: d_in_host  : ";
+	for(int i = 0; i < length; i++) {
+        std::cout << std::setw(2) << d_in_host[i] << " ";
+    }
+	std::cout << " (" << d_in_host[length] << ")" << "\n";
+
+	SAFE_CALL(cudaMemcpy(d_out_host, d_out, length*sizeof(int), cudaMemcpyDeviceToHost));
+    std::cout << "### scan_on_cuda: d_out_host : ";
+	for(int i = 0; i < length; i++) {
+        std::cout << std::setw(2) << d_out_host[i] << " ";
+    }
+	std::cout << " (" << d_out_host[length] << ")" << "\n";
+
+	delete d_in_host;
+	delete d_out_host;
+	
 }
 
+__global__ void my_add(int *array, int len) {
+
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if(i < len) {
+
+		const int OFFSET = *(array - 1);
+
+		array[i] = array[i] + OFFSET;
+	}
+}
 
 void scanLargeDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
 	int remainder = length % (ELEMENTS_PER_BLOCK);
+	std::cout << "scanLargeDeviceArray: remainder " << remainder << "\n";
 	if (remainder == 0) {
 		scanLargeEvenDeviceArray(d_out, d_in, length, bcao);
 	}
 	else {
 		// perform a large scan on a compatible multiple of elements
 		int lengthMultiple = length - remainder;
+		std::cout << "scanLargeDeviceArray: **** 16 elem ARRAY **** from=0 to=" << lengthMultiple << "\n";
 		scanLargeEvenDeviceArray(d_out, d_in, lengthMultiple, bcao);
 
 		// scan the remaining elements and add the (inclusive) last element of the large scan to this
 		int *startOfOutputArray = &(d_out[lengthMultiple]);
+		std::cout << "scanLargeDeviceArray: **** 1 elem ARRAY **** from=" << lengthMultiple << " len=" << remainder << "\n";
 		scanSmallDeviceArray(startOfOutputArray, &(d_in[lengthMultiple]), remainder, bcao);
 
-		add<<<1, remainder>>>(startOfOutputArray, remainder, &(d_in[lengthMultiple - 1]), &(d_out[lengthMultiple - 1]));
+		std::cout << "scanLargeDeviceArray: add\n";
+
+		//const int OFFSET = d_out[lengthMultiple-1]; // ultimo elemento processato da `scanLargeEvenDeviceArray`
+
+		// a tutti gli elementi di d_out[lengthMultiple...length] aggiungo OFFSET
+		//for(int j = lengthMultiple; j < length; j++) {
+		//	d_out[j] += OFFSET;
+		//}
+
+		my_add<<<1, remainder>>>(startOfOutputArray, remainder);
+
+		//add<<<1, remainder>>>(startOfOutputArray, remainder, &(d_in[lengthMultiple - 1]), &(d_out[lengthMultiple - 1]));
+	
+		
+		/*__global__ void add(int *output, int length, int *n1, int *n2) {
+	int blockID = blockIdx.x;
+	int threadID = threadIdx.x;
+	int blockOffset = blockID * length;
+
+	output[blockOffset + threadID] += n1[blockID] + n2[blockID];
+}*/
+	
+	
 	}
 }
 
 void scanSmallDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
+	
 	int powerOfTwo = nextPowerOfTwo(length);
 
 	if (bcao) {
@@ -132,9 +202,57 @@ void scanSmallDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
 	else {
 		prescan_arbitrary_unoptimized<<<1, (length + 1) / 2, 2 * powerOfTwo * sizeof(int)>>>(d_out, d_in, length, powerOfTwo);
 	}
+	
+	/*std::cout << "\t scanSmallDeviceArray: length=" << length << "; powerOfTwo=" << powerOfTwo << "\n";
+
+	int *d_out_host = new int[length];
+	int *d_in_host  = new int[length];
+	//SAFE_CALL(cudaMemcpy(d_out_host, d_out, length*sizeof(int), cudaMemcpyDeviceToHost));
+    SAFE_CALL(cudaMemcpy( d_in_host,  d_in, length*sizeof(int), cudaMemcpyDeviceToHost));
+	
+	std::cout << "d_in_host : ";
+	for(int i = 0; i < length; i++) {
+        std::cout << std::setw(2) << d_in_host[i] << " ";
+    }
+	std::cout << "\n";
+	
+	int n = length;	
+
+
+	// copio `d_in_host` dentro `d_out_host`
+	for(int i = 0; i < length; i++) {
+		const int temp = d_in_host[i];
+        d_out_host[i] = temp;
+    }
+
+	// applico prefix sum "in-place" che so che funziona (?)
+	for(int i = 0; i < n; i++) {
+        d_out_host[i+1] += d_out_host[i];
+    }
+    for(int i = n-1; i >= 0; i--) {
+        d_out_host[i+1] = d_out_host[i];
+    }
+    d_out_host[0] = 0;
+
+
+
+	std::cout << "d_out_host: ";
+	for(int i = 0; i < length; i++) {
+        std::cout << std::setw(2) << d_out_host[i] << " ";
+    }
+	std::cout << "\n";
+
+	SAFE_CALL(cudaMemcpy(d_out, d_out_host, length*sizeof(int), cudaMemcpyHostToDevice));
+    //SAFE_CALL(cudaMemcpy( d_in,  d_in_host, length*sizeof(int), cudaMemcpyHostToDevice));
+    
+	delete d_out_host;
+	delete d_in_host; */
 }
 
 void scanLargeEvenDeviceArray(int *d_out, int *d_in, int length, bool bcao) {
+
+	std::cout << "\t scanLargeEvenDeviceArray: length " << length << "\n";
+	
 	const int blocks = length / ELEMENTS_PER_BLOCK;
 	const int sharedMemArraySize = ELEMENTS_PER_BLOCK * sizeof(int);
 

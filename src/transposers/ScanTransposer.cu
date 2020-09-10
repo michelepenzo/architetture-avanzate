@@ -95,6 +95,7 @@ void ScanTransposer::prefix_sum(int n, int *cscColPtr) {
     for(int i = n-1; i >= 0; i--) {
         cscColPtr[i+1] = cscColPtr[i];
     }
+    cscColPtr[0] = 0;
 }
 
 /// =============================================================
@@ -147,8 +148,19 @@ int ScanTransposer::csr2csc_gpumemory(
     int* cscColPtr_host, int* cscRowIdx_host, float* cscVal_host)
 {
     int *intra, *inter, *csrRowIdx;
+    int *intra_host, *inter_host, *csrRowIdx_host;
+    
+#if SCANTRANS_DEBUG_ENABLE==1
+    // allocate var for comparison 
+    int *inter_temp = new int[(N_THREAD+1)*n]();
+    int *intra_temp = new int[nnz]();
+    int *cscColPtr_temp = new int[n+1]();
+#endif
 
     // resource allocation
+    csrRowIdx_host = new int[nnz];
+    intra_host = new int[nnz];
+    inter_host = new int[(N_THREAD + 1) * n];
     cudaMalloc(&csrRowIdx, nnz*sizeof(int)); // no need to set `csrRowIdx` to zeros
     cudaMalloc(&intra,     nnz*sizeof(int));
     cudaMalloc(&inter,     ((N_THREAD + 1) * n)*sizeof(int));
@@ -156,66 +168,115 @@ int ScanTransposer::csr2csc_gpumemory(
     SAFE_CALL(cudaMemset(inter, 0, ((N_THREAD + 1) * n)*sizeof(int)))
 
     // 1. fill `csrRowIdx`
-    //std::cout << "1. cscrowidx_caller" << std::endl;
     csrrowidx_caller(m, csrRowPtr, csrRowIdx);
+
+    // debug check
     if(SCANTRANS_DEBUG_ENABLE) {
-        int* csrRowIdx_host = new int[nnz];
+        std::cout << "Step 1: csrrowidx_caller" << std::endl;
+        // retrieve value from GPU
         SAFE_CALL(cudaMemcpy(csrRowIdx_host, csrRowIdx, nnz*sizeof(int), cudaMemcpyDeviceToHost));
-        print_array("csrRowIdx", csrRowIdx_host, nnz);
-        delete csrRowIdx_host;
+        // compare with serial 
+        for(int i = 0; i < m; i++) {
+            for(int j = csrRowPtr_host[i]; j < csrRowPtr_host[i+1]; j++) {
+                if(csrRowIdx_host[j] != i) {
+                    std::cout << "Error: i=" << i << ", j=" << j 
+                              << ", csrRowPtr_host[i]=" 
+                              << csrRowPtr_host[i]
+                              << ", csrRowPtr_host[i+1]="
+                              << csrRowPtr_host[i+1]
+                              << ", csrRowIdx_host[j]="
+                              << csrRowIdx_host[j] << std::endl;
+                    return COMPUTATION_ERROR;
+                }
+            }
+        }
     }
 
     // 2. fill `inter`, `intra`
-    //std::cout << "2. inter_intra_caller" << std::endl;
     inter_intra_caller(n, nnz, inter, intra, csrColIdx);
-    if(0) {
-        int* intra_host = new int[nnz];
-        int* inter_host = new int[((N_THREAD + 1) * n)];
+
+    // debug check
+    if(SCANTRANS_DEBUG_ENABLE) {
+
+        std::cout << "Step 2: inter_intra_caller" << std::endl;
+
+        // retrieve values
         SAFE_CALL(cudaMemcpy(intra_host, intra, nnz*sizeof(int),              cudaMemcpyDeviceToHost));
         SAFE_CALL(cudaMemcpy(inter_host, inter, ((N_THREAD+1)*n)*sizeof(int), cudaMemcpyDeviceToHost));
-        print_array("intra", intra_host, nnz);
-        std::cout << "inter: " << std::endl;
-        for(int i = 0; i < N_THREAD+1; i++) {
-            std::cout << "Row " << (i-1) << ": ";
-            for(int j = 0; j < n; j++) {
-                std::cout << inter_host[i * n + j] << " ";
+
+        for(int tid = 0; tid < N_THREAD; tid++) {
+
+            int len = DIV_THEN_CEIL(nnz, N_THREAD);
+            int start = tid * len;
+            
+            for(int i = 0; i < len && start + i < nnz; i++) {
+                int index = (tid + 1) * n + csrColIdx_host[start + i];
+                intra_temp[start + i] = inter_temp[index];
+                inter_temp[index]++;
             }
-            std::cout << std::endl;
         }
-        delete intra_host;
-        delete inter_host;
+        
+        for(int i = 0; i < nnz; i++) {
+            if(intra_host[i] != intra_temp[i]) {
+                std::cout << "Error on intra_host index " << i << " value=" << intra_host[i] << " expected=" << intra_temp[i] << std::endl;
+                return COMPUTATION_ERROR;
+            }
+        }
+
+        for(int i = 0; i < (N_THREAD+1)*n; i++) {
+            if(inter_host[i] != inter_temp[i]) {
+                std::cout << "Error on inter_host index " << i << " value=" << inter_host[i] << " expected=" << inter_temp[i] << std::endl;
+                return COMPUTATION_ERROR;
+            }
+        }
+        
+       
     }
 
     // 3. apply vertical scan
-    //std::cout << "3. vertical_scan_caller" << std::endl;
     vertical_scan_caller(n, inter, cscColPtr);
-    if(0) {
-        int* inter_host = new int[((N_THREAD + 1) * n)];
+
+    if(SCANTRANS_DEBUG_ENABLE) {
+        std::cout << "Step 3: vertical_scan_caller" << std::endl;
+
         SAFE_CALL(cudaMemcpy(inter_host, inter, ((N_THREAD+1)*n)*sizeof(int), cudaMemcpyDeviceToHost));
-        std::cout << "inter: " << std::endl;
-        for(int i = 0; i < N_THREAD+1; i++) {
-            std::cout << "Row " << (i-1) << ": ";
-            for(int j = 0; j < n; j++) {
-                std::cout << inter_host[i * n + j] << " ";
+        SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
+        
+        for(int i = 0; i < n; i++) {
+            for(int j = 0; j < N_THREAD; j++) {
+                inter_temp[(j+1)*n+i] += inter_temp[j*n+i]; // inter[j+1][i] += inter[j][i];
+            
+                if(inter_host[(j+1)*n+i] != inter_temp[(j+1)*n+i]) {
+                    std::cout << "Error on inter_host index " << ((j+1)*n+i) << " value=" << inter_host[(j+1)*n+i] << " expected=" << inter_temp[(j+1)*n+i] << std::endl;
+                    return COMPUTATION_ERROR;
+                }
+            
             }
-            std::cout << std::endl;
+            cscColPtr_temp[i] = inter_temp[N_THREAD*n+i]; // cscColPtr[i+1] = inter[nthread][i];
         }
-        delete inter_host;
     }
 
     // 4. apply prefix sum
-    {
-        //scan_on_cuda(cscColPtr, cscColPtr, n+1, true);
+    std::cout << "Step 4: scan_on_cuda" << std::endl;
+    scan_on_cuda(cscColPtr, cscColPtr, n, true);
 
-        int *cscColPtr_host = new int[n+1];
+    if(SCANTRANS_DEBUG_ENABLE) {
         SAFE_CALL(cudaMemcpy(cscColPtr_host, cscColPtr, (n+1)*sizeof(int), cudaMemcpyDeviceToHost));
-        prefix_sum(n, cscColPtr_host);
-        cscColPtr_host[0] = 0;
-        SAFE_CALL(cudaMemcpy(cscColPtr, cscColPtr_host, (n+1)*sizeof(int), cudaMemcpyHostToDevice));
-        if(SCANTRANS_DEBUG_ENABLE) {
-            print_array("cscColPtr", cscColPtr_host, n+1);
+        
+        prefix_sum(n, cscColPtr_temp);
+
+        std::cout << "### scan_on_cuda: cscColPtr_ : ";
+        for(int i = 0; i < n+1; i++) {
+            std::cout << std::setw(2) << cscColPtr_temp[i] << " ";
         }
-        delete cscColPtr_host;
+        std::cout << "\n";
+        
+        for(int i = 0; i < n+1; i++) {
+            if(cscColPtr_host[i] != cscColPtr_temp[i]) {
+                std::cout << "Error on cscColPtr_host index " << i << " value=" << cscColPtr_host[i] << " expected=" << cscColPtr_temp[i] << std::endl;
+                return COMPUTATION_ERROR;
+            }
+        }
     }
 
     // 5. reorder elements
@@ -225,6 +286,15 @@ int ScanTransposer::csr2csc_gpumemory(
     cudaFree(csrRowIdx);
     cudaFree(intra);
     cudaFree(inter); 
+    delete intra_host;
+    delete inter_host;
+    delete csrRowIdx_host;
+
+#if SCANTRANS_DEBUG_ENABLE==1
+    delete intra_temp;
+    delete inter_temp;
+    delete cscColPtr_temp;
+#endif
 
     return COMPUTATION_OK;
 }
