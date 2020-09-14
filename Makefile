@@ -14,7 +14,7 @@ else
 endif
 
 # This is the whole executable
-$(EXE): $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o $(LOCAL_BUILD)/prefix_scan.o
+$(EXE): $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/MergeTransposer.o $(LOCAL_BUILD)/fort.o $(LOCAL_BUILD)/prefix_scan.o
 	nvcc $(GENCODE_FLAGS) -o $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o $(LOCAL_BUILD)/prefix_scan.o
 
 # Just main.cu. $@ is the target (eg: main.o) and $< is the source (eg: main.cu)
@@ -22,6 +22,9 @@ $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 $(LOCAL_BUILD)/ScanTransposer.o: $(LOCAL_SRC)/transposers/ScanTransposer.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
+$(LOCAL_BUILD)/MergeTransposer.o: $(LOCAL_SRC)/transposers/MergeTransposer.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 $(LOCAL_BUILD)/prefix_scan.o: $(LOCAL_SRC)/cuda_utils/prefix_scan.cu
@@ -36,7 +39,7 @@ $(LOCAL_BUILD)/fort.o: $(LOCAL_SRC)/libfort/fort.c
 .PHONY: clean test
 
 clean:
-	@rm -f $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o $(LOCAL_BUILD)/prefix_scan.o
+	@rm -f $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/MergeTransposer.o $(LOCAL_BUILD)/ScanTransposer.o $(LOCAL_BUILD)/fort.o $(LOCAL_BUILD)/prefix_scan.o
 
 test:
 	@echo "Starting test application...\n\n"
