@@ -27,7 +27,6 @@ void compress_pointers_all(int n, int nnz, int n_thread,
 
         int start_index = i*len;
         int end_index = (i+1)*len < nnz ? (i+1)*len : nnz;
-        int current_len = end_index - start_index;
 
         int* colPtr = blockColPtr + (i * (n+1));
         compress_pointers(n, start_index, end_index, colIdx, colPtr);
@@ -42,9 +41,9 @@ void sort_for_column(
 
     class sort_indices {
     private:
-        const int const * mparr;
+        int const * const mparr;
     public:
-        sort_indices(const int const * parr) : mparr(parr) { }
+        sort_indices(int const * const parr) : mparr(parr) { }
         bool operator()(int i, int j) const { return mparr[i]<mparr[j]; }
     };
 
@@ -73,9 +72,9 @@ void sort_for_column(
 
 void merge_pcsc_serial(
     int begin, int end,
-    int const colPtrA[], int const rowIdxA[], float const valA[],
-    int const colPtrB[], int const rowIdxB[], float const valB[],
-    int colPtrC[], int rowIdxC[], int valC[])
+    int colPtrA[], int rowIdxA[], float valA[],
+    int colPtrB[], int rowIdxB[], float valB[],
+    int colPtrC[], int rowIdxC[], float valC[])
 {
 
     std::cout << "begin: " << begin << "\nend: " << end << std::endl;
@@ -86,22 +85,22 @@ void merge_pcsc_serial(
     for(int i = begin; i < end; i++) {
         int sa = colPtrA[i], la = colPtrA[i+1] - sa;
         int sb = colPtrB[i], lb = colPtrB[i+1] - sb;
-        int sc = colPtrC[i], lc = colPtrC[i+1] - sc;
+        int sc = colPtrC[i]; // lc = colPtrC[i+1] - sc;
 
         for(int j = 0; j < la; j++) {
             rowIdxC[sc+j] = rowIdxA[sa + j];
             valC[sc+j] = valA[sa + j];
 
-            std::cout << "rowIdxC: " << rowIdxC[sc+j] << "\tvalC:" << val[sc+j];
+            std::cout << "rowIdxC: " << rowIdxC[sc+j] << "\tvalC:" << valC[sc+j];
         }
 
         std::cout << std::endl;
         sc = sc + la;
-        for(int j = 0; j < la; j++) {
+        for(int j = 0; j < lb; j++) {
             rowIdxC[sc+j] = rowIdxC[sb + j];
             valC[sc+j] = valC[sb + j];
 
-            std::cout << "rowIdxC: " << rowIdxC[sc+j] << "\tvalC:" << val[sc+j];
+            std::cout << "rowIdxC: " << rowIdxC[sc+j] << "\tvalC:" << valC[sc+j];
         }
         std::cout << std::endl;
     }
@@ -146,10 +145,10 @@ private:
 
     const int N_THREAD = 100;
 
-    virtual int csr2csc(
+    int csr2csc(
         int m, int n, int nnz, 
-        int const csrRowPtr[], int const csrColIdx[], float const csrVal[], 
-        int* cscColPtr, int* cscRowIdx, float* cscVal) 
+        int *csrRowPtr, int *csrColIdx, float *csrVal, 
+        int *cscColPtr, int *cscRowIdx, float *cscVal) 
     {
         merge_buffer ping(n, nnz, N_THREAD), pong(n, nnz, N_THREAD);
         ping.allocate();
@@ -166,7 +165,7 @@ private:
         }
 
         
-        std::cout << "riempio blocchi" << srd::endl;
+        std::cout << "riempio blocchi" << std::endl;
         // 2. riempio i vari blocchi - seriale
         {
             int* colIdxSorted = new int[nnz];
@@ -180,14 +179,14 @@ private:
             // riempio `blockColPtr` di pong
             compress_pointers_all(n, nnz, N_THREAD, colIdxSorted, pong.blockColPtr);
 
-            std::coud << "pong.blockColPtr: " << std::endl;
-            pong.print_blockColPtr;
+            std::cout << "pong.blockColPtr: " << std::endl;
+            pong.print_blockColPtr();
 
-            std::coud << std::endl << "pong.rowIdx: " << std::endl;
-            pong.print_rowIdx;
+            std::cout << std::endl << "pong.rowIdx: " << std::endl;
+            pong.print_rowIdx();
 
-            std::coud << std::endl << "pong.val: " << std::endl;
-            pong.print_val;
+            std::cout << std::endl << "pong.val: " << std::endl;
+            pong.print_val();
 
 
             delete colIdxSorted;
@@ -200,7 +199,7 @@ private:
         std::cout << "merge_buffer creato" << std::endl;
 
         // 4. chiamo il merge
-        for(int nblocks = N_THREAD; nblocks >= 2; nblocks /= 2)
+        for(int nblocks = N_THREAD; nblocks >= 2; nblocks /= 2) {
 
             std::cout << "chiamo merge, nblocks: " << nblocks << std::endl; 
             const int len = DIV_THEN_CEIL(nnz, nblocks);
@@ -220,10 +219,12 @@ private:
             full = 1-full; // ping pong della memoria
         }
 
-        std::cout << "deallocate"
+        std::cout << "deallocate\n";
+        
         // deallocazione
         ping.deallocate();
         pong.deallocate();
+        return 0;
     }
 
 public:

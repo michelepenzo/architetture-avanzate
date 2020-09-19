@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     tester.run(false);
     tester.print();
 */
-    MergeTransposers sc(256, 256);
+    MergeTransposer sc;
     Tester tester;
     tester.add_test(5000, 4000, 1000, REPETITION_NUMBER);
     tester.add_processor(&sc, "SCANTRANS");
