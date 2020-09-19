@@ -5,6 +5,7 @@
 #include "cuda_utils/prefix_scan.hh"
 #include "tester/Tester.hh"
 #include "transposers/ScanTransposer.hh"
+#include "transposers/MergeTransposer.hh"
 #include "transposers/CusparseTransposer.hh"
 #include <cuda_runtime.h>
 
@@ -13,7 +14,7 @@
 int main(int argc, char **argv) {
 
     findCudaDevice(argc, (const char **) argv);
-
+/*
     CusparseTransposer cu;
     ScanTransposer sc;
     ScanTransposer sc2(256, 1024);
@@ -30,13 +31,13 @@ int main(int argc, char **argv) {
     //tester.add_processor(&sc3, "SCAN256-1.5k");
     tester.run(false);
     tester.print();
-
-    // ScanTransposer sc(256, 256);
-    // Tester tester;
-    // tester.add_test(5000, 4000, 1000, REPETITION_NUMBER);
-    // tester.add_processor(&sc, "SCANTRANS");
-    // tester.run(true);
-    // tester.print();
+*/
+    MergeTransposers sc(256, 256);
+    Tester tester;
+    tester.add_test(5000, 4000, 1000, REPETITION_NUMBER);
+    tester.add_processor(&sc, "SCANTRANS");
+    tester.run(true);
+    tester.print();
     
     return 0;
 }
