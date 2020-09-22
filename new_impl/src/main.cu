@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv) {
 
-    matrix::SparseMatrix *s = new matrix::SparseMatrix(5, 5, 10);
+    /*matrix::SparseMatrix *s = new matrix::SparseMatrix(5, 5, 10);
     s->print();
 
     matrix::SparseMatrix *st = transposer::transpose(s, transposer::SERIAL);
@@ -17,6 +17,10 @@ int main(int argc, char **argv) {
     // deallocation
     if(s != NULL)  delete s;
     if(st != NULL) delete st;
-    if(st2 != NULL) delete st2;
+    if(st2 != NULL) delete st2;*/
+
+    bool ok = transposer::test::test_indexes_to_pointers();
+    std::cout << "OK: " << ok << "\n";
+
     return 0;
 }

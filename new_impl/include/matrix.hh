@@ -1,4 +1,7 @@
 #pragma once
+#ifndef MATRIX_HH_
+#define MATRIX_HH_
+
 #include <iostream>
 #include <iomanip>
 #include <set>
@@ -89,3 +92,5 @@ namespace matrix {
     };
 
 }
+
+#endif

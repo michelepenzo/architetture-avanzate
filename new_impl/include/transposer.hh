@@ -1,9 +1,24 @@
 #pragma once
+#ifndef TRANSPOSER_HH_
+#define TRANSPOSER_HH_
+
+
 #include <algorithm>
 #include "utilities.hh"
 #include "matrix.hh"
 
 namespace transposer {
+
+    namespace test {
+
+        bool test_indexes_to_pointers();
+
+    }
+
+    namespace cuda {
+        void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len);
+    }
+
 
     void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len) {
         for(int i = 0; i < idx_len; i++) {
@@ -349,3 +364,6 @@ namespace transposer {
         } 
     }
 }
+
+
+#endif

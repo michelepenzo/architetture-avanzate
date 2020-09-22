@@ -1,4 +1,7 @@
 #pragma once
+#ifndef UTILITIES_HH_
+#define UTILITIES_HH_
+
 #include <iostream>
 #include <cstring>
 #include <cstdio>
@@ -6,6 +9,8 @@
 #include <string>
 #include <type_traits>
 #include <cassert>
+#include <random>
+#include <chrono>
 #include <cuda_runtime.h>
 
 #define INPUT_ARRAY const * const
@@ -40,7 +45,7 @@ namespace utils {
 
     NUMERIC_TEMPLATE(T)
     inline bool equals(T INPUT_ARRAY first, T INPUT_ARRAY second, int len) {
-        for(int i = 0; i < len; i++) {
+        for(int i = 0; i < len; i++) { // metti std::equal
             if(first[i] != second[i]) {
                 return false;
             }
@@ -67,6 +72,20 @@ namespace utils {
         int* indices = new int[len];
         for(int i = 0; i < len; i++) indices[i] = i;
         return indices;
+    }
+
+    // crea un array di `n` elementi compresi tra `min` e `max`
+    inline int* create_random_array(int min, int max, int len) {
+        
+        const unsigned SEED = std::chrono::system_clock::now().time_since_epoch().count();
+        std::default_random_engine generator(SEED);
+        std::uniform_int_distribution<int> values_distrib(min, max);
+
+        int* array = new int[len];
+        for(int i = 0; i < len; i++) {
+            array[i] = values_distrib(generator);
+        }
+        return array;
     }
 
     inline int* copy_array(int INPUT_ARRAY array, int len) {
@@ -116,3 +135,6 @@ namespace utils {
     }
 
 }
+
+
+#endif

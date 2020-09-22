@@ -14,11 +14,13 @@ else
 endif
 
 # This is the whole executable
-$(EXE): $(LOCAL_BUILD)/main.o 
-	nvcc $(GENCODE_FLAGS) -o $(EXE) $(LOCAL_BUILD)/main.o
+$(EXE): $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/transposer.o
+	nvcc $(GENCODE_FLAGS) -o $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/transposer.o
 
-# Just main.cu. $@ is the target (eg: main.o) and $< is the source (eg: main.cu)
 $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
+$(LOCAL_BUILD)/transposer.o: $(LOCAL_SRC)/transposer.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 
@@ -27,7 +29,7 @@ $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
 .PHONY: clean test
 
 clean:
-	@rm -f $(EXE) $(LOCAL_BUILD)/main.o
+	@rm -f $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/transposer.o
 
 test:
 	@echo "Starting test application...\n\n"
