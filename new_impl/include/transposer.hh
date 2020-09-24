@@ -2,69 +2,57 @@
 #ifndef TRANSPOSER_HH_
 #define TRANSPOSER_HH_
 
-
 #include <algorithm>
 #include "utilities.hh"
 #include "matrix.hh"
 
 namespace transposer {
 
-    namespace test {
+    enum Mode {
+        SERIAL          = 0,
+        CUSPARSE        = 1,
+        SCAN            = 2,
+        SCAN_REFERENCE  = 3,
+        MERGE           = 4,
+        MERGE_REFERENCE = 5
+    };
 
-        bool test_indexes_to_pointers();
-
-    }
+    matrix::SparseMatrix* transpose(matrix::SparseMatrix *sm, Mode mode);
 
     namespace cuda {
+
         void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len);
+
+        void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);
+    
+        void sort3(int INPUT_ARRAY key_in, int INPUT_ARRAY val1_in, int INPUT_ARRAY val2_in, int *key_out, int *val1_out, int *val2_out, int len);
+    
     }
 
+    namespace reference {
+        
+        void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len);
 
-    void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len) {
-        for(int i = 0; i < idx_len; i++) {
-            ASSERT_LIMIT(idx[i]+1, ptr_len);
-            ptr[idx[i]+1]++;
-        }
+        void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);
+
+        void sort3(int INPUT_ARRAY key_in, int INPUT_ARRAY val1_in, int INPUT_ARRAY val2_in, int *key_out, int *val1_out, int *val2_out, int len);
+    
+        int serial_csr2csc(
+            int m, int n, int nnz, 
+            int INPUT_ARRAY csrRowPtr, int INPUT_ARRAY csrColIdx, float INPUT_ARRAY csrVal, 
+            int *cscColPtr, int *cscRowIdx, float *cscVal
+        );
     }
 
-    void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len) {
-        for(int j = 0; j < ptr_len; j++) {
-            for(int i = ptr[j]; i < ptr[j+1]; i++) {
-                ASSERT_LIMIT(i, idx_len);
-                idx[i] = j;
-            }
-        }
-    }
+    namespace component_test {
 
-    int serial_csr2csc(
-        int m, int n, int nnz, 
-        int INPUT_ARRAY csrRowPtr, int INPUT_ARRAY csrColIdx, float INPUT_ARRAY csrVal, 
-        int *cscColPtr, int *cscRowIdx, float *cscVal
-    ) {
-        // 1. costruisco `cscColPtr` come istogramma delle frequenze degli elementi per ogni colonna
-        indexes_to_pointers(csrColIdx, nnz, cscColPtr, n+1);
+        bool indexes_to_pointers();
 
-        // 2. applico prefix_sum per costruire corretto `cscColPtr` (ogni cella tiene conto dei precedenti)
-        utils::prefix_sum(cscColPtr, n+1);
+        bool pointers_to_indexes();
 
-        // 3. sistemo indici di riga e valori
-        int* curr = new int[n](); 
-
-        for(int i = 0; i < m; i++) {
-            for(int j = csrRowPtr[i]; j < csrRowPtr[i+1]; j++) {
-                int col = csrColIdx[j];
-                int loc = cscColPtr[col] + curr[col];
-                curr[col]++;
-                cscRowIdx[loc] = i;
-                cscVal[loc] = csrVal[j];
-            }
-        }
-
-        delete[] curr;
-        return COMPUTATION_OK;
     }
     
-
+    /*
     void sort_by_column(int len, 
         int INPUT_ARRAY colIdxIn, int INPUT_ARRAY rowIdxIn, float INPUT_ARRAY valIn,
         int *colIdxOut, int *rowIdxOut, float *valOut
@@ -273,7 +261,7 @@ namespace transposer {
 
             buffer[1-full]->reset();
 
-            for(int i = 0 /* thread number */; i < nblocks/2; i++) {
+            for(int i = 0 ; i < nblocks/2; i++) {
 
                 if(IS_BLOCK_ODD && (i == nblocks/2-1)) {
                     DPRINT_MSG("Join %d + %d + %d", 2*i, 2*i+1, 2*i+2)
@@ -322,47 +310,8 @@ namespace transposer {
         delete colIdxSorted;
         delete buffer[0], buffer[1];
         return COMPUTATION_OK;
-    }
-
-    enum TransposeMode {
-        SERIAL          = 0,
-        CUSPARSE        = 1,
-        SCAN            = 2,
-        SCAN_REFERENCE  = 3,
-        MERGE           = 4,
-        MERGE_REFERENCE = 5
-    };
-
-    matrix::SparseMatrix* transpose(matrix::SparseMatrix *sm, TransposeMode mode) {
-
-        matrix::SparseMatrix* result = NULL;
-        int esito = COMPUTATION_ERROR;
-
-        if(mode == SERIAL) {
-            result = new matrix::SparseMatrix(sm->n, sm->m, sm->nnz, matrix::ALL_ZEROS_INITIALIZATION);
-            esito = serial_csr2csc(
-                sm->m, sm->n, sm->nnz, 
-                sm->csrRowPtr, sm->csrColIdx, sm->csrVal,
-                result->csrRowPtr, result->csrColIdx, result->csrVal);
-            
-        } else if(mode == MERGE) {
-            result = new matrix::SparseMatrix(sm->n, sm->m, sm->nnz, matrix::ALL_ZEROS_INITIALIZATION);
-            esito = merge_host_csr2csc(
-                11, sm->m, sm->n, sm->nnz, 
-                sm->csrRowPtr, sm->csrColIdx, sm->csrVal,
-                result->csrRowPtr, result->csrColIdx, result->csrVal);
-            
-        } else {
-            return NULL;
-        }
-
-        if(esito == COMPUTATION_ERROR) {
-            if(result != NULL) { delete result; }
-            return NULL;
-        } else {
-            return result;
-        } 
-    }
+    }*/
+    
 }
 
 

@@ -5,15 +5,12 @@
 #include <iostream>
 #include <iomanip>
 #include <set>
-#include <random>
-#include <chrono>
 #include "utilities.hh"
 
-namespace matrix {
+#define SPARSE_MATRIX_MIN_VAL 1
+#define SPARSE_MATRIX_MAX_VAL 100
 
-    const unsigned SEED = 1234567; // std::chrono::system_clock::now().time_since_epoch().count();
-    std::default_random_engine generator(SEED);
-    const int MIN_VALUE = SPARSE_MATRIX_MIN_VAL, MAX_VALUE = SPARSE_MATRIX_MAX_VAL;
+namespace matrix {
 
     enum MatrixInitialization {
         ALL_ZEROS_INITIALIZATION = 0,
@@ -37,25 +34,26 @@ namespace matrix {
 
             if(mi == RANDOM_INITIALIZATION) {
 
-                std::uniform_int_distribution<long long> index_distrib(0, ((long long)m) * ((long long)n) - 1);
-                std::uniform_int_distribution<int> values_distrib(MIN_VALUE, MAX_VALUE);
-
                 // 1. generate indices
-                std::set<long long> indices; // set prevents duplicate insertion
+                std::set< std::tuple<int, int> > indices; // set prevents duplicate insertion
+                
                 while(indices.size() < nnz) {
-                    indices.insert(index_distrib(generator));
+                    indices.insert(std::make_tuple<int, int>(
+                        utils::random::generate(m-1), 
+                        utils::random::generate(n-1)
+                    ));
                 }
 
                 // 2. fill values
                 int i = 0;
-                for(const long long& index : indices) {
+                for(const std::tuple<int, int>& index : indices) {
 
-                    int col = (int)(index % n);
-                    int row = (int)(index / n);
-                    int val = values_distrib(generator);
+                    int row = std::get<0>(index);
+                    int col = std::get<1>(index);
+                    int val = utils::random::generate(SPARSE_MATRIX_MIN_VAL, SPARSE_MATRIX_MAX_VAL);
 
-                    ASSERT_LIMIT(col, n)
                     ASSERT_LIMIT(row, m)
+                    ASSERT_LIMIT(col, n)
                     ASSERT_RANGE(val)
 
                     csrRowPtr[row+1]++;
