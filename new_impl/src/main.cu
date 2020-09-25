@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     if(st != NULL) delete st;
     if(st2 != NULL) delete st2;*/
 
-    bool ok = transposer::component_test::pointers_to_indexes();
+    bool ok = transposer::component_test::scan();
     std::cout << "OK: " << ok << "\n";
 
     return 0;
