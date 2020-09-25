@@ -140,7 +140,7 @@ void add_kernel(int INPUT_ARRAY array, int INPUT_ARRAY incs, int len) {
 __global__
 void scan_kernel(int INPUT_ARRAY input, int * output, int len, int * sums) {
 
-    extern __shared__ int temp[];
+    extern __shared__ int temp[]; // TODO allocazione FISSA ha incremento performace?
 
     int blockID = blockIdx.x;
 	int blockOffset = blockID * SCAN_ELEMENTS_PER_BLOCK;
@@ -250,8 +250,50 @@ void transposer::reference::scan(int INPUT_ARRAY input, int * output, int len) {
 }
 
 // ===============================================================================
-// SORT3 =========================================================================
+// SEG SORT ======================================================================
 // ===============================================================================
+
+#define SEGSORT_ELEMENTS_PER_BLOCK 32
+
+__global__
+void segsort_kernel(int * array, int len) {
+
+    __shared__ int temp[SEGSORT_ELEMENTS_PER_BLOCK];
+    int thread_id = threadIdx.x
+    int global_id = blockIdx.x * SEGSORT_ELEMENTS_PER_BLOCK + threadIdx.x;
+
+    // caricamento dati in shared memory
+    int element = (i < len) ? array[global_id] : INT32_MAX;
+    temp[thread_id] = element;
+    __syncthreads();
+
+    /// trovo la posizione del `thread_id`-esimo elemento
+    int index = 0;
+    for(int i = 0; i < thread_id; i++) {
+        if(temp[i] <= element) {
+            index++;
+        }
+    }
+    for(int i = thread_id+1; i < SEGSORT_ELEMENTS_PER_BLOCK; i++) {
+        if(temp[i] < element) {
+            index++;
+        }
+    }
+    __syncthreads();
+
+    // porto alla posizione corretta
+    temp[index] = element;
+    __syncthreads();
+
+    // scaricamento dati in shared memory
+    if(i < len) {
+        array[global_id] = temp[thread_id];
+    }
+}
+
+void transposer::cuda::seg_sort(int INPUT_ARRAY input, int * output, int len) {
+
+}
 
 // ===============================================================================
 // SERIAL IMPLEMENTATION =========================================================

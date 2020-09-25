@@ -27,6 +27,8 @@ namespace transposer {
     
         void scan(int INPUT_ARRAY input, int * output, int len);
 
+        void seg_sort(int INPUT_ARRAY input, int * output, int len);
+
     }
 
     namespace reference {
