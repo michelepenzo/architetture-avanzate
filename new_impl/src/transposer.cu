@@ -205,6 +205,7 @@ void scan_small(int INPUT_ARRAY input, int * output, int len) {
 
     scan_kernel<<< 1, SCAN_THREAD_PER_BLOCK, 2 * SCAN_ELEMENTS_PER_BLOCK * sizeof(int) >>>(
         input, output, len, sums);
+    CUDA_CHECK_ERROR
 
     utils::cuda::deallocate<int>(sums);
 }
@@ -218,12 +219,14 @@ void scan_large(int INPUT_ARRAY input, int * output, int len) {
     // 1. chiamo il kernel
     scan_kernel<<< BLOCKS, SCAN_THREAD_PER_BLOCK, 2 * SCAN_ELEMENTS_PER_BLOCK * sizeof(int) >>>(
         input, output, len, sums);
+    CUDA_CHECK_ERROR
 
     // 2. ricorsivamente applico scan a sums per ottenere l'array di incrementi
     transposer::cuda::scan(sums, incs, BLOCKS);
 
     // 3. ad ogni cella del blocco 'i' aggiungo l'incremento 'incs[i]'
     add_kernel<<< BLOCKS, SCAN_ELEMENTS_PER_BLOCK >>>(output, incs, len);
+    CUDA_CHECK_ERROR
 
     utils::cuda::deallocate<int>(sums);
     utils::cuda::deallocate<int>(incs);
@@ -256,14 +259,14 @@ void transposer::reference::scan(int INPUT_ARRAY input, int * output, int len) {
 #define SEGSORT_ELEMENTS_PER_BLOCK 32
 
 __global__
-void segsort_kernel(int * array, int len) {
+void segsort_kernel(int INPUT_ARRAY input, int * output, int len) {
 
     __shared__ int temp[SEGSORT_ELEMENTS_PER_BLOCK];
-    int thread_id = threadIdx.x
+    int thread_id = threadIdx.x;
     int global_id = blockIdx.x * SEGSORT_ELEMENTS_PER_BLOCK + threadIdx.x;
 
     // caricamento dati in shared memory
-    int element = (i < len) ? array[global_id] : INT32_MAX;
+    int element = (global_id < len) ? input[global_id] : INT32_MAX;
     temp[thread_id] = element;
     __syncthreads();
 
@@ -286,13 +289,122 @@ void segsort_kernel(int * array, int len) {
     __syncthreads();
 
     // scaricamento dati in shared memory
-    if(i < len) {
-        array[global_id] = temp[thread_id];
+    if(thread_id < len) {
+        output[global_id] = temp[thread_id];
     }
 }
 
-void transposer::cuda::seg_sort(int INPUT_ARRAY input, int * output, int len) {
+void transposer::cuda::segsort(int INPUT_ARRAY input, int * output, int len) {
 
+    segsort_kernel<<< DIV_THEN_CEIL(len, SEGSORT_ELEMENTS_PER_BLOCK), SEGSORT_ELEMENTS_PER_BLOCK >>>(
+        input, output, len
+    );
+    CUDA_CHECK_ERROR
+}
+
+void transposer::reference::segsort(int INPUT_ARRAY input, int * output, int len) {
+
+    utils::copy_array(output, input, len);
+
+    const int N = DIV_THEN_CEIL(len, SEGSORT_ELEMENTS_PER_BLOCK);
+    for(int i = 0; i < N; i++) {
+        const int start = i * SEGSORT_ELEMENTS_PER_BLOCK;
+        const int end = std::min((i + 1) * SEGSORT_ELEMENTS_PER_BLOCK, len);
+        std::sort(output + start, output + end); // TODO controlla comparatore default
+    }
+}
+
+// ===============================================================================
+// SEG SORT ======================================================================
+// ===============================================================================
+
+__global__
+void merge_kernel(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
+
+    int global_id = blockIdx.x; // * SEGSORT_ELEMENTS_PER_BLOCK + threadIdx.x;
+    int start_1 = 2 * global_id * BLOCK_SIZE;
+    int start_2 = (2 * global_id + 1) * BLOCK_SIZE;
+    int end_1 = min((2 * global_id + 1) * BLOCK_SIZE, len);
+    int end_2 = min((2 * global_id + 2) * BLOCK_SIZE, len);
+
+    //printf("%d: start1= %d, start2=%d, end1=%d, end2=%d\n", global_id, start_1, start_2, end_1, end_2);
+
+    int current_1 = start_1;
+    int current_2 = start_2;
+    int current_output = start_1;
+    
+    // merge
+    while(current_1 < end_1 && current_2 < end_2) {
+        if(input[current_1] <= input[current_2]) {
+            //printf("MERGE1 output[%d] = input[%d] = %d\n", current_output, current_1, input[current_1]);
+            output[current_output] = input[current_1];
+            current_1++;
+        } else {
+            //printf("MERGE2 output[%d] = input[%d] = %d\n", current_output, current_1, input[current_1]);
+            output[current_output] = input[current_2];
+            current_2++;
+        }
+        current_output++;
+    }
+
+    // finisco le rimanenze del primo blocco
+    while(current_1 < end_1) {
+        //printf("COPY1 output[%d] = input[%d] = %d\n", current_output, current_1, input[current_1]);
+        output[current_output] = input[current_1];
+        current_1++;
+        current_output++;
+    }
+
+    // finisco le rimanenze del secondo blocco
+    while(current_2 < end_2) {
+        //printf("COPY2 output[%d] = input[%d] = %d\n", current_output, current_2, input[current_2]);
+        output[current_output] = input[current_2];
+        current_2++;
+        current_output++;
+    }
+}
+
+void transposer::cuda::sort(int INPUT_ARRAY input, int * output, int len) {
+
+    transposer::cuda::segsort(input, output, len);
+
+    int* buffer[2];
+    buffer[0] = output;
+    buffer[1] = utils::cuda::allocate<int>(len);
+    int full = 0;
+
+    int BLOCK_SIZE = SEGSORT_ELEMENTS_PER_BLOCK;
+    DPRINT_ARR_CUDA(buffer[full], len)
+
+    // TODO DIVIDERE MERGE
+    while(BLOCK_SIZE < len) {
+
+        const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
+        DPRINT_MSG("Block number: %d", BLOCK_NUMBER)
+        
+        merge_kernel<<< DIV_THEN_CEIL(BLOCK_NUMBER, 2), 1 >>>(
+            buffer[full], buffer[1-full], len, BLOCK_SIZE);
+        CUDA_CHECK_ERROR
+        
+        BLOCK_SIZE = BLOCK_SIZE * 2;
+        full = 1 - full;
+        DPRINT_ARR_CUDA(buffer[full], len)
+    }
+
+    // eventualmente copio nell'array di output nel caso non sia stato l'ultimo
+    // ad essere riempito...
+    if(full != 0) {
+        utils::cuda::copy(buffer[0], buffer[1], len);
+    }
+
+    // dealloco array temporaneo;
+    utils::cuda::deallocate(buffer[1]);
+}
+
+void transposer::reference::sort(int INPUT_ARRAY input, int * output, int len) {
+
+    utils::copy_array(output, input, len);
+    std::sort(output, output + len);
 }
 
 // ===============================================================================
@@ -423,3 +535,61 @@ bool transposer::component_test::scan() {
     
     return ok;
 } 
+
+bool transposer::component_test::segsort() {
+
+    const int N = 10000000;
+    // input
+    int *arr = utils::random::generate_array(1, 100, N);
+    DPRINT_ARR(arr, N)
+
+    // reference implementation
+    int *segsort_arr = new int[N];
+    transposer::reference::segsort(arr, segsort_arr, N);
+    DPRINT_ARR(segsort_arr, N)
+
+    // cuda implementation
+    int *segsort_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
+    int *segsort_cuda_out = utils::cuda::allocate<int>(N);
+    transposer::cuda::segsort(segsort_cuda_in, segsort_cuda_out, N);
+    int *segsort_arr_2 = new int[N]; 
+    utils::cuda::recv(segsort_arr_2, segsort_cuda_out, N);
+    DPRINT_ARR(segsort_arr_2, N)
+
+    bool ok = utils::equals<int>(segsort_arr, segsort_arr_2, N);
+
+    utils::cuda::deallocate(segsort_cuda_in);
+    utils::cuda::deallocate(segsort_cuda_out);
+    delete arr, segsort_arr, segsort_arr_2;
+    
+    return ok;
+}
+
+bool transposer::component_test::sort() {
+
+    const int N = 20345670;
+    // input
+    int *arr = utils::random::generate_array(1, 100, N);
+    DPRINT_ARR(arr, N)
+
+    // reference implementation
+    int *sort_arr = new int[N];
+    transposer::reference::sort(arr, sort_arr, N);
+    DPRINT_ARR(sort_arr, N)
+
+    // cuda implementation
+    int *sort_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
+    int *sort_cuda_out = utils::cuda::allocate<int>(N);
+    transposer::cuda::sort(sort_cuda_in, sort_cuda_out, N);
+    int *sort_arr_2 = new int[N]; 
+    utils::cuda::recv(sort_arr_2, sort_cuda_out, N);
+    DPRINT_ARR(sort_arr_2, N)
+
+    bool ok = utils::equals<int>(sort_arr, sort_arr_2, N);
+
+    utils::cuda::deallocate(sort_cuda_in);
+    utils::cuda::deallocate(sort_cuda_out);
+    delete arr, sort_arr, sort_arr_2;
+    
+    return ok;
+}

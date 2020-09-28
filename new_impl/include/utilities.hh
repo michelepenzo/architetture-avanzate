@@ -176,6 +176,11 @@ namespace utils {
         }
 
         NUMERIC_TEMPLATE(T)
+        inline void copy(T * dest_cuda_array, T INPUT_ARRAY src_cuda_array, int len) {
+            CUDA_SAFE_CALL(cudaMemcpy(dest_cuda_array, src_cuda_array, len*sizeof(T), cudaMemcpyDeviceToDevice));
+        }
+
+        NUMERIC_TEMPLATE(T)
         inline void deallocate(T *ptr) {
             CUDA_SAFE_CALL(cudaFree(ptr))
         }

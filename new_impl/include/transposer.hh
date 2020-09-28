@@ -27,8 +27,9 @@ namespace transposer {
     
         void scan(int INPUT_ARRAY input, int * output, int len);
 
-        void seg_sort(int INPUT_ARRAY input, int * output, int len);
+        void segsort(int INPUT_ARRAY input, int * output, int len);
 
+        void sort(int INPUT_ARRAY input, int * output, int len);
     }
 
     namespace reference {
@@ -38,6 +39,10 @@ namespace transposer {
         void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);
 
         void scan(int INPUT_ARRAY input, int * output, int len);
+
+        void segsort(int INPUT_ARRAY input, int * output, int len);
+
+        void sort(int INPUT_ARRAY input, int * output, int len);
 
         int serial_csr2csc(
             int m, int n, int nnz, 
@@ -53,6 +58,10 @@ namespace transposer {
         bool pointers_to_indexes();
 
         bool scan();
+
+        bool segsort();
+
+        bool sort();
     }
     
     /*
