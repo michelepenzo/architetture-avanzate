@@ -256,7 +256,8 @@ void transposer::reference::scan(int INPUT_ARRAY input, int * output, int len) {
 // SEG SORT ======================================================================
 // ===============================================================================
 
-#define SEGSORT_ELEMENTS_PER_BLOCK 32
+#define SEGSORT_ELEMENTS_PER_BLOCK 4
+// #define SEGSORT_ELEMENTS_PER_BLOCK 32
 
 __global__
 void segsort_kernel(int INPUT_ARRAY input, int * output, int len) {
@@ -364,29 +365,202 @@ void merge_kernel(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) 
     }
 }
 
-void transposer::cuda::sort(int INPUT_ARRAY input, int * output, int len) {
+#define MERGE_SPLITTER_DISTANCE 4
+// #define MERGE_SPLITTER_DISTANCE 256
 
-    transposer::cuda::segsort(input, output, len);
+__global__
+void seg_splitter_kernel(int INPUT_ARRAY input, int * splitter, int len, const int BLOCK_SIZE) {
+
+    int block_id = blockIdx.x;
+    int th_id = threadIdx.x;
+
+    // indici di inizio e fine della porzione di array di input
+    int start_input = block_id * BLOCK_SIZE;
+    // int end_input = min((block_id + 1) * BLOCK_SIZE, len);
+
+    // indici di inizio e fine della porzione di array di splitter
+    const int SPLITTER_BLOCK_SIZE = DIV_THEN_CEIL(BLOCK_SIZE, MERGE_SPLITTER_DISTANCE);
+    int start_splitter = block_id * SPLITTER_BLOCK_SIZE;
+
+    // riempio l'array di splitter
+    for(int i = th_id; i < SPLITTER_BLOCK_SIZE; i = i + blockDim.x) {
+        //int offset = i * MERGE_SPLITTER_DISTANCE;
+        //if(start_input + offset <= end_input) {
+            splitter[start_splitter + i] = input[start_input + i * MERGE_SPLITTER_DISTANCE];
+        //} else {
+        //    break;
+        //}        
+    }
+}
+
+
+__device__
+int find(int element_to_search, int INPUT_ARRAY input, int len) {
+
+    int start = 0;
+    int end = start + len;
+
+    while(start < end) {
+        int current = (start + end) / 2;
+        if(input[current] < element_to_search) {
+            start = current + 1;
+        } else if(input[current] >= element_to_search) {
+            end = current;
+        }
+    }
+
+    return start;
+}
+
+__global__
+void seg_searchindex_kernel(int INPUT_ARRAY input, int INPUT_ARRAY splitter, int * indexA, int * indexB, int len, const int BLOCK_SIZE) {
+
+    int block_id = blockIdx.x;
+    int th_id = threadIdx.x;
+
+    // indici di inizio e fine della porzione di array di input assegnata al blocco A, ed al blocco B
+    int start_A = 2 * block_id * BLOCK_SIZE;
+    int start_B = (2 * block_id + 1) * BLOCK_SIZE;
+    int end_A = min((2 * block_id + 1) * BLOCK_SIZE, len);
+    int end_B = min((2 * block_id + 2) * BLOCK_SIZE, len);
+
+    // indici di inizio della porzione di array di splitter
+    const int SPLITTER_PER_BLOCK = DIV_THEN_CEIL(BLOCK_SIZE, MERGE_SPLITTER_DISTANCE);
+    int start_splitter = 2 * block_id       * SPLITTER_PER_BLOCK;
+    int end_splitter   = 2 * (block_id + 1) * SPLITTER_PER_BLOCK;
+
+    // ogni thread si dedica ad un elemento di splitter
+    for(int i = start_splitter + th_id; i < end_splitter; i = i + blockDim.x) {
+        int element = splitter[i];
+        indexA[i] = find(element, input + start_A, end_A - start_A);
+        indexB[i] = find(element, input + start_B, end_B - start_B);
+    }
+}
+
+__global__
+void seg_splittermerge_kernel(int INPUT_ARRAY input, int INPUT_ARRAY indexA, int INPUT_ARRAY indexB, int * output, int len, const int BLOCK_SIZE) {
+
+    // seg_splittermerge_kernel<<<BLOCK_NUMBER * (SPLITTER_PER_BLOCK + 1), MERGE_SPLITTER_DISTANCE>>>
+
+    int i = blockIdx.x;
+
+    // Ogni `i` (blockIdx.x) effettua un piccolo merge in memoria shared. 
+    // Devo risalire a quale SUB-SPLITTER corrisponde l'elemento `i` per sapere se è
+    // il primo o l'ultimo del SUB-SPLITTER 
+    
+    const int SPLITTER_PER_BLOCK = DIV_THEN_CEIL(BLOCK_SIZE, MERGE_SPLITTER_DISTANCE);
+    const int SPLITTER_PER_COUPLE_BLOCKS = 2 * SPLITTER_PER_BLOCK + 1;
+
+    int which_item = i % SPLITTER_PER_COUPLE_BLOCKS;
+    bool is_first_element = (which_item == 0);
+    bool is_last_element = (which_item == SPLITTER_PER_COUPLE_BLOCKS-1);
+
+    // prendo gli indici di inizio e fine del blocco in input contrassegnato 
+    // da A, e B. Se sono il primo blocco parto da 0, se sono l'ultimo finisco con BLOCK_SIZE
+    int startA = is_first_element ? 0 : indexA[i-1];
+    int startB = is_first_element ? 0 : indexB[i-1];
+    int endA   = is_last_element ? BLOCK_SIZE : indexA[i];
+    int endB   = is_last_element ? BLOCK_SIZE : indexB[i];
+
+    // Ogni griglia di thread ha una memoria condivisa sulla quale copiare gli elementi
+    // dell'array di input fino ad un massimo di MERGE_SPLITTER_DISTANCE per blocco
+    __shared__ int temp[2 * MERGE_SPLITTER_DISTANCE];
+
+    // Carico le porzioni degli elementi
+    int j = threadIdx.x;
+    // elemento in input preso dall'elemento A della coppia di blocchi
+    temp[j] = (startA + j < endA) ? input[startA + j] : 0;
+    // elemento in input preso dall'elemento B della coppia di blocchi
+    temp[MERGE_SPLITTER_DISTANCE + j] = (startB + j < endB) ? input[startB + j] : 0;
+    // aspetto che temp sia stato completamente caricato
+    __syncthreads();
+
+    // cerco l'indice del mio elemento preso da A nella coppia di blocchi A, B mergiati
+    int index1 = j + find(temp[j], temp + MERGE_SPLITTER_DISTANCE, endB - startB);       
+    // cerco l'indice del mio elemento preso da B nella coppia di blocchi A, B mergiati
+    int index2 = find(temp[MERGE_SPLITTER_DISTANCE + j], temp, endA - startA) + (j + MERGE_SPLITTER_DISTANCE); // elemento di B
+    // aspetto che tutti abbiano cercato in temp
+    __syncthreads();
+
+    // salvo in output (start_A è l'inizio dell'intera coppia di blocchi)
+    output[startA + index1] = temp[j];
+    output[startA + index2] = temp[MERGE_SPLITTER_DISTANCE + j];
+
+    printf("Block=%d, Thread=%d, A=[%d:%d], B=[%d:%d], elementA=%d->%d, elementB=%d->%d\n", 
+        blockIdx.x, j, startA, endA, startB, endB, temp[j], index1, temp[MERGE_SPLITTER_DISTANCE + j], index2
+    );
+}
+
+void merge(int INPUT_ARRAY input, int * output, int len, const int BLOCK_SIZE);
+
+void merge_big(int INPUT_ARRAY input, int * output, int len, const int BLOCK_SIZE) {
+
+    const int SPLITTER_PER_BLOCK = DIV_THEN_CEIL(BLOCK_SIZE, MERGE_SPLITTER_DISTANCE);
+    const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
+    const int SPLITTER_NUMBER = BLOCK_NUMBER * SPLITTER_PER_BLOCK;
+
+    int * splitter        = utils::cuda::allocate<int>(SPLITTER_NUMBER);
+    int * splitter_sorted = utils::cuda::allocate<int>(SPLITTER_NUMBER);
+    int * indexA          = utils::cuda::allocate<int>(SPLITTER_NUMBER);
+    int * indexB          = utils::cuda::allocate<int>(SPLITTER_NUMBER);
+
+    // 1. faccio lo split degli elementi 
+    // Uso una grid per ogni sub-splitter array, ogni griglia può avere il numero di thread che mi pare per dividere il lavoro di copia
+    seg_splitter_kernel<<<BLOCK_SIZE, 32>>>(input, splitter, len, BLOCK_SIZE);
+    CUDA_CHECK_ERROR
+    DPRINT_ARR_CUDA(splitter, DIV_THEN_CEIL(len, MERGE_SPLITTER_DISTANCE))
+
+    // 2. faccio il merge degli elementi di splitter
+    // Faccio il merge di `splitter` che è lungo SPLITTER_NUMBER elementi
+    // divisi in BLOCK_NUMBER blocchi da SPLITTER_PER_BLOCK elementi.
+    DPRINT_MSG("Merging splitter with len=%d, block_size=%d", SPLITTER_NUMBER, SPLITTER_PER_BLOCK)
+    merge(splitter, splitter_sorted, SPLITTER_NUMBER, SPLITTER_PER_BLOCK);
+    DPRINT_ARR_CUDA(splitter_sorted, SPLITTER_PER_BLOCK)
+
+    // 3. cerco gli indici di ogni elemento
+    // Utilizzo una GRIGLIA[di thread] ogni 2 blocchi.
+    // Ogni griglia ha un numero arbitrario (es. 32) di thread che ci lavorano
+    seg_searchindex_kernel<<<DIV_THEN_CEIL(BLOCK_SIZE, 2), 32>>>(input, splitter_sorted, indexA, indexB, len, BLOCK_SIZE);
+    CUDA_CHECK_ERROR
+    DPRINT_ARR_CUDA(indexA, DIV_THEN_CEIL(len, MERGE_SPLITTER_DISTANCE))
+    DPRINT_ARR_CUDA(indexB, DIV_THEN_CEIL(len, MERGE_SPLITTER_DISTANCE))
+
+    // 4. ogni thread fa ora il merge delle porzioni di A, B associate a splitter[i]
+    // Ogni GRIGLIA[di thread] processa il merge di un numero massimo di elementi. 
+    // Devo avere BLOCK_NUMBER * (SPLITTER_PER_BLOCK + 1) griglie perchè ad ogni blocco
+    // sono associato SPLITTER_PER_BLOCK segmenti + uno finale
+    // La griglia di thread viene dimensionata MERGE_SPLITTER_DISTANCE così che ogni thread
+    // processa esattamente un elemento
+    const int SPLITTER_PER_COUPLE_BLOCKS = 2 * SPLITTER_PER_BLOCK + 1;
+    const int COUPLE_OF_BLOCKS = DIV_THEN_CEIL(BLOCK_NUMBER, 2);
+
+    seg_splittermerge_kernel<<<COUPLE_OF_BLOCKS * (SPLITTER_PER_COUPLE_BLOCKS + 1), MERGE_SPLITTER_DISTANCE>>>(
+        input, indexA, indexB, output, len, BLOCK_SIZE
+    );
+    CUDA_CHECK_ERROR
+    DPRINT_ARR_CUDA(output, len)
+
+    utils::cuda::deallocate(splitter);
+    utils::cuda::deallocate(indexA);
+    utils::cuda::deallocate(indexB);
+}
+
+void merge(int INPUT_ARRAY input, int * output, int len, const int INIT_BLOCK_SIZE) {
 
     int* buffer[2];
     buffer[0] = output;
     buffer[1] = utils::cuda::allocate<int>(len);
     int full = 0;
 
-    int BLOCK_SIZE = SEGSORT_ELEMENTS_PER_BLOCK;
-    DPRINT_ARR_CUDA(buffer[full], len)
-
-    // TODO DIVIDERE MERGE
-    while(BLOCK_SIZE < len) {
-
-        const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
-        DPRINT_MSG("Block number: %d", BLOCK_NUMBER)
+    // applico merge
+    for(int BLOCK_SIZE = INIT_BLOCK_SIZE; BLOCK_SIZE < len; BLOCK_SIZE *= 2) {
         
-        merge_kernel<<< DIV_THEN_CEIL(BLOCK_NUMBER, 2), 1 >>>(
-            buffer[full], buffer[1-full], len, BLOCK_SIZE);
-        CUDA_CHECK_ERROR
+        DPRINT_MSG("Block size=%d", BLOCK_SIZE)
+        if(BLOCK_SIZE > 1) {
+merge_big(buffer[full], buffer[1-full], len, BLOCK_SIZE);
+        }
         
-        BLOCK_SIZE = BLOCK_SIZE * 2;
+
         full = 1 - full;
         DPRINT_ARR_CUDA(buffer[full], len)
     }
@@ -394,11 +568,34 @@ void transposer::cuda::sort(int INPUT_ARRAY input, int * output, int len) {
     // eventualmente copio nell'array di output nel caso non sia stato l'ultimo
     // ad essere riempito...
     if(full != 0) {
-        utils::cuda::copy(buffer[0], buffer[1], len);
+        utils::cuda::copy(output, buffer[1], len);
     }
 
     // dealloco array temporaneo;
     utils::cuda::deallocate(buffer[1]);
+
+
+
+    //if(2 * BLOCK_SIZE > 2 * MERGE_SPLITTER_DISTANCE) {
+    //    // due blocchi non rientrano nella shared memory allora uso il metodo `big merge`
+    //    DPRINT_MSG("Block size=%d", BLOCK_SIZE)
+    //    merge_big(input, output, len, BLOCK_SIZE);
+    //
+    //} else {
+    //    // entrambi i blocchi insieme stanno nella shared memory
+    //    DPRINT_MSG("Small merge: block size=%d", BLOCK_SIZE)
+    //    const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
+    //    merge_kernel<<< DIV_THEN_CEIL(BLOCK_NUMBER, 2), 1 >>>(input, output, len, BLOCK_SIZE);
+    //    CUDA_CHECK_ERROR
+    //    DPRINT_ARR_CUDA(output, len)
+    //}
+}
+
+void transposer::cuda::sort(int INPUT_ARRAY input, int * output, int len) {
+
+    transposer::cuda::segsort(input, output, len);
+
+    merge(input, output, len, SEGSORT_ELEMENTS_PER_BLOCK);
 }
 
 void transposer::reference::sort(int INPUT_ARRAY input, int * output, int len) {
@@ -567,7 +764,7 @@ bool transposer::component_test::segsort() {
 
 bool transposer::component_test::sort() {
 
-    const int N = 20345670;
+    const int N = 10;
     // input
     int *arr = utils::random::generate_array(1, 100, N);
     DPRINT_ARR(arr, N)
@@ -575,7 +772,6 @@ bool transposer::component_test::sort() {
     // reference implementation
     int *sort_arr = new int[N];
     transposer::reference::sort(arr, sort_arr, N);
-    DPRINT_ARR(sort_arr, N)
 
     // cuda implementation
     int *sort_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
@@ -583,8 +779,9 @@ bool transposer::component_test::sort() {
     transposer::cuda::sort(sort_cuda_in, sort_cuda_out, N);
     int *sort_arr_2 = new int[N]; 
     utils::cuda::recv(sort_arr_2, sort_cuda_out, N);
-    DPRINT_ARR(sort_arr_2, N)
 
+    DPRINT_ARR(sort_arr, N)
+    DPRINT_ARR(sort_arr_2, N)
     bool ok = utils::equals<int>(sort_arr, sort_arr_2, N);
 
     utils::cuda::deallocate(sort_cuda_in);
