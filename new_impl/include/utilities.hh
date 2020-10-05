@@ -15,7 +15,7 @@
 
 #define INPUT_ARRAY * const
 #define NUMERIC_TEMPLATE(T) template< typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type >
-#define DIV_THEN_CEIL(a,b) a%b?((a/b)+1):(a/b)
+#define DIV_THEN_CEIL(a,b) (a%b?((a/b)+1):(a/b))
 
 #define COMPUTATION_OK 0
 #define COMPUTATION_ERROR -1
@@ -33,6 +33,7 @@
 #define DPRINT_MSG(message, ...) { printf("%20s: ", __func__); printf(message "\n", ##__VA_ARGS__); }
 #define DPRINT_ARR(array, len) { printf("%20s: ", __func__); utils::print(STRINGIFY(array), array, len); }
 #define DPRINT_ARR_CUDA(array, len) { printf("%20s: ", __func__); utils::cuda::print(STRINGIFY(array), array, len); }
+#define DPRINT_ARR_CUDA_BLOCK(array, len, blk) { printf("%20s: ", __func__); utils::cuda::print_block(STRINGIFY(array), array, len, blk); }
 #else 
 #define ASSERT_LIMIT(value,limit) { value; limit; }
 #define ASSERT_RANGE(value) { value; }
@@ -57,6 +58,16 @@ namespace utils {
     inline void print(std::string name, T INPUT_ARRAY array, int len) {
         std::cout << std::setw(40) << name << "=";
         for(int i = 0; i < len; i++) {
+            std::cout << std::setw(3) << array[i] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    NUMERIC_TEMPLATE(T)
+    inline void print_block(std::string name, T INPUT_ARRAY array, int len, int blk) {
+        std::cout << std::setw(40) << name << "=";
+        for(int i = 0; i < len; i++) {
+            if(i % blk == 0) std::cout << "| ";
             std::cout << std::setw(3) << array[i] << " ";
         }
         std::cout << std::endl;
@@ -101,7 +112,7 @@ namespace utils {
     namespace random {
 
         inline std::default_random_engine& generator() {
-            static std::default_random_engine g(1234567);
+            static std::default_random_engine g(234567);
             return g;
         }
 
@@ -203,6 +214,15 @@ namespace utils {
             T *host_array = new int[len];
             recv<T>(host_array, cuda_array, len);
             utils::print(name, host_array, len);
+            delete host_array;
+        }
+
+
+        NUMERIC_TEMPLATE(T)
+        inline void print_block(std::string name, T INPUT_ARRAY cuda_array, int len, int blk) {
+            T *host_array = new int[len];
+            recv<T>(host_array, cuda_array, len);
+            utils::print_block(name, host_array, len, blk);
             delete host_array;
         }
 
