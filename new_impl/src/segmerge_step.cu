@@ -141,3 +141,103 @@ void transposer::reference::segmerge3_step(int INPUT_ARRAY input, int * output, 
     }
 }
 
+
+
+// ===============================================================================
+// solo segmerge step
+bool transposer::component_test::segmerge_step() {
+
+    const int N = 100;
+    // input
+    
+    bool oks = true;
+    int BLOCK_SIZE = 2;
+
+    for(int j=0; j < 10; j++){
+
+        int rand_value = utils::random::generate(0,500);
+        int *arr = utils::random::generate_array(1 + rand_value ,100 + rand_value, N);
+        if(j<8) BLOCK_SIZE *= 2;
+        DPRINT_ARR(arr, N)
+
+        // reference implementation
+        DPRINT_MSG("reference implementation")
+        int *segmerge_arr = new int[N];
+        DPRINT_MSG("calling segmerge_step")
+        transposer::reference::segmerge_step(arr, segmerge_arr, N, BLOCK_SIZE);
+        //DPRINT_ARR(segmerge_arr, N)
+
+        // cuda implementation
+        DPRINT_MSG("reference implementation")
+        int *segmerge_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
+        int *segmerge_cuda_out = utils::cuda::allocate<int>(N);
+        transposer::cuda::segmerge_step(segmerge_cuda_in, segmerge_cuda_out, N, BLOCK_SIZE);
+        int *segmerge_arr_2 = new int[N]; 
+        utils::cuda::recv(segmerge_arr_2, segmerge_cuda_out, N);
+        DPRINT_ARR(segmerge_arr_2, N)
+
+        bool ok = utils::equals<int>(segmerge_arr, segmerge_arr_2, N);
+        oks = oks && ok;
+        utils::cuda::deallocate(segmerge_cuda_in);
+        utils::cuda::deallocate(segmerge_cuda_out);
+        delete arr, segmerge_arr, segmerge_arr_2;
+
+        j++;
+    }
+    return oks;
+}
+
+
+
+// ===============================================================================
+// solo segmerge3 step
+bool transposer::component_test::segmerge3_step() {
+
+    const int N = 100;
+    // input
+    
+    bool oks = true;
+    int BLOCK_SIZE = 4;
+    for(int j=0; j < 10; j++){
+
+        int rand_value = utils::random::generate(0,500);
+        int *arr = utils::random::generate_array(1 + rand_value ,100 + rand_value, N);
+        
+        DPRINT_ARR(arr, N)
+        if(j<8) BLOCK_SIZE *= 2;
+        // reference implementation
+        int *segmerge_arr = new int[N];
+        transposer::reference::segmerge_step(arr, segmerge_arr, N, BLOCK_SIZE);
+        DPRINT_ARR(segmerge_arr, N)
+
+        // cuda implementation
+        int *segmerge_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
+        int *segmerge_a_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
+        int *segmerge_b_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
+        int *segmerge_cuda_out = utils::cuda::allocate<int>(N);
+        int *segmerge_a_cuda_out = utils::cuda::allocate<int>(N);
+        int *segmerge_b_cuda_out = utils::cuda::allocate<int>(N);
+    
+        transposer::cuda::segmerge3_step(segmerge_cuda_in, segmerge_cuda_out, N, BLOCK_SIZE,
+                                        segmerge_a_cuda_in, segmerge_b_cuda_in, segmerge_a_cuda_out, segmerge_b_cuda_out );
+
+        int *segmerge_arr_2 = new int[N]; 
+        utils::cuda::recv(segmerge_arr_2, segmerge_cuda_out, N);
+        DPRINT_ARR(segmerge_arr_2, N)
+
+        bool ok = utils::equals<int>(segmerge_arr, segmerge_arr_2, N);
+        oks = oks && ok;
+        utils::cuda::deallocate(segmerge_cuda_in);
+        utils::cuda::deallocate(segmerge_a_cuda_in);
+        utils::cuda::deallocate(segmerge_b_cuda_in);
+        utils::cuda::deallocate(segmerge_cuda_out);
+        utils::cuda::deallocate(segmerge_a_cuda_out);
+        utils::cuda::deallocate(segmerge_b_cuda_out);
+
+        delete arr, segmerge_arr, segmerge_arr_2;
+
+
+        j++;
+    }
+    return oks;
+}

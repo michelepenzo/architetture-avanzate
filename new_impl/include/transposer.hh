@@ -70,6 +70,14 @@ namespace transposer {
         bool segsort();
 
         bool sort();
+
+        bool segmerge_step();
+
+        bool segmerge3_step();
+
+        bool segmerge_sm_step();
+
+        bool segmerge3_sm_step();
     }
     
     /*
