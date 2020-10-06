@@ -72,13 +72,13 @@ namespace transposer {
 
         bool sort();
 
-        bool segmerge_step();
+        bool segmerge();
 
-        bool segmerge3_step();
+        bool segmerge3();
 
-        bool segmerge_sm_step();
+        bool segmerge_sm();
 
-        bool segmerge3_sm_step();
+        bool segmerge3_sm();
     }
     
     /*

@@ -139,36 +139,39 @@ void transposer::reference::segmerge3_step(int INPUT_ARRAY input, int * output, 
         if(all_three) utils::copy_array<int>(a_out + current_output, a_in + current_2, end_2 - current_2);
         if(all_three) utils::copy_array<int>(b_out + current_output, b_in + current_2, end_2 - current_2);
     }
+
 }
 
 
-
+#define MIN_RAND_VALUE 0
+#define MAX_RAND_VALUE 5000
+#define RIPETITION 100
+#define BLOCK_SIZE 32
 // ===============================================================================
 // solo segmerge step
-bool transposer::component_test::segmerge_step() {
+bool transposer::component_test::segmerge() {
 
-    const int N = 100;
+    const int N = 10000000;
     // input
     
     bool oks = true;
-    int BLOCK_SIZE = 2;
+    //int BLOCK_SIZE = 2;
 
-    for(int j=0; j < 10; j++){
+    for(int j=0; j < RIPETITION; j++){
 
-        int rand_value = utils::random::generate(0,500);
-        int *arr = utils::random::generate_array(1 + rand_value ,100 + rand_value, N);
-        if(j<8) BLOCK_SIZE *= 2;
+        int rand_value = utils::random::generate(MIN_RAND_VALUE, MAX_RAND_VALUE);
+        int *arr = utils::random::generate_array(1 + rand_value ,10000 + rand_value, N);
+        
         DPRINT_ARR(arr, N)
 
         // reference implementation
         DPRINT_MSG("reference implementation")
         int *segmerge_arr = new int[N];
-        DPRINT_MSG("calling segmerge_step")
         transposer::reference::segmerge_step(arr, segmerge_arr, N, BLOCK_SIZE);
         //DPRINT_ARR(segmerge_arr, N)
 
         // cuda implementation
-        DPRINT_MSG("reference implementation")
+        DPRINT_MSG("cuda implementation")
         int *segmerge_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
         int *segmerge_cuda_out = utils::cuda::allocate<int>(N);
         transposer::cuda::segmerge_step(segmerge_cuda_in, segmerge_cuda_out, N, BLOCK_SIZE);
@@ -178,11 +181,10 @@ bool transposer::component_test::segmerge_step() {
 
         bool ok = utils::equals<int>(segmerge_arr, segmerge_arr_2, N);
         oks = oks && ok;
+
         utils::cuda::deallocate(segmerge_cuda_in);
         utils::cuda::deallocate(segmerge_cuda_out);
-        delete arr, segmerge_arr, segmerge_arr_2;
-
-        j++;
+        delete arr, segmerge_arr, segmerge_arr_2;    
     }
     return oks;
 }
@@ -191,20 +193,19 @@ bool transposer::component_test::segmerge_step() {
 
 // ===============================================================================
 // solo segmerge3 step
-bool transposer::component_test::segmerge3_step() {
+bool transposer::component_test::segmerge3() {
 
-    const int N = 100;
+    const int N = 100000;
     // input
     
     bool oks = true;
-    int BLOCK_SIZE = 4;
-    for(int j=0; j < 10; j++){
+    //int BLOCK_SIZE = 2;
+    for(int j=0; j < RIPETITION; j++){
 
-        int rand_value = utils::random::generate(0,500);
-        int *arr = utils::random::generate_array(1 + rand_value ,100 + rand_value, N);
+        int rand_value = utils::random::generate(MIN_RAND_VALUE, MAX_RAND_VALUE);
+        int *arr = utils::random::generate_array(1 + rand_value ,10000 + rand_value, N);
         
         DPRINT_ARR(arr, N)
-        if(j<8) BLOCK_SIZE *= 2;
         // reference implementation
         int *segmerge_arr = new int[N];
         transposer::reference::segmerge_step(arr, segmerge_arr, N, BLOCK_SIZE);
@@ -227,6 +228,7 @@ bool transposer::component_test::segmerge3_step() {
 
         bool ok = utils::equals<int>(segmerge_arr, segmerge_arr_2, N);
         oks = oks && ok;
+
         utils::cuda::deallocate(segmerge_cuda_in);
         utils::cuda::deallocate(segmerge_a_cuda_in);
         utils::cuda::deallocate(segmerge_b_cuda_in);
@@ -235,9 +237,7 @@ bool transposer::component_test::segmerge3_step() {
         utils::cuda::deallocate(segmerge_b_cuda_out);
 
         delete arr, segmerge_arr, segmerge_arr_2;
-
-
-        j++;
     }
+
     return oks;
 }
