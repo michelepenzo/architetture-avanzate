@@ -213,7 +213,7 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
     DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
 
     // 4. eseguo il merge di porzioni di blocchi di dimensione uniforme
-    uniform_merge_kernel<<<SPLITTER_NUMBER, 2*SEGMERGE_SM_SPLITTER_DISTANCE>>>(input, output, indexA_out, indexB_out, len, BLOCK_SIZE);
+    uniform_merge_kernel<<<SPLITTER_NUMBER, 1>>>(input, output, indexA_out, indexB_out, len, BLOCK_SIZE);
     CUDA_CHECK_ERROR
 
     // 5. eventualmente copio il risultato dell' ultimo blocco di array rimasto spaiato
