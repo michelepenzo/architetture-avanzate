@@ -43,7 +43,7 @@ int find_last_position_in_sorted_array(int element_to_search, int INPUT_ARRAY in
 __global__
 void splitter_kernel(int INPUT_ARRAY input, int * splitter, int * indexA, int * indexB, int len, int BLOCK_SIZE) {
 
-    int couple_block_id = blockIdx.x;
+    const int couple_block_id = blockIdx.x;
 
     // entrambi inputA, inputB esistono (eventualmente B ha lunghezza < BLOCK_SIZE se ultimo blocco)
     int * inputA = input + 2 * couple_block_id * BLOCK_SIZE;
@@ -59,13 +59,13 @@ void splitter_kernel(int INPUT_ARRAY input, int * splitter, int * indexA, int * 
 
     // riempio gli elementi
     int i;
-    for(int i = 0; i < SPLITTER_PER_BLOCKS; i++) {
+    for(int i = threadIdx.x; i < SPLITTER_PER_BLOCKS; i += blockDim.x) {
         splitter[i] = inputA[i*SEGMERGE_SM_SPLITTER_DISTANCE];
         indexA[i] = i*SEGMERGE_SM_SPLITTER_DISTANCE;
         indexB[i] = find_position_in_sorted_array(splitter[i], inputB, lenB);
     }
 
-    for(i = 0; i < SPLITTER_PER_BLOCKS && i*SEGMERGE_SM_SPLITTER_DISTANCE < lenB; i++) {
+    for(i = threadIdx.x; i < SPLITTER_PER_BLOCKS && i*SEGMERGE_SM_SPLITTER_DISTANCE < lenB; i += blockDim.x) {
         int element = inputB[i*SEGMERGE_SM_SPLITTER_DISTANCE];
         // save splitter
         splitter[SPLITTER_PER_BLOCKS + i] = element;
@@ -89,7 +89,7 @@ void fix_indexes_kernel(int * indexA, int * indexB, int len, int BLOCK_SIZE, int
     int endB = min(2 * (couple_block_id + 1) * BLOCK_SIZE, len);
 
     // processo ogni elemento del blocco eccetto l'ultimo
-    for(int i = startSplitter; i < endSplitter - 1; i++) {
+    for(int i = startSplitter + threadIdx.x; i < endSplitter - 1; i += blockDim.x) {
         indexA[i] = indexA[i+1];
         indexB[i] = indexB[i+1];
     }
@@ -191,7 +191,7 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
     int * indexA_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
     int * indexB_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
 
-    splitter_kernel<<<COUPLE_OF_BLOCKS, 1>>>(input, splitter, indexA, indexB, len, BLOCK_SIZE);
+    splitter_kernel<<<COUPLE_OF_BLOCKS, SEGMERGE_SM_MANY_THREADS>>>(input, splitter, indexA, indexB, len, BLOCK_SIZE);
     CUDA_CHECK_ERROR
     DPRINT_MSG("After splitter_kernel")
     DPRINT_ARR_CUDA(splitter, SPLITTER_NUMBER)
@@ -206,14 +206,14 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
     DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
 
     // 3. sistemo gli indici di `indexA`, `indexB` per evitare merge vuoti
-    fix_indexes_kernel<<<COUPLE_OF_BLOCKS, 1>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
+    fix_indexes_kernel<<<COUPLE_OF_BLOCKS, SEGMERGE_SM_MANY_THREADS>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
     DPRINT_MSG("After fix_indexes_kernel")
     DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
     DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
     DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
 
     // 4. eseguo il merge di porzioni di blocchi di dimensione uniforme
-    uniform_merge_kernel<<<SPLITTER_NUMBER, 1>>>(input, output, indexA_out, indexB_out, len, BLOCK_SIZE);
+    uniform_merge_kernel<<<SPLITTER_NUMBER, 2*SEGMERGE_SM_SPLITTER_DISTANCE>>>(input, output, indexA_out, indexB_out, len, BLOCK_SIZE);
     CUDA_CHECK_ERROR
 
     // 5. eventualmente copio il risultato dell' ultimo blocco di array rimasto spaiato

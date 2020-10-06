@@ -38,7 +38,7 @@ bool transposer::component_test::sort() {
     
     bool all_ok = true;
 
-    for(int N = 100000-1; N < 100000; N++) {
+    for(int N = 1000000-1; N < 1000000; N++) {
         // input
         int *arr = utils::random::generate_array(1, 100, N);
         DPRINT_ARR(arr, N)
