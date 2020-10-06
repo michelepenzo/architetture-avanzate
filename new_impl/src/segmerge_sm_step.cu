@@ -251,14 +251,14 @@ void transposer::reference::segmerge3_sm_step(int INPUT_ARRAY input, int * outpu
 
 #define MAX_RAND_VALUE 0
 #define MIN_RAND_VALUE 5000
-#define RIPETITION 100
+#define RIPETITION 10
 #define BLOCK_SIZE 32
 
 // ================================================
 //  segmerge sm 
 bool transposer::component_test::segmerge_sm() {
 
-    const int N = 10000000;
+    const int N = 10;
     // input
 
     bool oks = true;
@@ -270,11 +270,13 @@ bool transposer::component_test::segmerge_sm() {
         DPRINT_ARR(arr, N)
 
         // reference implementation
+        DPRINT_MSG("reference implementation")
         int *segmerge_sm_arr = new int[N];
         transposer::reference::segmerge_sm_step(arr, segmerge_sm_arr, N, BLOCK_SIZE);
         DPRINT_ARR(segmerge_sm_arr, N)
 
         // cuda implementation
+        DPRINT_MSG("cuda implementation")
         int *segmerge_sm_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
         int *segmerge_sm_cuda_out = utils::cuda::allocate<int>(N);
         transposer::cuda::segmerge_sm_step(segmerge_sm_cuda_in, segmerge_sm_cuda_out, N, BLOCK_SIZE);
@@ -285,7 +287,7 @@ bool transposer::component_test::segmerge_sm() {
         bool ok = utils::equals<int>(segmerge_sm_arr, segmerge_sm_arr_2, N);
         oks = oks && ok;
 
-
+        std::cout << "j: " << j << std::endl;
 
         utils::cuda::deallocate(segmerge_sm_cuda_in);
         utils::cuda::deallocate(segmerge_sm_cuda_out);

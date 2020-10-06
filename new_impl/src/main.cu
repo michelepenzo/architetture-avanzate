@@ -27,14 +27,14 @@ int main(int argc, char **argv) {
     // ok = transposer::component_test::segmerge();
     // std::cout << "segmerge     OK: " << ok << "\n";
 
-    ok = transposer::component_test::segmerge3();
-    std::cout << "segmerge3    OK: " << ok << "\n";
+    // ok = transposer::component_test::segmerge3();
+    // std::cout << "segmerge3    OK: " << ok << "\n";
 
     ok = transposer::component_test::segmerge_sm();
     std::cout << "segmerge_sm  OK: " << ok << "\n";
 
-    ok = transposer::component_test::segmerge3_sm();
-    std::cout << "segmerge3_sm OK: " << ok << "\n";
+    // ok = transposer::component_test::segmerge3_sm();
+    // std::cout << "segmerge3_sm OK: " << ok << "\n";
 
     return 0;
 }
