@@ -44,7 +44,7 @@ void segmerge3_step_kernel(int INPUT_ARRAY input, int * output, int len, int BLO
 
     int couple_block_id = blockIdx.x;
     int start_1 = 2 * couple_block_id * BLOCK_SIZE;
-    int start_2 = (2 * couple_block_id + 1) * BLOCK_SIZE;
+    int start_2 = min((2 * couple_block_id + 1) * BLOCK_SIZE, len);
     int end_1 = min((2 * couple_block_id + 1) * BLOCK_SIZE, len);
     int end_2 = min((2 * couple_block_id + 2) * BLOCK_SIZE, len);
 
@@ -104,10 +104,14 @@ void transposer::reference::segmerge3_step(int INPUT_ARRAY input, int * output, 
 
     for(int couple_block_id = 0; couple_block_id < DIV_THEN_CEIL(BLOCK_NUMBER, 2); couple_block_id++) {
 
+        DPRINT_MSG("Processing couple_block_id %d\n", couple_block_id)
+
         int start_1 = 2 * couple_block_id * BLOCK_SIZE;
-        int start_2 = (2 * couple_block_id + 1) * BLOCK_SIZE;
+        int start_2 = min((2 * couple_block_id + 1) * BLOCK_SIZE, len);
         int end_1 = min((2 * couple_block_id + 1) * BLOCK_SIZE, len);
         int end_2 = min((2 * couple_block_id + 2) * BLOCK_SIZE, len);
+
+        DPRINT_MSG("A[%d:%d] B[%d:%d]\n", start_1, end_1, start_2, end_2)
 
         int current_1 = start_1;
         int current_2 = start_2;

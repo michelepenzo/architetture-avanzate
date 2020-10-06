@@ -251,21 +251,61 @@ void transposer::reference::segmerge3_sm_step(int INPUT_ARRAY input, int * outpu
 
 #define MAX_RAND_VALUE 0
 #define MIN_RAND_VALUE 5000
-#define RIPETITION 100
-#define BLOCK_SIZE 32
+#define RIPETITION 1
 
 // ================================================
 //  segmerge sm 
 bool transposer::component_test::segmerge_sm() {
 
-    const int N = 10000000;
+    // test with len=10, block size=4
+    {
+        const int N = 10;
+        const int BLOCK_SIZE = 4;
+        int * arr = new int[N]{1, 3, 5, 7, 2, 4, 6, 8, 1, 2};
+        int * segmerge_sm_arr = new int[N];
+        int * segmerge_sm_arr_2 = new int[N]; 
+        int * segmerge_sm_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
+        int * segmerge_sm_cuda_out = utils::cuda::allocate<int>(N);
+        DPRINT_ARR(arr, N)
+
+        // reference inplementation
+        std::cout << "Starting reference implementation...\n";
+        transposer::reference::segmerge_sm_step(arr, segmerge_sm_arr, N, BLOCK_SIZE);
+        DPRINT_ARR(segmerge_sm_arr, N)
+
+        // cuda implementation
+        std::cout << "Starting cuda implementation...\n";
+        transposer::cuda::segmerge_sm_step(segmerge_sm_cuda_in, segmerge_sm_cuda_out, N, BLOCK_SIZE);
+        utils::cuda::recv(segmerge_sm_arr_2, segmerge_sm_cuda_out, N);
+        DPRINT_ARR(segmerge_sm_arr_2, N)
+
+        // check correcness
+        bool ok = utils::equals<int>(segmerge_sm_arr, segmerge_sm_arr_2, N);
+        if(!ok) {
+            std::cout << "Error\n";
+            return false;
+        } else {
+            std::cout << "OK\n";
+        }
+
+        // deallocate resources
+        utils::cuda::deallocate(segmerge_sm_cuda_in);
+        utils::cuda::deallocate(segmerge_sm_cuda_out);
+        delete arr, segmerge_sm_arr, segmerge_sm_arr_2;
+    }
+    
+
+    return true;
+
+    /*
+    const int N = 100;
     // input
 
     bool oks = true;
     for(int j=0; j < RIPETITION; j++){
 
         int rand_value = utils::random::generate(MIN_RAND_VALUE, MAX_RAND_VALUE);
-        int *arr = utils::random::generate_array(1 + rand_value ,10000 + rand_value, N);
+        int *arr = utils::random::generate_array(1 + rand_value, 10000 + rand_value, N);
 
         DPRINT_ARR(arr, N)
 
@@ -293,21 +333,22 @@ bool transposer::component_test::segmerge_sm() {
 
 
     }
-    return oks;
+    return oks;*/
 }
 
 // ================================================
 //  segmerge3 sm 
 bool transposer::component_test::segmerge3_sm() {
 
-    const int N = 10000000;
+    const int N = 10;
+    const int BLOCK_SIZE = 4;
     // input
 
     bool oks = true;
 
     for(int j=0; j < RIPETITION; j++){
         int rand_value = utils::random::generate(MIN_RAND_VALUE, MAX_RAND_VALUE);
-        int *arr = utils::random::generate_array(1 + rand_value ,10000 + rand_value, N);
+        int *arr = utils::random::generate_array(1, 6, N);
 
         DPRINT_ARR(arr, N)
 
