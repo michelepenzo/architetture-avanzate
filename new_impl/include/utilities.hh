@@ -33,7 +33,6 @@
 #define DPRINT_MSG(message, ...) { printf("%20s: ", __func__); printf(message "\n", ##__VA_ARGS__); }
 #define DPRINT_ARR(array, len) { printf("%20s: ", __func__); utils::print(STRINGIFY(array), array, len); }
 #define DPRINT_ARR_CUDA(array, len) { printf("%20s: ", __func__); utils::cuda::print(STRINGIFY(array), array, len); }
-#define DPRINT_ARR_CUDA_BLOCK(array, len, blk) { printf("%20s: ", __func__); utils::cuda::print_block(STRINGIFY(array), array, len, blk); }
 #else 
 #define ASSERT_LIMIT(value,limit) { value; limit; }
 #define ASSERT_RANGE(value) { value; }

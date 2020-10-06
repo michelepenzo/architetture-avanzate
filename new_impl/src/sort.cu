@@ -15,7 +15,7 @@ void transposer::cuda::sort(int INPUT_ARRAY input, int * output, int len) {
         segmerge_sm_step(buffer[full], buffer[1-full], len, BLOCK_SIZE);
         
         full = 1 - full;
-        DPRINT_ARR_CUDA_BLOCK(buffer[full], len, BLOCK_SIZE*2)
+        DPRINT_ARR_CUDA(buffer[full], len)
     }
 
     // eventualmente copio nell'array di output nel caso non sia stato l'ultimo
