@@ -8,7 +8,11 @@ void copy(int * output, int INPUT_ARRAY input, int len) {
 }
 
 __device__
-int binary_search(int element_to_search, int INPUT_ARRAY input, int len) {
+int find_position_in_sorted_array(int element_to_search, int INPUT_ARRAY input, int len) {
+
+    if(len <= 0) {
+        return 0;
+    }
 
     int start = 0;
     int end = start + len;
@@ -26,10 +30,11 @@ int binary_search(int element_to_search, int INPUT_ARRAY input, int len) {
 }
 
 __device__
-int binary_search_last(int element_to_search, int INPUT_ARRAY input, int len) {
+int find_last_position_in_sorted_array(int element_to_search, int INPUT_ARRAY input, int len) {
 
-    int index = binary_search(element_to_search, input, len);
+    int index = find_position_in_sorted_array(element_to_search, input, len);
     while(input[index] == element_to_search && index < len) {
+        //printf("input[%d] = %d == %d, index++\n", index, input[index], element_to_search);
         index++;
     }
     return index;
@@ -44,8 +49,7 @@ void splitter_kernel(int INPUT_ARRAY input, int * splitter, int * indexA, int * 
     int * inputA = input + 2 * couple_block_id * BLOCK_SIZE;
     int * inputB = input + (2 * couple_block_id + 1) * BLOCK_SIZE;
     int lenA = BLOCK_SIZE;
-    int endB = min((2 * couple_block_id + 2) * BLOCK_SIZE, len);
-    int lenB = endB - (2 * couple_block_id + 1) * BLOCK_SIZE;
+    int lenB = min((2 * couple_block_id + 2) * BLOCK_SIZE, len) - (2 * couple_block_id + 1) * BLOCK_SIZE;
 
     // mi sposto verso gli indici corretti di splitter, indexA, indexB
     const int SPLITTER_PER_BLOCKS = DIV_THEN_CEIL(BLOCK_SIZE, SEGMERGE_SM_SPLITTER_DISTANCE);
@@ -55,25 +59,44 @@ void splitter_kernel(int INPUT_ARRAY input, int * splitter, int * indexA, int * 
 
     // riempio gli elementi
     int i;
-    for(int i = 0; i < SPLITTER_PER_BLOCKS && i*SEGMERGE_SM_SPLITTER_DISTANCE < lenA; i++) {
+    for(int i = 0; i < SPLITTER_PER_BLOCKS; i++) {
         splitter[i] = inputA[i*SEGMERGE_SM_SPLITTER_DISTANCE];
-        if(i > 0) {
-            // shifto indietro di 1 per evitare il primo merge (di porzioni di array vuote)
-            indexA[i - 1] = i*SEGMERGE_SM_SPLITTER_DISTANCE;
-            indexB[i - 1] = binary_search(splitter[i], inputB, lenB);
-        }
+        indexA[i] = i*SEGMERGE_SM_SPLITTER_DISTANCE;
+        indexB[i] = find_position_in_sorted_array(splitter[i], inputB, lenB);
     }
 
     for(i = 0; i < SPLITTER_PER_BLOCKS && i*SEGMERGE_SM_SPLITTER_DISTANCE < lenB; i++) {
-        splitter[SPLITTER_PER_BLOCKS + i] = inputB[i*SEGMERGE_SM_SPLITTER_DISTANCE];
-        // shifto indietro di 1 per evitare il primo merge (di porzioni di array vuote)
-        indexA[SPLITTER_PER_BLOCKS + i - 1] = binary_search_last(splitter[i], inputB, lenB);
-        indexB[SPLITTER_PER_BLOCKS + i - 1] = i*SEGMERGE_SM_SPLITTER_DISTANCE;
+        int element = inputB[i*SEGMERGE_SM_SPLITTER_DISTANCE];
+        // save splitter
+        splitter[SPLITTER_PER_BLOCKS + i] = element;
+        indexA[SPLITTER_PER_BLOCKS + i] = find_last_position_in_sorted_array(element, inputA, lenA);
+        indexB[SPLITTER_PER_BLOCKS + i] = i*SEGMERGE_SM_SPLITTER_DISTANCE;
+        //printf("(%2d): element %d from B is position %d of A\n", couple_block_id, element, indexA[SPLITTER_PER_BLOCKS + i]);
+    }
+}
+
+__global__
+void fix_indexes_kernel(int * indexA, int * indexB, int len, int BLOCK_SIZE, int SPLITTER_NUMBER, int SPLITTER_PER_BLOCK) {
+
+    int couple_block_id = blockIdx.x;
+
+    // calcolo gli indici di inizio e fine degli splitter che devo processare
+    int startSplitter = 2 * couple_block_id * SPLITTER_PER_BLOCK;
+    int endSplitter  = min(2 * (couple_block_id + 1) * SPLITTER_PER_BLOCK, SPLITTER_NUMBER);
+
+    // la lunghezza di A è sempre BLOCK_SIZE, la lunghezza di B?... dipende se è l'ultimo
+    int startB = (2 * couple_block_id + 1) * BLOCK_SIZE;
+    int endB = min(2 * (couple_block_id + 1) * BLOCK_SIZE, len);
+
+    // processo ogni elemento del blocco eccetto l'ultimo
+    for(int i = startSplitter; i < endSplitter - 1; i++) {
+        indexA[i] = indexA[i+1];
+        indexB[i] = indexB[i+1];
     }
 
-    // alla fine degli indici ci sono le dimensioni degli array
-    indexA[SPLITTER_PER_BLOCKS + i - 1] = lenA;
-    indexB[SPLITTER_PER_BLOCKS + i - 1] = lenB;
+    // l'ultimo elemento contiene la dimensione del blocco
+    indexA[endSplitter - 1] = BLOCK_SIZE;
+    indexB[endSplitter - 1] = endB - startB;
 }
 
 __global__
@@ -81,6 +104,11 @@ void uniform_merge_kernel(int INPUT_ARRAY input, int * output, int INPUT_ARRAY i
 
     __shared__ int temp_in[2 * SEGMERGE_SM_SPLITTER_DISTANCE];
     __shared__ int temp_out[2 * SEGMERGE_SM_SPLITTER_DISTANCE];
+
+    for(int i = 0; i < 2 * SEGMERGE_SM_SPLITTER_DISTANCE; i++) {
+        temp_in[i] = 0;
+        temp_out[i] = 0;
+    }
 
     // processa l'elemento dello splitter
     const int splitter_index = blockIdx.x;
@@ -97,21 +125,40 @@ void uniform_merge_kernel(int INPUT_ARRAY input, int * output, int INPUT_ARRAY i
     int startB = (item == 0) ? 0 : indexB[splitter_index-1];
     int endA   = indexA[splitter_index];
     int endB   = indexB[splitter_index];
-
+    
     // carico gli elementi in temp_in
     copy(temp_in, inputA + startA, endA - startA);
     copy(temp_in + SEGMERGE_SM_SPLITTER_DISTANCE, inputB + startB, endB - startB);
+    //printf("(%2d): Merging A[%2d:%2d] with B[%2d:%2d] |  temp_in=[%2d %2d %2d %2d %2d %2d %2d %2d]\n", 
+    //    splitter_index,
+    //    startA, endA, startB, endB,
+    //    temp_in[0], temp_in[1], temp_in[2], temp_in[3], 
+    //    temp_in[4], temp_in[5], temp_in[6], temp_in[7] 
+    //);
+    __syncthreads();
 
     // effettuo merge
     for(int i = 0; i < endA - startA; i++) {
-        int k = i + binary_search(temp_in[i], temp_in + SEGMERGE_SM_SPLITTER_DISTANCE, endB - startB);
-        temp_out[k] = temp_in[i];
+        int element = temp_in[i];
+        int posInA = i;
+        int posInB = find_position_in_sorted_array(element, temp_in + SEGMERGE_SM_SPLITTER_DISTANCE, endB - startB);
+        int k = posInA + posInB;
+        temp_out[k] = element;
     }
+    __syncthreads();
     for(int i = 0; i < endB - startB; i++) {
         int element = temp_in[SEGMERGE_SM_SPLITTER_DISTANCE + i];
-        int k = i + binary_search_last(element, temp_in, endA - startA);
-        temp_out[k] = temp_in[i];
+        int k = i + find_last_position_in_sorted_array(element, temp_in, endA - startA);
+        temp_out[k] = element;
     }
+    __syncthreads();
+
+    //printf("(%2d): Merging A[%2d:%2d] with B[%2d:%2d] | temp_out=[%2d %2d %2d %2d %2d %2d %2d %2d]\n", 
+    //    splitter_index,
+    //    startA, endA, startB, endB,
+    //    temp_out[0], temp_out[1], temp_out[2], temp_out[3], 
+    //    temp_out[4], temp_out[5], temp_out[6], temp_out[7] 
+    //);
 
     // salva output
     output = output + 2 * couple_block_id * BLOCK_SIZE;
@@ -122,11 +169,20 @@ void uniform_merge_kernel(int INPUT_ARRAY input, int * output, int INPUT_ARRAY i
 
 void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
     
+    DPRINT_MSG("\n\n\n##### Starting segmerge_sm_step")
+    DPRINT_ARR_CUDA(input, len)
+
     // 1. lavoro su coppie di blocchi per estrarre gli splitter e gli indici necessari a lavorarci sopra
     const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
     const int COUPLE_OF_BLOCKS = BLOCK_NUMBER / 2;
     const int SPLITTER_PER_BLOCKS = DIV_THEN_CEIL(BLOCK_SIZE, SEGMERGE_SM_SPLITTER_DISTANCE);
-    const int SPLITTER_NUMBER = 2 * COUPLE_OF_BLOCKS * SPLITTER_PER_BLOCKS;
+    const int SPLITTER_PER_LAST_BLOCK = (len % BLOCK_SIZE == 0) ? SPLITTER_PER_BLOCKS : DIV_THEN_CEIL(len % BLOCK_SIZE, SEGMERGE_SM_SPLITTER_DISTANCE);
+    const int SPLITTER_NUMBER = 
+        (BLOCK_NUMBER%2==1)                      ? // il numero di blocchi da processare è dispari?
+        (2*COUPLE_OF_BLOCKS*SPLITTER_PER_BLOCKS) : // se si, tutti i blocchi sa processare hanno dimensione piena
+        (2*(COUPLE_OF_BLOCKS-1)*SPLITTER_PER_BLOCKS+SPLITTER_PER_BLOCKS+SPLITTER_PER_LAST_BLOCK); // se no, l'ultimo blocco da processare potrebbe avere lunghezza minore
+
+    DPRINT_MSG("SPLITTER_NUMBER=%d, BLOCK_NUMBER=%d\n", SPLITTER_NUMBER, BLOCK_NUMBER)
 
     int * splitter     = utils::cuda::allocate<int>(SPLITTER_NUMBER);
     int * indexA       = utils::cuda::allocate<int>(SPLITTER_NUMBER);
@@ -149,14 +205,18 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
     DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
     DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
 
-    // 3. eseguo il merge di porzioni di blocchi di dimensione uniforme
+    // 3. sistemo gli indici di `indexA`, `indexB` per evitare merge vuoti
+    fix_indexes_kernel<<<COUPLE_OF_BLOCKS, 1>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
+    DPRINT_MSG("After fix_indexes_kernel")
+    DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
+    DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
+    DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
+
+    // 4. eseguo il merge di porzioni di blocchi di dimensione uniforme
     uniform_merge_kernel<<<SPLITTER_NUMBER, 1>>>(input, output, indexA_out, indexB_out, len, BLOCK_SIZE);
-    DPRINT_MSG("After uniform_merge_kernel")
-    DPRINT_ARR_CUDA(input, len)
-    DPRINT_ARR_CUDA(output, len)
     CUDA_CHECK_ERROR
 
-    // 4. eventualmente copio il risultato dell' ultimo blocco di array rimasto spaiato
+    // 5. eventualmente copio il risultato dell' ultimo blocco di array rimasto spaiato
     if(BLOCK_NUMBER % 2 == 1) {
         utils::cuda::copy<int>(
             output + 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
@@ -164,6 +224,10 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
             len - 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE
         );
     }
+
+    DPRINT_MSG("After uniform_merge_kernel")
+    DPRINT_ARR_CUDA(input, len)
+    DPRINT_ARR_CUDA(output, len)
 
     utils::cuda::deallocate(splitter);
     utils::cuda::deallocate(indexA);
