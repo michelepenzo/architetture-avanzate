@@ -35,30 +35,36 @@ void transposer::reference::sort(int INPUT_ARRAY input, int * output, int len) {
 }
 
 bool transposer::component_test::sort() {
-
-    const int N = 10;
-    // input
-    int *arr = utils::random::generate_array(1, 100, N);
-    DPRINT_ARR(arr, N)
-
-    // reference implementation
-    int *sort_arr = new int[N];
-    transposer::reference::sort(arr, sort_arr, N);
-
-    // cuda implementation
-    int *sort_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
-    int *sort_cuda_out = utils::cuda::allocate<int>(N);
-    transposer::cuda::sort(sort_cuda_in, sort_cuda_out, N);
-    int *sort_arr_2 = new int[N]; 
-    utils::cuda::recv(sort_arr_2, sort_cuda_out, N);
-
-    DPRINT_ARR(sort_arr, N)
-    DPRINT_ARR(sort_arr_2, N)
-    bool ok = utils::equals<int>(sort_arr, sort_arr_2, N);
-
-    utils::cuda::deallocate(sort_cuda_in);
-    utils::cuda::deallocate(sort_cuda_out);
-    delete arr, sort_arr, sort_arr_2;
     
-    return ok;
+    bool all_ok = true;
+
+    for(int N = 1000000-1; N < 1000000; N++) {
+        // input
+        int *arr = utils::random::generate_array(1, 100, N);
+        DPRINT_ARR(arr, N)
+
+        // reference implementation
+        int *sort_arr = new int[N];
+        transposer::reference::sort(arr, sort_arr, N);
+
+        // cuda implementation
+        int *sort_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
+        int *sort_cuda_out = utils::cuda::allocate<int>(N);
+        transposer::cuda::sort(sort_cuda_in, sort_cuda_out, N);
+        int *sort_arr_2 = new int[N]; 
+        utils::cuda::recv(sort_arr_2, sort_cuda_out, N);
+
+        DPRINT_ARR(sort_arr, N)
+        DPRINT_ARR(sort_arr_2, N)
+        bool ok = utils::equals<int>(sort_arr, sort_arr_2, N);
+        all_ok = all_ok && ok;
+
+        utils::cuda::deallocate(sort_cuda_in);
+        utils::cuda::deallocate(sort_cuda_out);
+        delete arr, sort_arr, sort_arr_2;
+    }
+
+    std::cout << "All ok: " << all_ok << std::endl;
+    
+    return all_ok;
 }
