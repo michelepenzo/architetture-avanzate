@@ -32,12 +32,16 @@ int main(int argc, char **argv) {
     tester.run(false);
     tester.print();
 */
+
     MergeTransposer sc;
-    Tester tester;
-    tester.add_test(5000, 4000, 1000, REPETITION_NUMBER);
-    tester.add_processor(&sc, "SCANTRANS");
-    tester.run(true);
-    tester.print();
-    
+
+    SparseMatrix  *s = new SparseMatrix(5, 5, 10);
+    s->print();
+
+    SparseMatrix *st = sc.transpose(s);
+    st->print();
+
+    delete s, st;
+
     return 0;
 }

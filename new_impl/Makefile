@@ -14,13 +14,25 @@ else
 endif
 
 # This is the whole executable
-$(EXE): $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/transposer.o
-	nvcc $(GENCODE_FLAGS) -o $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/transposer.o
+$(EXE): $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/transposer.o $(LOCAL_BUILD)/sort.o $(LOCAL_BUILD)/segsort.o $(LOCAL_BUILD)/segmerge_step.o $(LOCAL_BUILD)/segmerge_sm_step.o
+	nvcc $(GENCODE_FLAGS) -o $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/sort.o $(LOCAL_BUILD)/transposer.o $(LOCAL_BUILD)/segsort.o $(LOCAL_BUILD)/segmerge_step.o $(LOCAL_BUILD)/segmerge_sm_step.o
 
 $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 $(LOCAL_BUILD)/transposer.o: $(LOCAL_SRC)/transposer.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
+$(LOCAL_BUILD)/segsort.o: $(LOCAL_SRC)/segsort.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
+$(LOCAL_BUILD)/segmerge_step.o: $(LOCAL_SRC)/segmerge_step.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
+$(LOCAL_BUILD)/segmerge_sm_step.o: $(LOCAL_SRC)/segmerge_sm_step.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
+$(LOCAL_BUILD)/sort.o: $(LOCAL_SRC)/sort.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 
@@ -29,7 +41,7 @@ $(LOCAL_BUILD)/transposer.o: $(LOCAL_SRC)/transposer.cu
 .PHONY: clean test
 
 clean:
-	@rm -f $(EXE) $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/transposer.o
+	@rm -f $(EXE) $(LOCAL_BUILD)/*
 
 test:
 	@echo "Starting test application...\n\n"

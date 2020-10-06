@@ -102,20 +102,20 @@ public:
     inline void print() {
         std::cout << "csrRowPtr: ";
         for(int i = 0; i < m + 1; i++) {
-            std::cout << csrRowPtr[i] << " ";
             if(i % 100 == 0) { std::cout << std::endl; }
+            std::cout << csrRowPtr[i] << " ";
         }
 
         std::cout << std::endl << "csrColIdx: ";
         for(int i = 0; i < nnz; i++) {
-            std::cout << csrColIdx[i] << " ";
             if(i % 100 == 0) { std::cout << std::endl; }
+            std::cout << csrColIdx[i] << " ";
         }
 
         std::cout << std::endl << "csrVal: ";
         for(int i = 0; i < nnz; i++) {
-            std::cout << csrVal[i] << " ";
             if(i % 100 == 0) { std::cout << std::endl; }
+            std::cout << csrVal[i] << " ";
         }
 
         std::cout << std::endl;

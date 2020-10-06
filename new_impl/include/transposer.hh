@@ -6,18 +6,16 @@
 #include "utilities.hh"
 #include "matrix.hh"
 
+#define HISTOGRAM_BLOCKS 2
+
+#define SCAN_THREAD_PER_BLOCK 512
+#define SCAN_ELEMENTS_PER_BLOCK (2*SCAN_THREAD_PER_BLOCK)
+
+#define SEGSORT_ELEMENTS_PER_BLOCK 4
+
+#define SEGMERGE_SM_SPLITTER_DISTANCE 4
+
 namespace transposer {
-
-    enum Mode {
-        SERIAL          = 0,
-        CUSPARSE        = 1,
-        SCAN            = 2,
-        SCAN_REFERENCE  = 3,
-        MERGE           = 4,
-        MERGE_REFERENCE = 5
-    };
-
-    matrix::SparseMatrix* transpose(matrix::SparseMatrix *sm, Mode mode);
 
     namespace cuda {
 
@@ -28,6 +26,14 @@ namespace transposer {
         void scan(int INPUT_ARRAY input, int * output, int len);
 
         void segsort(int INPUT_ARRAY input, int * output, int len);
+
+        void segmerge_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
+
+        void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+
+        void segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
+
+        void segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
 
         void sort(int INPUT_ARRAY input, int * output, int len);
     }
@@ -42,13 +48,15 @@ namespace transposer {
 
         void segsort(int INPUT_ARRAY input, int * output, int len);
 
-        void sort(int INPUT_ARRAY input, int * output, int len);
+        void segmerge_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
 
-        int serial_csr2csc(
-            int m, int n, int nnz, 
-            int INPUT_ARRAY csrRowPtr, int INPUT_ARRAY csrColIdx, float INPUT_ARRAY csrVal, 
-            int *cscColPtr, int *cscRowIdx, float *cscVal
-        );
+        void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+
+        void segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
+
+        void segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+
+        void sort(int INPUT_ARRAY input, int * output, int len);
     }
 
     namespace component_test {
