@@ -1,4 +1,4 @@
-#include "transposer.hh"
+#include "procedures.hh"
 
 __device__
 void copy(int * output, int INPUT_ARRAY input, int len) {
@@ -59,13 +59,13 @@ void splitter_kernel(int INPUT_ARRAY input, int * splitter, int * indexA, int * 
 
     // riempio gli elementi
     int i;
-    for(int i = threadIdx.x; i < SPLITTER_PER_BLOCKS; i += blockDim.x) {
+    for(int i = 0; i < SPLITTER_PER_BLOCKS; i ++) {
         splitter[i] = inputA[i*SEGMERGE_SM_SPLITTER_DISTANCE];
         indexA[i] = i*SEGMERGE_SM_SPLITTER_DISTANCE;
         indexB[i] = find_position_in_sorted_array(splitter[i], inputB, lenB);
     }
 
-    for(i = threadIdx.x; i < SPLITTER_PER_BLOCKS && i*SEGMERGE_SM_SPLITTER_DISTANCE < lenB; i += blockDim.x) {
+    for(i = 0; i < SPLITTER_PER_BLOCKS && i*SEGMERGE_SM_SPLITTER_DISTANCE < lenB; i ++) {
         int element = inputB[i*SEGMERGE_SM_SPLITTER_DISTANCE];
         // save splitter
         splitter[SPLITTER_PER_BLOCKS + i] = element;
@@ -80,23 +80,27 @@ void fix_indexes_kernel(int * indexA, int * indexB, int len, int BLOCK_SIZE, int
 
     int couple_block_id = blockIdx.x;
 
-    // calcolo gli indici di inizio e fine degli splitter che devo processare
-    int startSplitter = 2 * couple_block_id * SPLITTER_PER_BLOCK;
-    int endSplitter  = min(2 * (couple_block_id + 1) * SPLITTER_PER_BLOCK, SPLITTER_NUMBER);
+    if(threadIdx.x == 0) {
 
-    // la lunghezza di A è sempre BLOCK_SIZE, la lunghezza di B?... dipende se è l'ultimo
-    int startB = (2 * couple_block_id + 1) * BLOCK_SIZE;
-    int endB = min(2 * (couple_block_id + 1) * BLOCK_SIZE, len);
+        // calcolo gli indici di inizio e fine degli splitter che devo processare
+        int startSplitter = 2 * couple_block_id * SPLITTER_PER_BLOCK;
+        int endSplitter  = min(2 * (couple_block_id + 1) * SPLITTER_PER_BLOCK, SPLITTER_NUMBER);
+        int lenSplitter = endSplitter - startSplitter;
+        // la lunghezza di A è sempre BLOCK_SIZE, la lunghezza di B?... dipende se è l'ultimo
+        int lenB = min(2 * (couple_block_id + 1) * BLOCK_SIZE, len) - ((2 * couple_block_id + 1) * BLOCK_SIZE);
+        
+        printf("(%2d) split[%3d:%3d] {max %d}\n", blockIdx.x, startSplitter, endSplitter, SPLITTER_NUMBER);
+    
+        for(int i = 0; i < lenSplitter - 1; i += 1) {
+            indexA[startSplitter+i] = indexA[startSplitter+i+1];
+            indexB[startSplitter+i] = indexB[startSplitter+i+1];
+        }
 
-    // processo ogni elemento del blocco eccetto l'ultimo
-    for(int i = startSplitter + threadIdx.x; i < endSplitter - 1; i += blockDim.x) {
-        indexA[i] = indexA[i+1];
-        indexB[i] = indexB[i+1];
+        // l'ultimo elemento contiene la dimensione del blocco
+        indexA[lenSplitter-1] = BLOCK_SIZE;
+        indexB[lenSplitter-1] = lenB;
+        __syncthreads();
     }
-
-    // l'ultimo elemento contiene la dimensione del blocco
-    indexA[endSplitter - 1] = BLOCK_SIZE;
-    indexB[endSplitter - 1] = endB - startB;
 }
 
 __global__
@@ -127,14 +131,10 @@ void uniform_merge_kernel(int INPUT_ARRAY input, int * output, int INPUT_ARRAY i
     int endB   = indexB[splitter_index];
     
     // carico gli elementi in temp_in
+    if(endA - startA > SEGMERGE_SM_SPLITTER_DISTANCE) printf("!!!Error A[%d:%d] > %d SM SP S\n", startA, endA, SEGMERGE_SM_SPLITTER_DISTANCE);
     copy(temp_in, inputA + startA, endA - startA);
+    if(endB - startB > SEGMERGE_SM_SPLITTER_DISTANCE) printf("!!!Error B[%d:%d] > %d SM SP S\n", startB, endB, SEGMERGE_SM_SPLITTER_DISTANCE);
     copy(temp_in + SEGMERGE_SM_SPLITTER_DISTANCE, inputB + startB, endB - startB);
-    //printf("(%2d): Merging A[%2d:%2d] with B[%2d:%2d] |  temp_in=[%2d %2d %2d %2d %2d %2d %2d %2d]\n", 
-    //    splitter_index,
-    //    startA, endA, startB, endB,
-    //    temp_in[0], temp_in[1], temp_in[2], temp_in[3], 
-    //    temp_in[4], temp_in[5], temp_in[6], temp_in[7] 
-    //);
     __syncthreads();
 
     // effettuo merge
@@ -146,19 +146,13 @@ void uniform_merge_kernel(int INPUT_ARRAY input, int * output, int INPUT_ARRAY i
         temp_out[k] = element;
     }
     __syncthreads();
+
     for(int i = 0; i < endB - startB; i++) {
         int element = temp_in[SEGMERGE_SM_SPLITTER_DISTANCE + i];
         int k = i + find_last_position_in_sorted_array(element, temp_in, endA - startA);
         temp_out[k] = element;
     }
     __syncthreads();
-
-    //printf("(%2d): Merging A[%2d:%2d] with B[%2d:%2d] | temp_out=[%2d %2d %2d %2d %2d %2d %2d %2d]\n", 
-    //    splitter_index,
-    //    startA, endA, startB, endB,
-    //    temp_out[0], temp_out[1], temp_out[2], temp_out[3], 
-    //    temp_out[4], temp_out[5], temp_out[6], temp_out[7] 
-    //);
 
     // salva output
     output = output + 2 * couple_block_id * BLOCK_SIZE;
@@ -167,10 +161,10 @@ void uniform_merge_kernel(int INPUT_ARRAY input, int * output, int INPUT_ARRAY i
     }
 }
 
-void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
+void procedures::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
     
     DPRINT_MSG("\n\n\n##### Starting segmerge_sm_step")
-    DPRINT_ARR_CUDA(input, len)
+    //DPRINT_ARR_CUDA(input, len)
 
     // 1. lavoro su coppie di blocchi per estrarre gli splitter e gli indici necessari a lavorarci sopra
     const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
@@ -182,7 +176,8 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
         (2*COUPLE_OF_BLOCKS*SPLITTER_PER_BLOCKS) : // se si, tutti i blocchi sa processare hanno dimensione piena
         (2*(COUPLE_OF_BLOCKS-1)*SPLITTER_PER_BLOCKS+SPLITTER_PER_BLOCKS+SPLITTER_PER_LAST_BLOCK); // se no, l'ultimo blocco da processare potrebbe avere lunghezza minore
 
-    DPRINT_MSG("SPLITTER_NUMBER=%d, BLOCK_NUMBER=%d\n", SPLITTER_NUMBER, BLOCK_NUMBER)
+    printf("SPLITTER_NUMBER=%d, SPLITTER_PER_BLOCK=%d, SPLITTER_PER_LAST_BLOCK=%d, BLOCK_NUMBER=%d, COUPLE_OF_BLOCKS=%d\n", 
+        SPLITTER_NUMBER, SPLITTER_PER_BLOCKS, SPLITTER_PER_LAST_BLOCK, BLOCK_NUMBER, COUPLE_OF_BLOCKS);
 
     int * splitter     = utils::cuda::allocate<int>(SPLITTER_NUMBER);
     int * indexA       = utils::cuda::allocate<int>(SPLITTER_NUMBER);
@@ -191,7 +186,7 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
     int * indexA_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
     int * indexB_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
 
-    splitter_kernel<<<COUPLE_OF_BLOCKS, SEGMERGE_SM_MANY_THREADS>>>(input, splitter, indexA, indexB, len, BLOCK_SIZE);
+    splitter_kernel<<<COUPLE_OF_BLOCKS, 1>>>(input, splitter, indexA, indexB, len, BLOCK_SIZE);
     CUDA_CHECK_ERROR
     DPRINT_MSG("After splitter_kernel")
     DPRINT_ARR_CUDA(splitter, SPLITTER_NUMBER)
@@ -206,7 +201,8 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
     DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
 
     // 3. sistemo gli indici di `indexA`, `indexB` per evitare merge vuoti
-    fix_indexes_kernel<<<COUPLE_OF_BLOCKS, SEGMERGE_SM_MANY_THREADS>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
+    fix_indexes_kernel<<<COUPLE_OF_BLOCKS, 1>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
+    CUDA_CHECK_ERROR
     DPRINT_MSG("After fix_indexes_kernel")
     DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
     DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
@@ -225,9 +221,9 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
         );
     }
 
-    DPRINT_MSG("After uniform_merge_kernel")
-    DPRINT_ARR_CUDA(input, len)
-    DPRINT_ARR_CUDA(output, len)
+    //DPRINT_MSG("After uniform_merge_kernel")
+    //DPRINT_ARR_CUDA(input, len)
+    //DPRINT_ARR_CUDA(output, len)
 
     utils::cuda::deallocate(splitter);
     utils::cuda::deallocate(indexA);
@@ -237,156 +233,14 @@ void transposer::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
     utils::cuda::deallocate(indexB_out);
 }
 
-void transposer::cuda::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::cuda::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
     segmerge3_step(input, output, len, BLOCK_SIZE, a_in, a_out, b_in, b_out);
 }
 
-void transposer::reference::segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
+void procedures::reference::segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
     segmerge_step(input, output, len, BLOCK_SIZE);
 }
 
-void transposer::reference::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::reference::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
     segmerge3_step(input, output, len, BLOCK_SIZE, a_in, a_out, b_in, b_out);
-}
-
-#define MAX_RAND_VALUE 0
-#define MIN_RAND_VALUE 5000
-#define RIPETITION 1
-
-// ================================================
-//  segmerge sm 
-bool transposer::component_test::segmerge_sm() {
-
-    // test with len=10, block size=4
-    {
-        const int N = 10;
-        const int BLOCK_SIZE = 4;
-        int * arr = new int[N]{1, 3, 5, 7, 2, 4, 6, 8, 1, 2};
-        int * segmerge_sm_arr = new int[N];
-        int * segmerge_sm_arr_2 = new int[N]; 
-        int * segmerge_sm_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
-        int * segmerge_sm_cuda_out = utils::cuda::allocate<int>(N);
-        DPRINT_ARR(arr, N)
-
-        // reference inplementation
-        std::cout << "Starting reference implementation...\n";
-        transposer::reference::segmerge_sm_step(arr, segmerge_sm_arr, N, BLOCK_SIZE);
-        DPRINT_ARR(segmerge_sm_arr, N)
-
-        // cuda implementation
-        std::cout << "Starting cuda implementation...\n";
-        transposer::cuda::segmerge_sm_step(segmerge_sm_cuda_in, segmerge_sm_cuda_out, N, BLOCK_SIZE);
-        utils::cuda::recv(segmerge_sm_arr_2, segmerge_sm_cuda_out, N);
-        DPRINT_ARR(segmerge_sm_arr_2, N)
-
-        // check correcness
-        bool ok = utils::equals<int>(segmerge_sm_arr, segmerge_sm_arr_2, N);
-        if(!ok) {
-            std::cout << "Error\n";
-            return false;
-        } else {
-            std::cout << "OK\n";
-        }
-
-        // deallocate resources
-        utils::cuda::deallocate(segmerge_sm_cuda_in);
-        utils::cuda::deallocate(segmerge_sm_cuda_out);
-        delete arr, segmerge_sm_arr, segmerge_sm_arr_2;
-    }
-    
-
-    return true;
-
-    /*
-    const int N = 100;
-    // input
-
-    bool oks = true;
-    for(int j=0; j < RIPETITION; j++){
-
-        int rand_value = utils::random::generate(MIN_RAND_VALUE, MAX_RAND_VALUE);
-        int *arr = utils::random::generate_array(1 + rand_value, 10000 + rand_value, N);
-
-        DPRINT_ARR(arr, N)
-
-        // reference implementation
-        int *segmerge_sm_arr = new int[N];
-        transposer::reference::segmerge_sm_step(arr, segmerge_sm_arr, N, BLOCK_SIZE);
-        DPRINT_ARR(segmerge_sm_arr, N)
-
-        // cuda implementation
-        int *segmerge_sm_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
-        int *segmerge_sm_cuda_out = utils::cuda::allocate<int>(N);
-        transposer::cuda::segmerge_sm_step(segmerge_sm_cuda_in, segmerge_sm_cuda_out, N, BLOCK_SIZE);
-        int *segmerge_sm_arr_2 = new int[N]; 
-        utils::cuda::recv(segmerge_sm_arr_2, segmerge_sm_cuda_out, N);
-        DPRINT_ARR(segmerge_sm_arr_2, N)
-
-        bool ok = utils::equals<int>(segmerge_sm_arr, segmerge_sm_arr_2, N);
-        oks = oks && ok;
-
-
-
-        utils::cuda::deallocate(segmerge_sm_cuda_in);
-        utils::cuda::deallocate(segmerge_sm_cuda_out);
-        delete arr, segmerge_sm_arr, segmerge_sm_arr_2;
-
-
-    }
-    return oks;*/
-}
-
-// ================================================
-//  segmerge3 sm 
-bool transposer::component_test::segmerge3_sm() {
-
-    const int N = 10;
-    const int BLOCK_SIZE = 4;
-    // input
-
-    bool oks = true;
-
-    for(int j=0; j < RIPETITION; j++){
-        int rand_value = utils::random::generate(MIN_RAND_VALUE, MAX_RAND_VALUE);
-        int *arr = utils::random::generate_array(1, 6, N);
-
-        DPRINT_ARR(arr, N)
-
-        // reference implementation
-        int *segmerge_sm_arr = new int[N];
-        int *segmerge_a_in_arr = new int[N];
-        int *segmerge_a_out_arr = new int[N];
-        int *segmerge_b_in_arr = new int[N];
-        int *segmerge_b_out_arr = new int[N];
-        transposer::reference::segmerge3_sm_step(arr, segmerge_sm_arr, N, BLOCK_SIZE,
-                                                segmerge_a_in_arr, segmerge_a_out_arr, segmerge_b_in_arr, segmerge_b_out_arr);
-
-        DPRINT_ARR(segmerge_sm_arr, N)
-
-        // cuda implementation
-        int *segmerge_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
-        int *segmerge_a_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
-        int *segmerge_b_cuda_in  = utils::cuda::allocate_send<int>(arr, N);
-        int *segmerge_cuda_out = utils::cuda::allocate<int>(N);
-        int *segmerge_a_cuda_out = utils::cuda::allocate<int>(N);
-        int *segmerge_b_cuda_out = utils::cuda::allocate<int>(N);
-    
-        transposer::cuda::segmerge3_sm_step(segmerge_cuda_in, segmerge_cuda_out, N, BLOCK_SIZE,
-                                            segmerge_a_cuda_in, segmerge_b_cuda_in, segmerge_a_cuda_out, segmerge_b_cuda_out);
-        int *segmerge_sm_arr_2 = new int[N]; 
-        utils::cuda::recv(segmerge_sm_arr_2, segmerge_cuda_out, N);
-        DPRINT_ARR(segmerge_sm_arr_2, N)
-
-        bool ok = utils::equals<int>(segmerge_sm_arr, segmerge_sm_arr_2, N);
-        oks = oks && ok;
-        utils::cuda::deallocate(segmerge_cuda_in);
-        utils::cuda::deallocate(segmerge_a_cuda_in);
-        utils::cuda::deallocate(segmerge_b_cuda_in);
-        utils::cuda::deallocate(segmerge_cuda_out);
-        utils::cuda::deallocate(segmerge_a_cuda_out);
-        utils::cuda::deallocate(segmerge_b_cuda_out);
-        delete arr, segmerge_sm_arr, segmerge_sm_arr_2, segmerge_a_in_arr, segmerge_a_out_arr, segmerge_b_in_arr, segmerge_b_out_arr;
-
-    }
-    return oks;
 }

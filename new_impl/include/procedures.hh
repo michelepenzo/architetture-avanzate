@@ -1,6 +1,6 @@
 #pragma once
-#ifndef TRANSPOSER_HH_
-#define TRANSPOSER_HH_
+#ifndef procedures_HH_
+#define procedures_HH_
 
 #include <algorithm>
 #include "utilities.hh"
@@ -8,15 +8,15 @@
 
 #define HISTOGRAM_BLOCKS 2
 
-#define SCAN_THREAD_PER_BLOCK 512
+#define SCAN_THREAD_PER_BLOCK 5
 #define SCAN_ELEMENTS_PER_BLOCK (2*SCAN_THREAD_PER_BLOCK)
 
-#define SEGSORT_ELEMENTS_PER_BLOCK 32
+#define SEGSORT_ELEMENTS_PER_BLOCK 64
 
-#define SEGMERGE_SM_SPLITTER_DISTANCE 32
-#define SEGMERGE_SM_MANY_THREADS min(SEGMERGE_SM_SPLITTER_DISTANCE, 1024)
+#define SEGMERGE_SM_SPLITTER_DISTANCE 64
+#define SEGMERGE_SM_MANY_THREADS 64
 
-namespace transposer {
+namespace procedures {
 
     namespace cuda {
 
@@ -28,6 +28,8 @@ namespace transposer {
 
         void segsort(int INPUT_ARRAY input, int * output, int len);
 
+        void segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+
         void segmerge_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
 
         void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
@@ -37,6 +39,8 @@ namespace transposer {
         void segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
 
         void sort(int INPUT_ARRAY input, int * output, int len);
+
+        void sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
     }
 
     namespace reference {
@@ -49,6 +53,8 @@ namespace transposer {
 
         void segsort(int INPUT_ARRAY input, int * output, int len);
 
+        void segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+
         void segmerge_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
 
         void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
@@ -58,27 +64,8 @@ namespace transposer {
         void segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
 
         void sort(int INPUT_ARRAY input, int * output, int len);
-    }
 
-    namespace component_test {
-
-        bool indexes_to_pointers();
-
-        bool pointers_to_indexes();
-
-        bool scan();
-
-        bool segsort();
-
-        bool sort();
-
-        bool segmerge();
-
-        bool segmerge3();
-
-        bool segmerge_sm();
-
-        bool segmerge3_sm();
+        void sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
     }
     
     /*
