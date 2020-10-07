@@ -124,19 +124,19 @@ bool test_instance(int len, fn reference_fun, fn cuda_fun) {
 
 bool test_many_instances(std::string name, fn reference_fun, fn cuda_fun) {
     bool all_ok = true;
-    for(int n = 1; n <= 1000; n++) {
+    for(int n = 1; n <= 20'000; n++) {
         std::cout << "Testing " << name << " with len=" << std::setw(10) << n << ": ";
         bool ok = test_instance(n, reference_fun, cuda_fun);
         std::cout << (ok ? "OK" : "NO") << std::endl;
         all_ok = all_ok && ok;
     }
-    //for(int n = 1; n <= 100'000'000; n++) {
-    //    std::cout << "Testing "<< name << " with len=" << std::setw(10) << n << ": ";
-    //    bool ok = test_instance(n, reference_fun, cuda_fun);
-    //    std::cout << (ok ? "OK" : "NO") << std::endl;
-    //    all_ok = all_ok && ok;
-    //    if(n % 1000 == 0) { n *= 2; } // exponential incrementation
-    //}
+    for(int n = 1; n <= 100'000'000; n++) {
+        std::cout << "Testing "<< name << " with len=" << std::setw(10) << n << ": ";
+        bool ok = test_instance(n, reference_fun, cuda_fun);
+        std::cout << (ok ? "OK" : "NO") << std::endl;
+        all_ok = all_ok && ok;
+        if(n % 1000 == 0) { n *= 2; } // exponential incrementation
+    }
     return all_ok;
 }
 
@@ -153,7 +153,7 @@ bool test_many_instances(std::string name, fn3 reference_fun, fn3 cuda_fun) {
         bool ok = test_instance(n, reference_fun, cuda_fun);
         std::cout << (ok ? "OK" : "NO") << std::endl;
         all_ok = all_ok && ok;
-        if(n % 1000 == 0) { n *= 2; } // exponential incrementation
+        if(n % 10 == 0) { n *= 2; } // exponential incrementation
     }
     return all_ok;
 }
