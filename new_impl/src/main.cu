@@ -27,7 +27,6 @@ int main(int argc, char **argv) {
  // ok = transposer::component_test::segmerge();
  // std::cout << "segmerge     OK: " << ok << "\n";
 
-<<<<<<< HEAD
     // ok = transposer::component_test::segmerge3();
     // std::cout << "segmerge3    OK: " << ok << "\n";
 
@@ -36,16 +35,6 @@ int main(int argc, char **argv) {
 
     // ok = transposer::component_test::segmerge3_sm();
     // std::cout << "segmerge3_sm OK: " << ok << "\n";
-=======
- // ok = transposer::component_test::segmerge3();
- // std::cout << "segmerge3    OK: " << ok << "\n";
-
-//  ok = transposer::component_test::segmerge_sm();
-//  std::cout << "segmerge_sm  OK: " << ok << "\n";
-    
-    ok = transposer::component_test::segmerge3_sm();
-    std::cout << "segmerge3_sm OK: " << ok << "\n";
->>>>>>> 26b004723b929281ec32a8e1e0a9a45c60ebbc34
 
 //  ok = transposer::component_test::sort();
 //  std::cout << "sort OK: " << ok << "\n";

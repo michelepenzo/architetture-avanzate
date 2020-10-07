@@ -4,41 +4,58 @@
 \author{Massimiliano Incudini - VR433300\\Michele Penzo - VR439232}
 
 \usepackage{graphicx}
+\usepackage[export]{adjustbox}
 \usepackage[italian]{babel}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-todo ...
+	L'obiettivo principale di questo progetto è stato quello di implementare alcune metodologie proposte per effettuare \textit{Sparse Matrix Transposition} su \textit{Gpu}.
+	Abbiamo analizzato alcuni algoritmi, descritti in sezione~\ref{metodologie}, partendo dall'algoritmo seriale, passando a cuSPARSE per finire con l'implementazione degli algoritmi descritti in~\cite{parallelTrans}.
+	Infine vengono esposti i risultati e le conclusioni tratte.
 \end{abstract}
 
 
 \section{Introduzione}
-todo ...
+% todo
+% parlare del csr
+% spiegare lavoro, come è strutturato il tutto, test ...
 
+ 
 \section{Metodologie analizzate}
-\subsection{Trasposta seriale}
+\label{metodologie}
+	In questa sezione vengono spiegate ed evidenziate le differenze tra le varie metodologie analizzate. 
+		
+	\subsection{Trasposta seriale}
+	% todo
+	
+	\subsection{Nvidia cuSPARSE}
+	Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per le operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici, ed inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.\newline	
+	Il codice è stato sviluppato basandosi su due versioni di cuSPARSE a causa delle Gpu utilizzate. In fase di compilazione viene quindi controllata la versione usata: $ 9 $ o $ 10 $.\newline
+	Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, viene effettuata l'allocazione dello spazio necessario e del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.\newline
+	Infine viene chiamata la procedura \textbf{cusparseCsr2cscEx2} che effettua il calcolo della trasposta. \newline
+	Nello specifico la precedente procedura ...% spiegare come funziona e cosa ritorna
 
-\subsection{Cusparse}
-
-\subsection{Scan Trans}
-
-\subsection{Merge Trans}
-
+	\subsection{Scan Trans}
+	% todo
+	
+	\subsection{Merge Trans}
+	%todo 
 
 \section{Risultati}
-todo ...
+% todo
+% spiegare come abbiamo fatto i test (che valori), e mostrare tabella con varie dimensioni delle matrici e nnz
 
 \section{Conclusioni}
-todo ...
+%todo 
 
 
-% TODO togli commenti dopo il primo \cite senno tutto buggato
-%\bibliographystyle{IEEEtran}
-%\bibliography{biblio}
 
-\appendix
+\bibliographystyle{IEEEtran}
+\bibliography{biblio}
+
+%\appendix
 %Se non avete abbastanza spazio, potete inserire le figure delle EFSM in una  pagina extra, appendice. Un esempio di come potete fare solo le Figure~\ref{fig:grande}, \ref{fig:piccola1}, \ref{fig:piccola2}.
 
 \end{document}
