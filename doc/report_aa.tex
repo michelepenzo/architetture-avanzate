@@ -7,13 +7,11 @@
 \usepackage[export]{adjustbox}
 \usepackage[italian]{babel}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % todo
-% creazione matrici in input agli algoritmi
-% spiegare lavoro, come è strutturato il tutto
-% test rispetto a csc
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+% matrici in input agli algoritmi --> come sono state costruite? random ecc..
+% spiegare come abbiamo fatto i test (che valori), e mostrare tabella con varie dimensioni delle matrici e nnz
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
 \maketitle
@@ -26,10 +24,13 @@
 
 
 \section{Introduzione}
-% parlare del problema nella introduzione
+\label{introduzione}
+	Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni che si possano applicare su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come nel nostro caso.\newline
+	Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per aumentarne l'efficienza. Verranno quindi mostrate le basi per la rappresentazione ed analizzati alcuni algoritmi per il calcolo su \textit{Gpu}.
+
 
 \section{Rappresentazione delle matrici}
-	\label{rappresentazione}
+\label{rappresentazione}
 	Viene detta matrice sparsa una matrice in cui i valori sono quasi tutti uguali a zero. Per rappresentare in modo efficacie, senza troppi sprechi di memoria, sono stati introdotte varie forme di rappresentazione matriciale. La struttura dati classica utilizza una quantità di memoria minima di $ m $ x $ n $ elementi.\newline
 	Sono state quindi utilizzate delle rappresentazioni che permettono il salvataggio di dati utilizzando quantitativi di memoria inferiori.
 	
@@ -47,7 +48,10 @@
 	\label{csc}
  	Questa metodologia per la rappresentazione è simile alla sopra citata \textit{Csr}, solo che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e i puntatori di colonna vengono memorizzati.
  	
- 	
+\section{Struttura dell'implementazione} 
+% come è stato strutturato il pkg?
+
+
 \section{Metodologie analizzate}
 \label{metodologie}
 	In questa sezione vengono spiegate ed evidenziate le differenze tra le varie metodologie analizzate. 
@@ -70,10 +74,12 @@
 	\subsection{MergeTrans}
 	
 
-\section{Risultati}
-% todo
-% matrici come sono state costruite? random ecc..
-% spiegare come abbiamo fatto i test (che valori), e mostrare tabella con varie dimensioni delle matrici e nnz
+\section{Test e risultati}
+\label{test-risultati}
+	Sono state inizialemente create delle matrici a partire da ...
+	
+	
+	Per la fase di test è stato implementato un eseguibile che si occupa del test di tutte le varie procedure che appartengono all'implementazione. % todo ...
 
 \section{Conclusioni}
 
