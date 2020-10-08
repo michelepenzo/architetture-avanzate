@@ -214,11 +214,32 @@ bool test_many_pointer_to_index() {
     return all_ok;
 }
 
+bool test_single_indexes_to_pointers() {
+
+    const int NNZ = 15, N = 6;
+    int colIdx[] = {1, 3, 0, 1, 2, 3, 2, 3, 4, 5, 1, 2, 3, 4, 5};
+    int * inter = new int[(HISTOGRAM_BLOCKS+1) * N];
+    int * intra = new int[NNZ];
+    int * colPtr = new int[N+1]();
+
+    DPRINT_ARR(colIdx, NNZ)
+    procedures::reference::indexes_to_pointers(colIdx, NNZ, inter, intra, colPtr, N);
+    for(int i = 0; i < HISTOGRAM_BLOCKS+1; i++) {
+        DPRINT_ARR(inter+i*N, N)
+    }
+    DPRINT_ARR(intra, NNZ)
+    DPRINT_ARR(colPtr, N+1)
+
+    delete[] inter, intra, colPtr;
+    return true;
+}
+
 int main(int argc, char **argv) {
 
     bool all_ok = true;
 
-    all_ok &= test_many_pointer_to_index();
+    all_ok &= test_single_indexes_to_pointers();
+    //all_ok &= test_many_pointer_to_index();
     //all_ok &= test_many_instances("scan", procedures::reference::scan, procedures::cuda::scan);
     //all_ok &= test_many_instances("sort", procedures::reference::sort,  procedures::cuda::sort);
     //all_ok &= test_many_instances("sort3", procedures::reference::sort3, procedures::cuda::sort3);

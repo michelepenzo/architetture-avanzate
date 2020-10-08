@@ -50,9 +50,40 @@ void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int
     utils::cuda::deallocate(histogram_blocks);
 }
 
-void procedures::reference::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len) {
-    for(int i = 0; i < idx_len; i++) {
-        ASSERT_LIMIT(idx[i]+1, ptr_len);
-        ptr[idx[i]+1]++;
+void procedures::reference::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * inter, int * intra, int * ptr, int ptr_len) {
+    
+    const int BLOCK_SIZE = DIV_THEN_CEIL(idx_len, HISTOGRAM_BLOCKS);
+    const int HISTO_ROW_LEN = ptr_len;
+
+    // parallel histogram
+    for(int tid = 0; tid < HISTOGRAM_BLOCKS; tid++) {
+
+        const int START_INTER = (tid + 1) * HISTO_ROW_LEN;
+
+        const int START_INTRA = tid * BLOCK_SIZE;
+
+        for(int i = 0; i < BLOCK_SIZE && START_INTRA + i < idx_len; i++) {
+            int index = START_INTER + idx[START_INTRA + i];
+            intra[START_INTRA + i] = inter[index];
+            inter[index]++;
+        }
+    }
+
+    // vertical scan (join histograms)
+    for(int tid = 0; tid < HISTOGRAM_BLOCKS; tid++) {
+
+        const int START_INTER_0 = tid * HISTO_ROW_LEN;
+        const int START_INTER_1 = (tid + 1) * HISTO_ROW_LEN;
+
+        // prefix scan verticale
+        for(int i = 0; i < HISTO_ROW_LEN; i++) {
+            inter[START_INTER_1 + i] += inter[START_INTER_0 + i];
+        }
+    }
+
+    // copy last row of inter to pointer
+    const int START_INTER_LAST = HISTOGRAM_BLOCKS * HISTO_ROW_LEN;
+    for(int i = 0; i < HISTO_ROW_LEN; i++) {
+        ptr[i] = inter[START_INTER_LAST + i];
     }
 }
