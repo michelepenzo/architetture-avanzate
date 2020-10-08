@@ -153,17 +153,73 @@ bool test_many_instances(std::string name, fn3 reference_fun, fn3 cuda_fun) {
         bool ok = test_instance(n, reference_fun, cuda_fun);
         std::cout << (ok ? "OK" : "NO") << std::endl;
         all_ok = all_ok && ok;
-        if(n % 10 == 0) { n *= 2; } // exponential incrementation
+        if(n % 1000 == 0) { n *= 2; } // exponential incrementation
     }
     return all_ok;
 }
 
+bool test_pointer_to_index(int m) {
+
+    // generate input
+    int * input = utils::random::generate_array(0, 3, m+1);
+    input[m] = 0;
+    DPRINT_ARR(input, m+1)
+    utils::prefix_sum(input, m+1);
+    DPRINT_ARR(input, m+1)
+
+    // get nnz
+    int nnz = input[m];
+
+    // run reference implementation
+    int * reference_output = new int[nnz](); // init to zeros
+    procedures::reference::pointers_to_indexes(input, m, reference_output, nnz);
+
+    // run parallel implementation
+    int * parallel_output      = new int[nnz];
+    int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, m+1);
+    int * parallel_cuda_output = utils::cuda::allocate_zero<int>(nnz);
+    procedures::cuda::pointers_to_indexes(parallel_cuda_input, m, parallel_cuda_output, nnz);
+    utils::cuda::recv(parallel_output, parallel_cuda_output, nnz);
+
+    // check correctness
+    bool ok = utils::equals<int>(reference_output, parallel_output, nnz);
+    DPRINT_ARR(input, m)
+    DPRINT_ARR(reference_output, nnz)
+    DPRINT_ARR(parallel_output, nnz)
+
+    utils::cuda::deallocate(parallel_cuda_input);
+    utils::cuda::deallocate(parallel_cuda_output);
+    delete input, reference_output, parallel_output;
+
+    return ok;
+}
+
+bool test_many_pointer_to_index() {
+
+    bool all_ok = true;
+
+    for(int m = 1; m < 20'000; m++) {
+        std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ":\n";
+        bool ok = test_pointer_to_index(m);
+        std::cout << (ok ? "OK" : "NO") << std::endl;
+        all_ok &= ok;
+    }
+    for(int m = 10; m < 100'000'000; m++) {
+        std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
+        bool ok = test_pointer_to_index(m);
+        std::cout << (ok ? "OK" : "NO") << std::endl;
+        if(m % 1000 == 0) { m *= 2; } // exponential incrementation
+        all_ok &= ok;
+    }
+    return all_ok;
+}
 
 int main(int argc, char **argv) {
 
     bool all_ok = true;
 
-    all_ok &= test_many_instances("scan", procedures::reference::scan, procedures::cuda::scan);
+    all_ok &= test_many_pointer_to_index();
+    //all_ok &= test_many_instances("scan", procedures::reference::scan, procedures::cuda::scan);
     //all_ok &= test_many_instances("sort", procedures::reference::sort,  procedures::cuda::sort);
     //all_ok &= test_many_instances("sort3", procedures::reference::sort3, procedures::cuda::sort3);
     //all_ok &= test_many_instances("segsort", procedures::reference::segsort, procedures::cuda::segsort);

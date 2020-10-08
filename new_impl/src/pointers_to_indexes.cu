@@ -5,6 +5,7 @@ void pointers_to_indexes_kernel(int INPUT_ARRAY ptr, int ptr_len, int * idx, int
     int i = blockIdx.x * blockDim.x + threadIdx.x; // global_id
     if(i < ptr_len) {
         int start = ptr[i], end = ptr[i+1];
+        //printf("(%2d): start=ptr[%2d]=%2d, end=ptr[%2d]=%2d\n", i, i, start, i+1, end);
         for(int j = start; j < end; j++) {
             idx[j] = i;
         }
