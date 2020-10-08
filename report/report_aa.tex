@@ -13,14 +13,16 @@
 \begin{abstract}
 	L'obiettivo principale di questo progetto è stato quello di implementare alcune metodologie proposte per effettuare \textit{Sparse Matrix Transposition} su \textit{Gpu}.
 	Sono stati analizzati alcuni algoritmi, descritti in sezione~\ref{metodologie}, partendo dall'algoritmo seriale, passando a cuSPARSE per finire con l'implementazione degli algoritmi descritti in~\cite{parallelTrans}.
-	Infine vengono esposti i risultati e le conclusioni tratte.
+	Infine vengono esposti i risultati e tratte le conclusioni.
 \end{abstract}
 
 
 \section{Introduzione}
 % todo
-% parlare del csr
-% spiegare lavoro, come è strutturato il tutto, test ...
+% parlare del csr e csc
+% spiegare lavoro, come è strutturato il tutto
+% test rispetto a csc
+
 
  
 \section{Metodologie analizzate}
@@ -28,27 +30,30 @@
 	In questa sezione vengono spiegate ed evidenziate le differenze tra le varie metodologie analizzate. 
 		
 	\subsection{Trasposta seriale}
-	% todo
+	La prima metodologia descritta è quella seriale. Sempre a partire dalla rappresentazione in formato \textit{csr} della matrice iniziale l'algoritmo crea un array di elementi, dove per ogni colonna della matrice analizzata conta quanti elementi \textbf{nnz} ci sono. Possiamo definire questo array come un istogramma delle frequenze degli elementi delle colonne. Viene quindi applicato un algoritmo seriale di \textit{prefix\_sum} su questo array, che conterrà ora i valori corretti di \textbf{cscColPtr}. Infine gli indici di riga e i valori nel nuovo formato \textit{csc} vengono sistemati.\newline
+	Questa implementazione servirà come base sulla quale verranno eseguiti i controlli degli algoritmi successivamente implementati.
 	
 	\subsection{Nvidia cuSPARSE}
 	Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per le operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici, ed inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.\newline	
 	Il codice è stato sviluppato basandosi su due versioni di cuSPARSE a causa delle Gpu utilizzate. In fase di compilazione viene quindi controllata la versione usata: $ 9 $ o $ 10 $.\newline
 	Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, viene effettuata l'allocazione dello spazio necessario e del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.\newline
-	Infine viene chiamata la procedura \textbf{cusparseCsr2cscEx2} che effettua il calcolo della trasposta. \newline
-	Nello specifico la precedente procedura ...% spiegare come funziona e cosa ritorna
+	Infine viene chiamata la procedura che effettua il calcolo della trasposta. \newline
+	Le procedure chiamate sono diverse in base alla funzione. Nel primo caso viene chiamata \textbf{cusparseScsr2csc}, mentre nel secondo caso \textbf{cusparseCsr2cscEx2}. Quest'ultima richiede come parametro anche l'algoritmo che viene utilizzato all'interno della procedura.\newline
+	Dopo essere state eseguite entrambe ritornano i valori ottenuti tramite un'altro formato, \textit{csc}, che ne esprime la rappresentazione tramite valori come csrColIdx, cscVal, cscColPtr, cscRowIdx. Infine viene controllata la correttezza e i tempi rispetto alle altre implementazioni.
 
-	\subsection{Scan Trans}
-	% todo
+	\subsection{ScanTrans}
 	
-	\subsection{Merge Trans}
-	%todo 
+	
+	\subsection{MergeTrans}
+	
 
 \section{Risultati}
 % todo
+% matrici come sono state costruite? random ecc..
 % spiegare come abbiamo fatto i test (che valori), e mostrare tabella con varie dimensioni delle matrici e nnz
 
 \section{Conclusioni}
-%todo 
+
 
 
 
