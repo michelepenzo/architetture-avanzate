@@ -214,13 +214,15 @@ bool test_many_pointer_to_index() {
     return all_ok;
 }
 
-bool test_single_indexes_to_pointers(int NNZ, int N) {
+bool test_indexes_to_pointers(int NNZ, int N) {
 
     //const int NNZ = 15, N = 6;
     //int colIdx[] = {1, 3, 0, 1, 2, 3, 2, 3, 4, 5, 1, 2, 3, 4, 5};
-    int * colIdx = utils::random::generate_array(0, N, NNZ);
-    int * inter = new int[(HISTOGRAM_BLOCKS+1) * N];
-    int * intra = new int[NNZ];
+    DPRINT_MSG("NNZ=%d, N=%d", NNZ, N)
+
+    int * colIdx = utils::random::generate_array(0, N-1, NNZ);
+    int * inter = new int[(HISTOGRAM_BLOCKS+1) * N]();
+    int * intra = new int[NNZ]();
     int * colPtr = new int[N+1]();
 
     int * colIdx_cuda = utils::cuda::allocate_send<int>(colIdx, NNZ);
@@ -232,12 +234,23 @@ bool test_single_indexes_to_pointers(int NNZ, int N) {
     int * intra_cuda_out  = new int[NNZ];
     int * colPtr_cuda_out = new int[N+1];
 
+    DPRINT_ARR(colIdx, NNZ);
     procedures::reference::indexes_to_pointers(colIdx, NNZ, inter, intra, colPtr, N);
+    for(int i = 0; i < HISTOGRAM_BLOCKS+1; i++) {
+        DPRINT_ARR(inter+i*N, N);
+    }
+    DPRINT_ARR(intra, NNZ);
+    DPRINT_ARR(colPtr, N+1);
 
     procedures::cuda::indexes_to_pointers(colIdx_cuda, NNZ, inter_cuda, intra_cuda, colPtr_cuda, N);
     utils::cuda::recv<int>(inter_cuda_out, inter_cuda, (HISTOGRAM_BLOCKS+1) * N);
     utils::cuda::recv<int>(intra_cuda_out, intra_cuda, NNZ);
     utils::cuda::recv<int>(colPtr_cuda_out, colPtr_cuda, N+1);
+    for(int i = 0; i < HISTOGRAM_BLOCKS; i++) {
+        DPRINT_ARR(inter_cuda_out+i*N, N);
+    }
+    DPRINT_ARR(intra_cuda_out, NNZ);
+    DPRINT_ARR(colPtr_cuda_out, N+1);
 
     utils::cuda::deallocate(colIdx_cuda);
     utils::cuda::deallocate(inter_cuda);
@@ -254,11 +267,32 @@ bool test_single_indexes_to_pointers(int NNZ, int N) {
     return ok;
 }
 
+bool test_many_indexes_to_pointers() {
+
+    bool all_ok = true;
+
+    for(int m = 1; m < 2000; m++) {
+        int nnz = m, n = utils::random::generate(m*2)+1;
+        std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
+        bool ok = test_indexes_to_pointers(nnz, n);
+        std::cout << (ok ? "OK" : "NO") << std::endl;
+        all_ok &= ok;
+    }
+    for(int m = 10; m < 10'000'000; m *= 2) {
+        int nnz = m, n = utils::random::generate(m*2)+1;
+        std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
+        bool ok = test_indexes_to_pointers(nnz, n);
+        std::cout << (ok ? "OK" : "NO") << std::endl;
+        all_ok &= ok;
+    }
+    return all_ok;
+}
+
 int main(int argc, char **argv) {
 
     bool all_ok = true;
 
-    all_ok &= test_single_indexes_to_pointers();
+    all_ok &= test_many_indexes_to_pointers();
     //all_ok &= test_many_pointer_to_index();
     //all_ok &= test_many_instances("scan", procedures::reference::scan, procedures::cuda::scan);
     //all_ok &= test_many_instances("sort", procedures::reference::sort,  procedures::cuda::sort);
