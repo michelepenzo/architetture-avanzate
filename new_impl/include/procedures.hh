@@ -20,7 +20,7 @@ namespace procedures {
 
     namespace cuda {
 
-        void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len);
+        void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * inter, int * intra, int * ptr, int ptr_len);
 
         void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);
     

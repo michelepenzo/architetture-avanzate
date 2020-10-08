@@ -214,24 +214,44 @@ bool test_many_pointer_to_index() {
     return all_ok;
 }
 
-bool test_single_indexes_to_pointers() {
+bool test_single_indexes_to_pointers(int NNZ, int N) {
 
-    const int NNZ = 15, N = 6;
-    int colIdx[] = {1, 3, 0, 1, 2, 3, 2, 3, 4, 5, 1, 2, 3, 4, 5};
+    //const int NNZ = 15, N = 6;
+    //int colIdx[] = {1, 3, 0, 1, 2, 3, 2, 3, 4, 5, 1, 2, 3, 4, 5};
+    int * colIdx = utils::random::generate_array(0, N, NNZ);
     int * inter = new int[(HISTOGRAM_BLOCKS+1) * N];
     int * intra = new int[NNZ];
     int * colPtr = new int[N+1]();
 
-    DPRINT_ARR(colIdx, NNZ)
-    procedures::reference::indexes_to_pointers(colIdx, NNZ, inter, intra, colPtr, N);
-    for(int i = 0; i < HISTOGRAM_BLOCKS+1; i++) {
-        DPRINT_ARR(inter+i*N, N)
-    }
-    DPRINT_ARR(intra, NNZ)
-    DPRINT_ARR(colPtr, N+1)
+    int * colIdx_cuda = utils::cuda::allocate_send<int>(colIdx, NNZ);
+    int * inter_cuda = utils::cuda::allocate_zero<int>((HISTOGRAM_BLOCKS+1) * N);
+    int * intra_cuda = utils::cuda::allocate_zero<int>(NNZ);
+    int * colPtr_cuda = utils::cuda::allocate_zero<int>(N+1);
 
-    delete[] inter, intra, colPtr;
-    return true;
+    int * inter_cuda_out  = new int[(HISTOGRAM_BLOCKS+1) * N];
+    int * intra_cuda_out  = new int[NNZ];
+    int * colPtr_cuda_out = new int[N+1];
+
+    procedures::reference::indexes_to_pointers(colIdx, NNZ, inter, intra, colPtr, N);
+
+    procedures::cuda::indexes_to_pointers(colIdx_cuda, NNZ, inter_cuda, intra_cuda, colPtr_cuda, N);
+    utils::cuda::recv<int>(inter_cuda_out, inter_cuda, (HISTOGRAM_BLOCKS+1) * N);
+    utils::cuda::recv<int>(intra_cuda_out, intra_cuda, NNZ);
+    utils::cuda::recv<int>(colPtr_cuda_out, colPtr_cuda, N+1);
+
+    utils::cuda::deallocate(colIdx_cuda);
+    utils::cuda::deallocate(inter_cuda);
+    utils::cuda::deallocate(intra_cuda);
+    utils::cuda::deallocate(colPtr_cuda);
+
+    bool ok = utils::equals(inter, inter_cuda_out, (HISTOGRAM_BLOCKS+1)*N)
+           || utils::equals(intra, intra_cuda_out, NNZ)
+           || utils::equals(colPtr, colPtr_cuda_out, N+1);
+
+    delete[] colIdx, inter, intra, colPtr;
+    delete[] inter_cuda_out, intra_cuda_out, colPtr_cuda_out;
+
+    return ok;
 }
 
 int main(int argc, char **argv) {

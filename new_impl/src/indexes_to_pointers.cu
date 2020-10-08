@@ -33,7 +33,7 @@ void histogram_merge_kernel(int INPUT_ARRAY histogram_blocks, int hist_len, int 
     }
 }
 
-void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len) {
+/*void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * ptr, int ptr_len) {
     
     DPRINT_MSG("Begin allocation of array with len=%d", HISTOGRAM_BLOCKS * ptr_len)
     int* histogram_blocks = utils::cuda::allocate_zero<int>(HISTOGRAM_BLOCKS * ptr_len);
@@ -48,6 +48,52 @@ void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int
     CUDA_CHECK_ERROR
 
     utils::cuda::deallocate(histogram_blocks);
+}
+*/
+
+
+
+__global__ 
+void parallel_histogram_kernel(int INPUT_ARRAY idx, int idx_len, int * inter, int * intra, int HISTO_ROW_LEN) {
+    
+    int j = blockIdx.x;
+    
+    // allineo inter sulla porzione di array che sto usando
+    inter += HISTO_ROW_LEN * (j+1);
+
+    // costanti che servono per allineare intra sulla porzione di array che sto usando
+    const int BLOCK_SIZE = DIV_THEN_CEIL(idx_len, HISTOGRAM_BLOCKS);
+    const int START = BLOCK_SIZE * j;
+    const int END = min(BLOCK_SIZE * (j+1), idx_len);
+
+    // ogni [blocco di thread] segna i contributi di una [porzione di idx]
+    for(int i = START; i < END; i++) {
+        int index = idx[i];
+        intra[i] = inter[index];
+        inter[index]++;
+    }
+}
+
+__global__
+void vertical_scan_kernel(int * inter, int * ptr, int HISTO_ROW_LEN) {
+
+    int j = blockIdx.x;
+
+    // vertical scan di ogni colonna
+    int i = 0;
+    for(i = 0; i < HISTOGRAM_BLOCKS; i++) {
+        inter[HISTO_ROW_LEN * (i+1) + j] += inter[HISTO_ROW_LEN * i + j];
+    }
+    ptr[j] = inter[HISTO_ROW_LEN*i + j];
+}
+
+void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * inter, int * intra, int * ptr, int ptr_len) {
+
+    parallel_histogram_kernel<<<HISTOGRAM_BLOCKS, 1>>>(idx, idx_len, inter, intra, ptr_len);
+    CUDA_CHECK_ERROR
+
+    vertical_scan_kernel<<<ptr_len, 1>>>(inter, ptr, ptr_len);
+    CUDA_CHECK_ERROR
 }
 
 void procedures::reference::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int * inter, int * intra, int * ptr, int ptr_len) {
