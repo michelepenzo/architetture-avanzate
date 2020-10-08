@@ -7,6 +7,14 @@
 \usepackage[export]{adjustbox}
 \usepackage[italian]{babel}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% todo
+% creazione matrici in input agli algoritmi
+% spiegare lavoro, come è strutturato il tutto
+% test rispetto a csc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 \begin{document}
 \maketitle
 
@@ -18,13 +26,28 @@
 
 
 \section{Introduzione}
-% todo
-% parlare del csr e csc
-% spiegare lavoro, come è strutturato il tutto
-% test rispetto a csc
+% parlare del problema nella introduzione
 
-
- 
+\section{Rappresentazione delle matrici}
+	\label{rappresentazione}
+	Viene detta matrice sparsa una matrice in cui i valori sono quasi tutti uguali a zero. Per rappresentare in modo efficacie, senza troppi sprechi di memoria, sono stati introdotte varie forme di rappresentazione matriciale. La struttura dati classica utilizza una quantità di memoria minima di $ m $ x $ n $ elementi.\newline
+	Sono state quindi utilizzate delle rappresentazioni che permettono il salvataggio di dati utilizzando quantitativi di memoria inferiori.
+	
+	\subsection{Csr}
+	\label{csr}
+	Il \textit{compressed sparse row} è una rappresentazione di una matrice $ M $ basata su tre array monodimensionali, che rispettivamente contengono:
+	\begin{enumerate}
+		\item \textit{V}: i valori \textit{nnz},
+		\item \textit{COL\_INDEX}: gli indici delle colonne dove si trovano gli elementi \textit{nnz},
+		\item \textit{ROW\_INDEX}: rappresenta l'indice in $ V $ dove la riga comincia
+	\end{enumerate}
+	I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ M $.
+	
+	\subsection{Csc}
+	\label{csc}
+ 	Questa metodologia per la rappresentazione è simile alla sopra citata \textit{Csr}, solo che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e i puntatori di colonna vengono memorizzati.
+ 	
+ 	
 \section{Metodologie analizzate}
 \label{metodologie}
 	In questa sezione vengono spiegate ed evidenziate le differenze tra le varie metodologie analizzate. 
