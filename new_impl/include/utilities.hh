@@ -23,7 +23,7 @@
 #define CUDA_CHECK_ERROR { utils::cuda::check_error(__FILE__, __LINE__, __func__); }
 #define CUDA_SAFE_CALL(function) { utils::cuda::safe_call(function, __FILE__, __LINE__, __func__); }
 
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 
 #if DEBUG_MODE == 1
 #define STRINGIFY2(X) #X
@@ -73,6 +73,7 @@ namespace utils {
     }
 
     inline void prefix_sum(int *ptr, int n) {
+        ptr[0] = 0;
         for(int j = 1; j < n; j++) {
             ptr[j] += ptr[j-1];
         }
@@ -111,7 +112,7 @@ namespace utils {
     namespace random {
 
         inline std::default_random_engine& generator() {
-            static std::default_random_engine g(234567);
+            static std::default_random_engine g(22334567);
             return g;
         }
 
