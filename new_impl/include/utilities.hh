@@ -23,7 +23,7 @@
 #define CUDA_CHECK_ERROR { utils::cuda::check_error(__FILE__, __LINE__, __func__); }
 #define CUDA_SAFE_CALL(function) { utils::cuda::safe_call(function, __FILE__, __LINE__, __func__); }
 
-#define DEBUG_MODE 0
+#define DEBUG_MODE 1
 
 #if DEBUG_MODE == 1
 #define STRINGIFY2(X) #X
@@ -125,7 +125,9 @@ namespace utils {
 
         inline int generate(int min, int max) {
             std::uniform_int_distribution<int> values_distrib(min, max);
-            return values_distrib(generator());
+            int result = values_distrib(generator());
+            // DPRINT_MSG("Generate between %d %d: %d", min, max, result)
+            return result;
         }
 
         inline int generate(int max) {
@@ -211,7 +213,7 @@ namespace utils {
 
         NUMERIC_TEMPLATE(T)
         inline void print(std::string name, T *cuda_array, int len) {
-            T *host_array = new int[len];
+            T *host_array = new T[len];
             recv<T>(host_array, cuda_array, len);
             utils::print(name, host_array, len);
             delete host_array;

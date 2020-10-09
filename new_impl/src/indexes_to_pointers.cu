@@ -48,15 +48,20 @@ void vertical_scan_kernel(int * inter, int * ptr, int HISTO_ROW_LEN) {
 
 void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * intra, int * ptr, int ptr_len) {
 
-    parallel_histogram_kernel<<<HISTOGRAM_BLOCKS, 1024>>>(idx, idx_len, inter, intra, ptr_len);
+    *inter = utils::cuda::allocate_zero<int>((HISTOGRAM_BLOCKS+1) * ptr_len);
+
+    parallel_histogram_kernel<<<HISTOGRAM_BLOCKS, 1024>>>(idx, idx_len, *inter, intra, ptr_len);
     CUDA_CHECK_ERROR
 
-    vertical_scan_kernel<<<ptr_len, 1>>>(inter, ptr, ptr_len);
+    vertical_scan_kernel<<<ptr_len, 1>>>(*inter, ptr, ptr_len);
     CUDA_CHECK_ERROR
 }
 
-void procedures::reference::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * intra, int * ptr, int ptr_len) {
+void procedures::reference::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** _inter, int * intra, int * ptr, int ptr_len) {
     
+    int * inter = new int[(HISTOGRAM_BLOCKS+1) * ptr_len]();
+    *_inter = inter;
+
     const int BLOCK_SIZE = DIV_THEN_CEIL(idx_len, HISTOGRAM_BLOCKS);
     const int HISTO_ROW_LEN = ptr_len;
 

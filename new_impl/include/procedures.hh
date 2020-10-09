@@ -6,15 +6,15 @@
 #include "utilities.hh"
 #include "matrix.hh"
 
-#define HISTOGRAM_BLOCKS 32
+#define HISTOGRAM_BLOCKS 4
 
 #define SCAN_THREAD_PER_BLOCK 512
 #define SCAN_ELEMENTS_PER_BLOCK (2*SCAN_THREAD_PER_BLOCK)
 
-#define SEGSORT_ELEMENTS_PER_BLOCK 64
+#define SEGSORT_ELEMENTS_PER_BLOCK 4
 
-#define SEGMERGE_SM_SPLITTER_DISTANCE 64
-#define SEGMERGE_SM_MANY_THREADS 64
+#define SEGMERGE_SM_SPLITTER_DISTANCE 4
+#define SEGMERGE_SM_MANY_THREADS 4
 
 namespace procedures {
 
@@ -44,7 +44,7 @@ namespace procedures {
     }
 
     namespace reference {
-        
+
         void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * intra, int * ptr, int ptr_len);
 
         void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);

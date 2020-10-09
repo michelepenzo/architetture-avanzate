@@ -27,6 +27,9 @@ namespace matrix {
         SparseMatrix(const int m, const int n, const int nnz, const MatrixInitialization mi = RANDOM_INITIALIZATION) 
             : m(m), n(n), nnz(nnz)
         { 
+            if(m <= 0 || n <= 0 || nnz <= 0 || nnz > n * m) {
+                throw std::invalid_argument("received negative value");
+            }
 
             this->csrRowPtr = new int[this->m+1]();
             this->csrColIdx = new int[this->nnz]();
@@ -38,10 +41,11 @@ namespace matrix {
                 std::set< std::tuple<int, int> > indices; // set prevents duplicate insertion
                 
                 while(indices.size() < nnz) {
-                    indices.insert(std::make_tuple<int, int>(
+                    std::tuple<int, int> t = std::make_tuple<int, int>(
                         utils::random::generate(m-1), 
                         utils::random::generate(n-1)
-                    ));
+                    );
+                    indices.insert(t);
                 }
 
                 // 2. fill values

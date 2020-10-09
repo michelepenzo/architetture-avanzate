@@ -3,296 +3,331 @@
 #include <set>
 #include "matrix.hh"
 #include "procedures.hh"
+#include "transposers.hh"
+
+#define TESTER_ALL_INSTANCES_MIN 1
+#define TESTER_ALL_INSTANCES_MAX 17
+#define TESTER_BIG_INSTANCES 100'000'000
+
+class tester {
+
+    virtual bool test_instance(int instance_number) = 0;
+
+public:
+
+    bool test_many_instances() {
+        
+        bool all_ok = true;
+        for(int m = TESTER_ALL_INSTANCES_MIN; m < TESTER_ALL_INSTANCES_MAX; m++) {
+            std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ":\n" << std::flush;
+            bool ok = test_instance(m);
+            std::cout << (ok ? "OK" : "NO") << std::endl << std::flush;
+            all_ok &= ok;
+        }
+        //for(int m = 10; m < TESTER_BIG_INSTANCES; m *= 2) {
+        //    std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
+        //    bool ok = test_instance(m);
+        //    std::cout << (ok ? "OK" : "NO") << std::endl;
+        //    all_ok &= ok;
+        //}
+        return all_ok;
+    }
+};
 
 typedef void (*fn)(int INPUT_ARRAY input, int * output, int len); 
 
+class fn_tester : public tester {
+public:
+
+    fn_tester(fn reference_fun, fn cuda_fun) 
+        : reference_fun(reference_fun), cuda_fun(cuda_fun) { }
+
+private:
+
+    fn reference_fun, cuda_fun;
+
+    bool test_instance(int len) override {
+
+        // generate input
+        int * input = utils::random::generate_array(1, 4, len);
+
+        // run reference implementation
+        int * reference_output = new int[len];
+        reference_fun(input, reference_output, len);
+
+        // run parallel implementation
+        int * parallel_output      = new int[len];
+        int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, len);
+        int * parallel_cuda_output = utils::cuda::allocate<int>(len);
+        cuda_fun(parallel_cuda_input, parallel_cuda_output, len);
+        utils::cuda::recv(parallel_output, parallel_cuda_output, len);
+
+        // compare implementations
+        bool ok = true; //utils::equals<int>(reference_output, parallel_output, len);
+        std::set<int, std::greater<int>> blocks;
+
+        for(int i = 0; i < len; i++) {
+            if(reference_output[i] != parallel_output[i]) {
+                ok = false;
+                std::cout << "Wrong index " << i << " " << reference_output[i] 
+                    << " " << parallel_output[i] << std::endl;
+
+                int block = i / SEGSORT_ELEMENTS_PER_BLOCK;
+                blocks.insert(block);
+            }
+        }
+        for (std::set<int, std::greater<int>>::iterator itr = blocks.begin(); itr != blocks.end(); ++itr) 
+        { 
+            int block = *itr; 
+            DPRINT_MSG("Error on block %d", block)
+            DPRINT_ARR(reference_output + block * SEGSORT_ELEMENTS_PER_BLOCK, SEGSORT_ELEMENTS_PER_BLOCK)
+            DPRINT_ARR(parallel_output + block * SEGSORT_ELEMENTS_PER_BLOCK,  SEGSORT_ELEMENTS_PER_BLOCK)
+        
+        } 
+
+        utils::cuda::deallocate(parallel_cuda_input);
+        utils::cuda::deallocate(parallel_cuda_output);
+        delete input, reference_output, parallel_output;
+
+        return ok;
+    }
+
+};
+
 typedef void (*fn3)(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) ;
 
-bool test_instance(int len, fn3 reference_fun, fn3 cuda_fun){
+class fn3_tester : public tester {
 
-    // generate input
-    int * input = utils::random::generate_array(1, 100, len);
-    int * a_in  = input;
-    int * b_in  = input;
+    fn3 reference_fun, cuda_fun;
 
-    // run reference implementation
-    int * reference_output = new int[len];
-    int * reference_a_out  = new int[len];
-    int * reference_b_out  = new int[len];
-    reference_fun(input, reference_output, len, a_in, reference_a_out, b_in, reference_b_out);
+public:
 
-    // run parallel implementation
-    int * parallel_output      = new int[len];
-    int * parallel_a_out       = new int[len];
-    int * parallel_b_out       = new int[len];
-    int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, len);
-    int * parallel_cuda_a_in   = utils::cuda::allocate_send<int>( a_in, len);
-    int * parallel_cuda_b_in   = utils::cuda::allocate_send<int>( b_in, len);
-    int * parallel_cuda_output = utils::cuda::allocate<int>(len);
-    int * parallel_cuda_a_out  = utils::cuda::allocate<int>(len);
-    int * parallel_cuda_b_out  = utils::cuda::allocate<int>(len);
-    cuda_fun(parallel_cuda_input, parallel_cuda_output, len, parallel_cuda_a_in, parallel_cuda_a_out, parallel_cuda_b_in, parallel_cuda_b_out);
-    utils::cuda::recv(parallel_output, parallel_cuda_output, len);
-    utils::cuda::recv(parallel_a_out,  parallel_cuda_a_out,  len);
-    utils::cuda::recv(parallel_b_out,  parallel_cuda_b_out,  len);
+    fn3_tester(fn3 reference_fun, fn3 cuda_fun) 
+        : reference_fun(reference_fun), cuda_fun(cuda_fun) { }
 
-    // compare implementations
-    bool ok = true; //utils::equals<int>(reference_output, parallel_output, len);
-    for(int i = 0; i < len; i++) {
-        if(   reference_output[i] != parallel_output[i]
-           || reference_a_out[i]  != parallel_a_out[i]
-           || reference_b_out[i]  != parallel_b_out[i]) {
-            ok = false;
-            std::cout << "Wrong index " << i << ": " 
-                << reference_output[i] << " " << parallel_output[i] << "; "
-                << reference_a_out[i] << " " << parallel_a_out[i] << "; "
-                << reference_b_out[i] << " " << parallel_b_out[i] << "; "
-                << std::endl;
+    bool test_instance(int len) override {
+
+        // generate input
+        int * input = utils::random::generate_array(1, 100, len);
+        int * a_in  = input;
+        int * b_in  = input;
+
+        // run reference implementation
+        int * reference_output = new int[len];
+        int * reference_a_out  = new int[len];
+        int * reference_b_out  = new int[len];
+        reference_fun(input, reference_output, len, a_in, reference_a_out, b_in, reference_b_out);
+
+        // run parallel implementation
+        int * parallel_output      = new int[len];
+        int * parallel_a_out       = new int[len];
+        int * parallel_b_out       = new int[len];
+        int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, len);
+        int * parallel_cuda_a_in   = utils::cuda::allocate_send<int>( a_in, len);
+        int * parallel_cuda_b_in   = utils::cuda::allocate_send<int>( b_in, len);
+        int * parallel_cuda_output = utils::cuda::allocate<int>(len);
+        int * parallel_cuda_a_out  = utils::cuda::allocate<int>(len);
+        int * parallel_cuda_b_out  = utils::cuda::allocate<int>(len);
+        cuda_fun(parallel_cuda_input, parallel_cuda_output, len, parallel_cuda_a_in, parallel_cuda_a_out, parallel_cuda_b_in, parallel_cuda_b_out);
+        utils::cuda::recv(parallel_output, parallel_cuda_output, len);
+        utils::cuda::recv(parallel_a_out,  parallel_cuda_a_out,  len);
+        utils::cuda::recv(parallel_b_out,  parallel_cuda_b_out,  len);
+
+        // compare implementations
+        bool ok = true; //utils::equals<int>(reference_output, parallel_output, len);
+        for(int i = 0; i < len; i++) {
+            if(   reference_output[i] != parallel_output[i]
+            || reference_a_out[i]  != parallel_a_out[i]
+            || reference_b_out[i]  != parallel_b_out[i]) {
+                ok = false;
+                std::cout << "Wrong index " << i << ": " 
+                    << reference_output[i] << " " << parallel_output[i] << "; "
+                    << reference_a_out[i] << " " << parallel_a_out[i] << "; "
+                    << reference_b_out[i] << " " << parallel_b_out[i] << "; "
+                    << std::endl;
+            }
         }
-    }
 
-    if(!ok) {
-        utils::print("input", input, len);
-        utils::print("reference_output", reference_output, len);
-        utils::print("parallel_output", parallel_output, len);
-        utils::print("a_in", a_in, len);
-        utils::print("reference_a_out", reference_a_out, len);
-        utils::print("parallel_a_out", parallel_a_out, len);
-        utils::print("b_in", b_in, len);
-        utils::print("reference_b_out", reference_b_out, len);
-        utils::print("parallel_b_out", parallel_b_out, len);
-    }
-
-    utils::cuda::deallocate(parallel_cuda_input);
-    utils::cuda::deallocate(parallel_cuda_a_in);
-    utils::cuda::deallocate(parallel_cuda_b_in);
-    utils::cuda::deallocate(parallel_cuda_output);
-    utils::cuda::deallocate(parallel_cuda_a_out);
-    utils::cuda::deallocate(parallel_cuda_b_out);
-    delete input; 
-    delete reference_output, reference_a_out, reference_b_out;
-    delete parallel_output, parallel_a_out, parallel_b_out;
-
-    return ok;
-} 
-
-bool test_instance(int len, fn reference_fun, fn cuda_fun) {
-
-    // generate input
-    int * input = utils::random::generate_array(1, 4, len);
-
-    // run reference implementation
-    int * reference_output = new int[len];
-    reference_fun(input, reference_output, len);
-
-    // run parallel implementation
-    int * parallel_output      = new int[len];
-    int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, len);
-    int * parallel_cuda_output = utils::cuda::allocate<int>(len);
-    cuda_fun(parallel_cuda_input, parallel_cuda_output, len);
-    utils::cuda::recv(parallel_output, parallel_cuda_output, len);
-
-    // compare implementations
-    bool ok = true; //utils::equals<int>(reference_output, parallel_output, len);
-    std::set<int, std::greater<int>> blocks;
-
-    for(int i = 0; i < len; i++) {
-        if(reference_output[i] != parallel_output[i]) {
-            ok = false;
-            std::cout << "Wrong index " << i << " " << reference_output[i] 
-                << " " << parallel_output[i] << std::endl;
-
-            int block = i / SEGSORT_ELEMENTS_PER_BLOCK;
-            blocks.insert(block);
+        if(!ok) {
+            utils::print("input", input, len);
+            utils::print("reference_output", reference_output, len);
+            utils::print("parallel_output", parallel_output, len);
+            utils::print("a_in", a_in, len);
+            utils::print("reference_a_out", reference_a_out, len);
+            utils::print("parallel_a_out", parallel_a_out, len);
+            utils::print("b_in", b_in, len);
+            utils::print("reference_b_out", reference_b_out, len);
+            utils::print("parallel_b_out", parallel_b_out, len);
         }
+
+        utils::cuda::deallocate(parallel_cuda_input);
+        utils::cuda::deallocate(parallel_cuda_a_in);
+        utils::cuda::deallocate(parallel_cuda_b_in);
+        utils::cuda::deallocate(parallel_cuda_output);
+        utils::cuda::deallocate(parallel_cuda_a_out);
+        utils::cuda::deallocate(parallel_cuda_b_out);
+        delete input; 
+        delete reference_output, reference_a_out, reference_b_out;
+        delete parallel_output, parallel_a_out, parallel_b_out;
+
+        return ok;
     }
-    for (std::set<int, std::greater<int>>::iterator itr = blocks.begin(); itr != blocks.end(); ++itr) 
-    { 
-        int block = *itr; 
-        DPRINT_MSG("Error on block %d", block)
-        DPRINT_ARR(reference_output + block * SEGSORT_ELEMENTS_PER_BLOCK, SEGSORT_ELEMENTS_PER_BLOCK)
-        DPRINT_ARR(parallel_output + block * SEGSORT_ELEMENTS_PER_BLOCK,  SEGSORT_ELEMENTS_PER_BLOCK)
-    
-    } 
+};
 
-    utils::cuda::deallocate(parallel_cuda_input);
-    utils::cuda::deallocate(parallel_cuda_output);
-    delete input, reference_output, parallel_output;
+class pointer_to_index_tester : public tester {
 
-    return ok;
-}
+    bool test_instance(int instance_number) override {
 
-bool test_many_instances(std::string name, fn reference_fun, fn cuda_fun) {
-    bool all_ok = true;
-    for(int n = 1; n <= 20'000; n++) {
-        std::cout << "Testing " << name << " with len=" << std::setw(10) << n << ": ";
-        bool ok = test_instance(n, reference_fun, cuda_fun);
-        std::cout << (ok ? "OK" : "NO") << std::endl;
-        all_ok = all_ok && ok;
+        int m = instance_number;
+
+        // generate input
+        int * input = utils::random::generate_array(0, 3, m+1);
+        input[m] = 0;
+        DPRINT_ARR(input, m+1)
+        utils::prefix_sum(input, m+1);
+        DPRINT_ARR(input, m+1)
+
+        // get nnz
+        int nnz = input[m];
+
+        // run reference implementation
+        int * reference_output = new int[nnz](); // init to zeros
+        procedures::reference::pointers_to_indexes(input, m, reference_output, nnz);
+
+        // run parallel implementation
+        int * parallel_output      = new int[nnz];
+        int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, m+1);
+        int * parallel_cuda_output = utils::cuda::allocate_zero<int>(nnz);
+        procedures::cuda::pointers_to_indexes(parallel_cuda_input, m, parallel_cuda_output, nnz);
+        utils::cuda::recv(parallel_output, parallel_cuda_output, nnz);
+
+        // check correctness
+        bool ok = utils::equals<int>(reference_output, parallel_output, nnz);
+        DPRINT_ARR(input, m)
+        DPRINT_ARR(reference_output, nnz)
+        DPRINT_ARR(parallel_output, nnz)
+
+        utils::cuda::deallocate(parallel_cuda_input);
+        utils::cuda::deallocate(parallel_cuda_output);
+        delete input, reference_output, parallel_output;
+
+        return ok;
     }
-    for(int n = 1; n <= 100'000'000; n++) {
-        std::cout << "Testing "<< name << " with len=" << std::setw(10) << n << ": ";
-        bool ok = test_instance(n, reference_fun, cuda_fun);
-        std::cout << (ok ? "OK" : "NO") << std::endl;
-        all_ok = all_ok && ok;
-        if(n % 1000 == 0) { n *= 2; } // exponential incrementation
+};
+
+class indexes_to_pointers_tester : public tester {
+
+    bool test_instance(int instance_number) override {
+
+        int NNZ = instance_number, N = utils::random::generate(instance_number*2)+1;
+
+        int * colIdx = utils::random::generate_array(0, N-1, NNZ);
+        int * inter;
+        int * intra = new int[NNZ]();
+        int * colPtr = new int[N+1]();
+
+        int * colIdx_cuda = utils::cuda::allocate_send<int>(colIdx, NNZ);
+        int * inter_cuda;
+        int * intra_cuda = utils::cuda::allocate_zero<int>(NNZ);
+        int * colPtr_cuda = utils::cuda::allocate_zero<int>(N+1);
+
+        int * inter_cuda_out  = new int[(HISTOGRAM_BLOCKS+1) * N];
+        int * intra_cuda_out  = new int[NNZ];
+        int * colPtr_cuda_out = new int[N+1];
+
+        DPRINT_ARR(colIdx, NNZ);
+        procedures::reference::indexes_to_pointers(colIdx, NNZ, &inter, intra, colPtr, N);
+        for(int i = 0; i < HISTOGRAM_BLOCKS+1; i++) {
+            DPRINT_ARR(inter+i*N, N);
+        }
+        DPRINT_ARR(intra, NNZ);
+        DPRINT_ARR(colPtr, N+1);
+
+        procedures::cuda::indexes_to_pointers(colIdx_cuda, NNZ, &inter_cuda, intra_cuda, colPtr_cuda, N);
+        utils::cuda::recv<int>(inter_cuda_out, inter_cuda, (HISTOGRAM_BLOCKS+1) * N);
+        utils::cuda::recv<int>(intra_cuda_out, intra_cuda, NNZ);
+        utils::cuda::recv<int>(colPtr_cuda_out, colPtr_cuda, N+1);
+        for(int i = 0; i < HISTOGRAM_BLOCKS; i++) {
+            DPRINT_ARR(inter_cuda_out+i*N, N);
+        }
+        DPRINT_ARR(intra_cuda_out, NNZ);
+        DPRINT_ARR(colPtr_cuda_out, N+1);
+
+        utils::cuda::deallocate(colIdx_cuda);
+        utils::cuda::deallocate(inter_cuda);
+        utils::cuda::deallocate(intra_cuda);
+        utils::cuda::deallocate(colPtr_cuda);
+
+        bool ok = utils::equals(inter, inter_cuda_out, (HISTOGRAM_BLOCKS+1)*N)
+            || utils::equals(intra, intra_cuda_out, NNZ)
+            || utils::equals(colPtr, colPtr_cuda_out, N+1);
+
+        delete[] colIdx, inter, intra, colPtr;
+        delete[] inter_cuda_out, intra_cuda_out, colPtr_cuda_out;
+
+        return ok;
     }
-    return all_ok;
-}
+};
 
-bool test_many_instances(std::string name, fn3 reference_fun, fn3 cuda_fun) {
-    bool all_ok = true;
-    for(int n = 1; n <= 20'000; n++) {
-        std::cout << "Testing " << name << " with len=" << std::setw(10) << n << ":\n";
-        bool ok = test_instance(n, reference_fun, cuda_fun);
-        std::cout << (ok ? "OK" : "NO") << std::endl;
-        all_ok = all_ok && ok;
+class scan_transposer_tester : public tester {
+
+public:
+
+    bool test_instance(int instance_number) {
+
+        int NNZ = instance_number;
+        int N = 0, M = 0;
+        while(instance_number > N * M) {
+            N = utils::random::generate(instance_number*3)+1;
+            M = utils::random::generate(instance_number*3)+1;
+        }
+
+        //std::cout << "Generating Matrix 0" << std::endl << std::flush;
+        matrix::SparseMatrix *sm = new matrix::SparseMatrix(M, N, NNZ);
+        //std::cout << "Generating Matrix 1" << std::endl << std::flush;
+        matrix::SparseMatrix *sm_refe = new matrix::SparseMatrix(N, M, NNZ, matrix::ALL_ZEROS_INITIALIZATION);
+        //std::cout << "Generating Matrix 2" << std::endl << std::flush;
+        matrix::SparseMatrix *sm_cuda = new matrix::SparseMatrix(N, M, NNZ, matrix::ALL_ZEROS_INITIALIZATION);
+
+        // reference implementation
+        //std::cout << "instance=" << instance_number 
+        //          << " NNZ=" << NNZ 
+        //          << " N=" << N
+        //          << " M=" << M 
+        //          << std::endl;
+        int esito_refe = transposers::serial_csr2csc(
+            M, N, NNZ,
+            sm->csrRowPtr, sm->csrColIdx, sm->csrVal,
+            sm_refe->csrRowPtr, sm_refe->csrColIdx, sm_refe->csrVal
+        );
+
+        // scan trans implementation
+        int esito_cuda = transposers::scan_csr2csc(
+            M, N, NNZ,
+            sm->csrRowPtr, sm->csrColIdx, sm->csrVal,
+            sm_cuda->csrRowPtr, sm_cuda->csrColIdx, sm_cuda->csrVal
+        );
+
+        delete sm, sm_refe, sm_cuda;
+
+        return          
+            utils::equals(sm_refe->csrRowPtr, sm_cuda->csrRowPtr, N+1) ||
+            utils::equals(sm_refe->csrColIdx, sm_cuda->csrColIdx, NNZ) ||
+            utils::equals(sm_refe->csrVal, sm_cuda->csrVal, NNZ);
     }
-    for(int n = 1; n <= 100'000'000; n++) {
-        std::cout << "Testing "<< name << " with len=" << std::setw(10) << n << ": ";
-        bool ok = test_instance(n, reference_fun, cuda_fun);
-        std::cout << (ok ? "OK" : "NO") << std::endl;
-        all_ok = all_ok && ok;
-        if(n % 1000 == 0) { n *= 2; } // exponential incrementation
-    }
-    return all_ok;
-}
+};
 
-bool test_pointer_to_index(int m) {
-
-    // generate input
-    int * input = utils::random::generate_array(0, 3, m+1);
-    input[m] = 0;
-    DPRINT_ARR(input, m+1)
-    utils::prefix_sum(input, m+1);
-    DPRINT_ARR(input, m+1)
-
-    // get nnz
-    int nnz = input[m];
-
-    // run reference implementation
-    int * reference_output = new int[nnz](); // init to zeros
-    procedures::reference::pointers_to_indexes(input, m, reference_output, nnz);
-
-    // run parallel implementation
-    int * parallel_output      = new int[nnz];
-    int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, m+1);
-    int * parallel_cuda_output = utils::cuda::allocate_zero<int>(nnz);
-    procedures::cuda::pointers_to_indexes(parallel_cuda_input, m, parallel_cuda_output, nnz);
-    utils::cuda::recv(parallel_output, parallel_cuda_output, nnz);
-
-    // check correctness
-    bool ok = utils::equals<int>(reference_output, parallel_output, nnz);
-    DPRINT_ARR(input, m)
-    DPRINT_ARR(reference_output, nnz)
-    DPRINT_ARR(parallel_output, nnz)
-
-    utils::cuda::deallocate(parallel_cuda_input);
-    utils::cuda::deallocate(parallel_cuda_output);
-    delete input, reference_output, parallel_output;
-
-    return ok;
-}
-
-bool test_many_pointer_to_index() {
-
-    bool all_ok = true;
-
-    for(int m = 1; m < 20'000; m++) {
-        std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ":\n";
-        bool ok = test_pointer_to_index(m);
-        std::cout << (ok ? "OK" : "NO") << std::endl;
-        all_ok &= ok;
-    }
-    for(int m = 10; m < 100'000'000; m++) {
-        std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
-        bool ok = test_pointer_to_index(m);
-        std::cout << (ok ? "OK" : "NO") << std::endl;
-        if(m % 1000 == 0) { m *= 2; } // exponential incrementation
-        all_ok &= ok;
-    }
-    return all_ok;
-}
-
-bool test_indexes_to_pointers(int NNZ, int N) {
-
-    //const int NNZ = 15, N = 6;
-    //int colIdx[] = {1, 3, 0, 1, 2, 3, 2, 3, 4, 5, 1, 2, 3, 4, 5};
-    DPRINT_MSG("NNZ=%d, N=%d", NNZ, N)
-
-    int * colIdx = utils::random::generate_array(0, N-1, NNZ);
-    int * inter = new int[(HISTOGRAM_BLOCKS+1) * N]();
-    int * intra = new int[NNZ]();
-    int * colPtr = new int[N+1]();
-
-    int * colIdx_cuda = utils::cuda::allocate_send<int>(colIdx, NNZ);
-    int * inter_cuda = utils::cuda::allocate_zero<int>((HISTOGRAM_BLOCKS+1) * N);
-    int * intra_cuda = utils::cuda::allocate_zero<int>(NNZ);
-    int * colPtr_cuda = utils::cuda::allocate_zero<int>(N+1);
-
-    int * inter_cuda_out  = new int[(HISTOGRAM_BLOCKS+1) * N];
-    int * intra_cuda_out  = new int[NNZ];
-    int * colPtr_cuda_out = new int[N+1];
-
-    DPRINT_ARR(colIdx, NNZ);
-    procedures::reference::indexes_to_pointers(colIdx, NNZ, inter, intra, colPtr, N);
-    for(int i = 0; i < HISTOGRAM_BLOCKS+1; i++) {
-        DPRINT_ARR(inter+i*N, N);
-    }
-    DPRINT_ARR(intra, NNZ);
-    DPRINT_ARR(colPtr, N+1);
-
-    procedures::cuda::indexes_to_pointers(colIdx_cuda, NNZ, inter_cuda, intra_cuda, colPtr_cuda, N);
-    utils::cuda::recv<int>(inter_cuda_out, inter_cuda, (HISTOGRAM_BLOCKS+1) * N);
-    utils::cuda::recv<int>(intra_cuda_out, intra_cuda, NNZ);
-    utils::cuda::recv<int>(colPtr_cuda_out, colPtr_cuda, N+1);
-    for(int i = 0; i < HISTOGRAM_BLOCKS; i++) {
-        DPRINT_ARR(inter_cuda_out+i*N, N);
-    }
-    DPRINT_ARR(intra_cuda_out, NNZ);
-    DPRINT_ARR(colPtr_cuda_out, N+1);
-
-    utils::cuda::deallocate(colIdx_cuda);
-    utils::cuda::deallocate(inter_cuda);
-    utils::cuda::deallocate(intra_cuda);
-    utils::cuda::deallocate(colPtr_cuda);
-
-    bool ok = utils::equals(inter, inter_cuda_out, (HISTOGRAM_BLOCKS+1)*N)
-           || utils::equals(intra, intra_cuda_out, NNZ)
-           || utils::equals(colPtr, colPtr_cuda_out, N+1);
-
-    delete[] colIdx, inter, intra, colPtr;
-    delete[] inter_cuda_out, intra_cuda_out, colPtr_cuda_out;
-
-    return ok;
-}
-
-bool test_many_indexes_to_pointers() {
-
-    bool all_ok = true;
-
-    for(int m = 1; m < 2000; m++) {
-        int nnz = m, n = utils::random::generate(m*2)+1;
-        std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
-        bool ok = test_indexes_to_pointers(nnz, n);
-        std::cout << (ok ? "OK" : "NO") << std::endl;
-        all_ok &= ok;
-    }
-    for(int m = 10; m < 10'000'000; m *= 2) {
-        int nnz = m, n = utils::random::generate(m*2)+1;
-        std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
-        bool ok = test_indexes_to_pointers(nnz, n);
-        std::cout << (ok ? "OK" : "NO") << std::endl;
-        all_ok &= ok;
-    }
-    return all_ok;
-}
 
 int main(int argc, char **argv) {
 
+    std::atexit(reinterpret_cast<void(*)()>(cudaDeviceReset));
+
     bool all_ok = true;
 
-    all_ok &= test_many_indexes_to_pointers();
+    scan_transposer_tester t1;
+
+    all_ok &= t1.test_many_instances();
+
     //all_ok &= test_many_pointer_to_index();
     //all_ok &= test_many_instances("scan", procedures::reference::scan, procedures::cuda::scan);
     //all_ok &= test_many_instances("sort", procedures::reference::sort,  procedures::cuda::sort);
@@ -301,6 +336,7 @@ int main(int argc, char **argv) {
     //all_ok &= test_many_instances("segsort3", procedures::reference::segsort3, procedures::cuda::segsort3);
 
     std::cout << "Was test ok: " << (all_ok ? "YES" : "NO") << std::endl;
+
     return 0;
 }
 
