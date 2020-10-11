@@ -17,13 +17,10 @@
 #define NUMERIC_TEMPLATE(T) template< typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type >
 #define DIV_THEN_CEIL(a,b) (a%b?((a/b)+1):(a/b))
 
-#define COMPUTATION_OK 0
-#define COMPUTATION_ERROR -1
-
 #define CUDA_CHECK_ERROR { utils::cuda::check_error(__FILE__, __LINE__, __func__); }
 #define CUDA_SAFE_CALL(function) { utils::cuda::safe_call(function, __FILE__, __LINE__, __func__); }
 
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 
 #if DEBUG_MODE == 1
 #define STRINGIFY2(X) #X
@@ -134,10 +131,11 @@ namespace utils {
             return generate(0, max);
         }
 
-        inline int* generate_array(int min, int max, int len) {
-            int* array = new int[len];
+        NUMERIC_TEMPLATE(T)
+        inline T* generate_array(T min, T max, int len) {
+            T* array = new T[len];
             for(int i = 0; i < len; i++) {
-                array[i] = generate(min, max);
+                array[i] = (T) generate(((int)min), ((int)max));
             }
             return array;
         }

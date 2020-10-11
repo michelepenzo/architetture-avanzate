@@ -1,6 +1,6 @@
 #include "transposers.hh"
 
-int transposers::serial_csr2csc(
+void transposers::serial_csr2csc(
     int m, int n, int nnz, 
     int* csrRowPtr, int* csrColIdx, float* csrVal, 
     int* cscColPtr, int* cscRowIdx, float* cscVal) {
@@ -39,10 +39,9 @@ int transposers::serial_csr2csc(
     DPRINT_ARR(   cscVal, nnz)
 
     delete[] curr;
-    return COMPUTATION_OK;
 }
 
-int transposers::cuda_wrapper(
+void transposers::cuda_wrapper(
     int m, int n, int nnz,
     int* csrRowPtr, int* csrColIdx, float* csrVal, 
     int* cscColPtr, int* cscRowIdx, float* cscVal,
@@ -57,7 +56,7 @@ int transposers::cuda_wrapper(
     int * cscRowIdx_cuda = utils::cuda::allocate_zero<int>(nnz);
     float * cscVal_cuda  = utils::cuda::allocate_zero<float>(nnz);
 
-    int esito = _algo(
+    _algo(
         m, n, nnz,
         csrRowPtr_cuda, csrColIdx_cuda, csrVal_cuda, 
         cscColPtr_cuda, cscRowIdx_cuda, cscVal_cuda
@@ -70,8 +69,6 @@ int transposers::cuda_wrapper(
     utils::cuda::deallocate_recv<int>(cscColPtr, cscColPtr_cuda, n+1);
     utils::cuda::deallocate_recv<int>(cscRowIdx, cscRowIdx_cuda, nnz);
     utils::cuda::deallocate_recv<float>(cscVal, cscVal_cuda, nnz);
-
-    return esito;
 }
 
 __global__ 
@@ -102,7 +99,7 @@ void reorder_elements_kernel(
     }
 }
 
-int transposers::scan_csr2csc(
+void transposers::scan_csr2csc(
     int m, int n, int nnz,
     int* csrRowPtr, int* csrColIdx, float* csrVal, 
     int* cscColPtr, int* cscRowIdx, float* cscVal) {
@@ -137,15 +134,13 @@ int transposers::scan_csr2csc(
     }
     DPRINT_ARR_CUDA(intra, nnz)
 
-
     utils::cuda::deallocate(csrRowIdx);
     utils::cuda::deallocate(inter);
     utils::cuda::deallocate(intra);
     utils::cuda::deallocate(colPtr);
-    return COMPUTATION_OK;
 }
 
-int transposers::merge_csr2csc(
+void transposers::merge_csr2csc(
     int m, int n, int nnz, 
     int* csrRowPtr, int* csrColIdx, float* csrVal, 
     int* cscColPtr, int* cscRowIdx, float* cscVal) {
@@ -184,10 +179,15 @@ int transposers::merge_csr2csc(
     int full = 1;
     int CURRENT_BLOCK_SIZE = SEGSORT_ELEMENTS_PER_BLOCK;
 
+    DPRINT_MSG("INIT Block Size %d", CURRENT_BLOCK_SIZE)
+    DPRINT_ARR_CUDA(buffer[full].colIdx,  nnz);
+    DPRINT_ARR_CUDA(buffer[full].rowIdx, nnz);
+    DPRINT_ARR_CUDA(buffer[full].val,    nnz);
+
     while(CURRENT_BLOCK_SIZE < (nnz-1)*2) {
     
         procedures::cuda::segmerge3_step(
-            buffer[full].colIdx, buffer[full].colIdx, 
+            buffer[full].colIdx, buffer[1-full].colIdx, 
             nnz, CURRENT_BLOCK_SIZE, 
             buffer[full].rowIdx, buffer[1-full].rowIdx, 
             buffer[full].val, buffer[1-full].val
@@ -222,6 +222,4 @@ int transposers::merge_csr2csc(
     utils::cuda::deallocate(buffer[1].colIdx);
     utils::cuda::deallocate(buffer[0].rowIdx);
     utils::cuda::deallocate(buffer[0].val);
-
-    return 0;
 }
