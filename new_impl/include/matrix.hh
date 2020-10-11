@@ -32,8 +32,11 @@ namespace matrix {
             }
 
             this->csrRowPtr = new int[this->m+1]();
+            //DPRINT_MSG("Allocating csrRowPtr: %p", this->csrRowPtr)
             this->csrColIdx = new int[this->nnz]();
+            //DPRINT_MSG("Allocating csrColIdx: %p", this->csrColIdx)
             this->csrVal = new float[this->nnz]();
+            //DPRINT_MSG("Allocating csrVal: %p", this->csrVal)
 
             if(mi == RANDOM_INITIALIZATION) {
 
@@ -72,9 +75,13 @@ namespace matrix {
         }
 
         ~SparseMatrix() {
+            //DPRINT_MSG("Deallocating csrRowPtr: %p", csrRowPtr)
             delete[] csrRowPtr;
+            //DPRINT_MSG("Deallocating csrColIdx: %p", csrColIdx)
             delete[] csrColIdx;
+            //DPRINT_MSG("Deallocating csrVal: %p", csrVal)
             delete[] csrVal;
+            //DPRINT_MSG("End deallocating")
         }
 
         bool equals(SparseMatrix* sm) {

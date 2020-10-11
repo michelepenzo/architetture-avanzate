@@ -1,12 +1,5 @@
 #include "procedures.hh"
 
-__device__
-void ___copy(int * output, int INPUT_ARRAY input, int len) {
-    for(int i = 0; i < len; i++) {
-        output[i] = input[i];
-    }
-}
-
 __global__
 void segmerge_step_kernel(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
 
@@ -33,14 +26,14 @@ void segmerge_step_kernel(int INPUT_ARRAY input, int * output, int len, int BLOC
     }
 
     // finisco le rimanenze del primo blocco
-    ___copy(output + current_output, input + current_1, end_1 - current_1);
+    utils::cuda::devcopy<int>(output + current_output, input + current_1, end_1 - current_1);
 
     // finisco le rimanenze del secondo blocco
-    ___copy(output + current_output, input + current_2, end_2 - current_2);
+    utils::cuda::devcopy<int>(output + current_output, input + current_2, end_2 - current_2);
 }
 
 __global__
-void segmerge3_step_kernel(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void segmerge3_step_kernel(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
 
     int couple_block_id = blockIdx.x;
     int start_1 = 2 * couple_block_id * BLOCK_SIZE;
@@ -69,14 +62,14 @@ void segmerge3_step_kernel(int INPUT_ARRAY input, int * output, int len, int BLO
     }
 
     // finisco le rimanenze del primo blocco
-    ___copy(output + current_output, input + current_1, end_1 - current_1);
-    ___copy(a_out  + current_output, a_in  + current_1, end_1 - current_1);
-    ___copy(b_out  + current_output, b_in  + current_1, end_1 - current_1);
+    utils::cuda::devcopy<int>(output + current_output, input + current_1, end_1 - current_1);
+    utils::cuda::devcopy<int>(a_out  + current_output, a_in  + current_1, end_1 - current_1);
+    utils::cuda::devcopy<float>(b_out  + current_output, b_in  + current_1, end_1 - current_1);
 
     // finisco le rimanenze del secondo blocco
-    ___copy(output + current_output, input + current_2, end_2 - current_2);
-    ___copy(a_out  + current_output, a_in  + current_2, end_2 - current_2);
-    ___copy(b_out  + current_output, b_in  + current_2, end_2 - current_2);
+    utils::cuda::devcopy<int>(output + current_output, input + current_2, end_2 - current_2);
+    utils::cuda::devcopy<int>(a_out  + current_output, a_in  + current_2, end_2 - current_2);
+    utils::cuda::devcopy<float>(b_out  + current_output, b_in  + current_2, end_2 - current_2);
 }
 
 void procedures::cuda::segmerge_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
@@ -86,7 +79,7 @@ void procedures::cuda::segmerge_step(int INPUT_ARRAY input, int * output, int le
     CUDA_CHECK_ERROR
 }
 
-void procedures::cuda::segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::cuda::segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
 
     const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
     segmerge3_step_kernel<<<DIV_THEN_CEIL(BLOCK_NUMBER, 2), 1>>>(input, output, len, BLOCK_SIZE, a_in, a_out, b_in, b_out);
@@ -97,7 +90,7 @@ void procedures::reference::segmerge_step(int INPUT_ARRAY input, int * output, i
     segmerge3_step(input, output, len, BLOCK_SIZE, NULL, NULL, NULL, NULL);
 }
 
-void procedures::reference::segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::reference::segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
 
     bool all_three = a_in != NULL && a_out != NULL && b_in != NULL && b_out != NULL;
     const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
@@ -136,12 +129,12 @@ void procedures::reference::segmerge3_step(int INPUT_ARRAY input, int * output, 
         // finisco le rimanenze del primo blocco
         utils::copy_array<int>(output + current_output, input + current_1, end_1 - current_1);
         if(all_three) utils::copy_array<int>(a_out + current_output, a_in + current_1, end_1 - current_1);
-        if(all_three) utils::copy_array<int>(b_out + current_output, b_in + current_1, end_1 - current_1);
+        if(all_three) utils::copy_array<float>(b_out + current_output, b_in + current_1, end_1 - current_1);
 
         // finisco le rimanenze del secondo blocco
         utils::copy_array<int>(output + current_output, input + current_2, end_2 - current_2);
         if(all_three) utils::copy_array<int>(a_out + current_output, a_in + current_2, end_2 - current_2);
-        if(all_three) utils::copy_array<int>(b_out + current_output, b_in + current_2, end_2 - current_2);
+        if(all_three) utils::copy_array<float>(b_out + current_output, b_in + current_2, end_2 - current_2);
     }
 
 }

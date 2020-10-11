@@ -52,11 +52,11 @@ void segsort_kernel(int INPUT_ARRAY input, int * output, int len) {
 }
 
 __global__
-void segsort3_kernel(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void segsort3_kernel(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
 
     __shared__ int temp[SEGSORT_ELEMENTS_PER_BLOCK];
     __shared__ int temp_a[SEGSORT_ELEMENTS_PER_BLOCK];
-    __shared__ int temp_b[SEGSORT_ELEMENTS_PER_BLOCK];
+    __shared__ float temp_b[SEGSORT_ELEMENTS_PER_BLOCK];
 
     int i = threadIdx.x;
     int start = blockIdx.x * SEGSORT_ELEMENTS_PER_BLOCK;
@@ -71,9 +71,9 @@ void segsort3_kernel(int INPUT_ARRAY input, int * output, int len, int INPUT_ARR
 
         /// trovo la posizione del i-esimo elemento
         int index = find_position_in_unsorted_array(temp, i, end - start);
-        int element   = temp[i];
-        int element_a = temp_a[i];
-        int element_b = temp_b[i];
+        int element     = temp[i];
+        int element_a   = temp_a[i];
+        float element_b = temp_b[i];
         __syncthreads();
 
         // porto alla posizione corretta
@@ -85,7 +85,7 @@ void segsort3_kernel(int INPUT_ARRAY input, int * output, int len, int INPUT_ARR
         // scaricamento dati in shared memory
         output[start + i] = temp[i];
         a_out[start + i]  = temp_a[i];
-        b_out[start + i]  = temp_a[i];
+        b_out[start + i]  = temp_b[i];
         __syncthreads();
     }
 }
@@ -99,7 +99,7 @@ void procedures::cuda::segsort(int INPUT_ARRAY input, int * output, int len) {
     //DPRINT_ARR_CUDA(output, len)
 }
 
-void procedures::cuda::segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::cuda::segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
     
     const int SEGMENT_NUMBER = DIV_THEN_CEIL(len, SEGSORT_ELEMENTS_PER_BLOCK);
     segsort3_kernel<<<SEGMENT_NUMBER, SEGSORT_ELEMENTS_PER_BLOCK >>>(input, output, len, a_in, a_out, b_in, b_out);
@@ -118,7 +118,7 @@ void procedures::reference::segsort(int INPUT_ARRAY input, int * output, int len
     }
 }
 
-void procedures::reference::segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::reference::segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
 
     utils::copy_array(output, input, len);
     utils::copy_array(a_out,  a_in,  len);

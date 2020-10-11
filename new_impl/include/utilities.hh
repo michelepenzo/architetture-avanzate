@@ -194,6 +194,14 @@ namespace utils {
         }
 
         NUMERIC_TEMPLATE(T)
+        __device__
+        void devcopy(T * output, T INPUT_ARRAY input, int len) {
+            for(int i = 0; i < len; i++) {
+                output[i] = input[i];
+            }
+        }
+
+        NUMERIC_TEMPLATE(T)
         inline void deallocate(T *ptr) {
             CUDA_SAFE_CALL(cudaFree(ptr))
         }

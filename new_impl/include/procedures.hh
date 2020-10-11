@@ -16,11 +16,15 @@
 #define SEGMERGE_SM_SPLITTER_DISTANCE 4
 #define SEGMERGE_SM_MANY_THREADS 4
 
+#define MERGETRANS_BLOCKS 4
+
 namespace procedures {
 
     namespace cuda {
 
         void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * intra, int * ptr, int ptr_len);
+
+        void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * ptr, int ptr_len);
 
         void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);
     
@@ -28,24 +32,26 @@ namespace procedures {
 
         void segsort(int INPUT_ARRAY input, int * output, int len);
 
-        void segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+        void segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
 
         void segmerge_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
 
-        void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+        void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
 
         void segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
 
-        void segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+        void segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
 
         void sort(int INPUT_ARRAY input, int * output, int len);
 
-        void sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+        void sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
     }
 
     namespace reference {
 
         void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * intra, int * ptr, int ptr_len);
+
+        void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * ptr, int ptr_len);
 
         void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);
 
@@ -53,19 +59,19 @@ namespace procedures {
 
         void segsort(int INPUT_ARRAY input, int * output, int len);
 
-        void segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+        void segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
 
         void segmerge_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
 
-        void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+        void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
 
         void segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
 
-        void segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+        void segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
 
         void sort(int INPUT_ARRAY input, int * output, int len);
 
-        void sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
+        void sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
     }
     
     /*

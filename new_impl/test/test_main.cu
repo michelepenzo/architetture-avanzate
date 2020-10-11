@@ -6,8 +6,8 @@
 #include "transposers.hh"
 
 #define TESTER_ALL_INSTANCES_MIN 1
-#define TESTER_ALL_INSTANCES_MAX 17
-#define TESTER_BIG_INSTANCES 100'000'000
+#define TESTER_ALL_INSTANCES_MAX 2
+#define TESTER_BIG_INSTANCES -1
 
 class tester {
 
@@ -19,17 +19,17 @@ public:
         
         bool all_ok = true;
         for(int m = TESTER_ALL_INSTANCES_MIN; m < TESTER_ALL_INSTANCES_MAX; m++) {
-            std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ":\n" << std::flush;
+            std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": " << std::flush;
             bool ok = test_instance(m);
             std::cout << (ok ? "OK" : "NO") << std::endl << std::flush;
             all_ok &= ok;
         }
-        //for(int m = 10; m < TESTER_BIG_INSTANCES; m *= 2) {
-        //    std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
-        //    bool ok = test_instance(m);
-        //    std::cout << (ok ? "OK" : "NO") << std::endl;
-        //    all_ok &= ok;
-        //}
+        for(int m = 10; m < TESTER_BIG_INSTANCES; m *= 2) {
+            std::cout << "Testing pointer_to_index with m=" << std::setw(10) << m << ": ";
+            bool ok = test_instance(m);
+            std::cout << (ok ? "OK" : "NO") << std::endl;
+            all_ok &= ok;
+        }
         return all_ok;
     }
 };
@@ -302,18 +302,67 @@ public:
         );
 
         // scan trans implementation
-        int esito_cuda = transposers::scan_csr2csc(
+        int esito_cuda = transposers::cuda_wrapper(
             M, N, NNZ,
             sm->csrRowPtr, sm->csrColIdx, sm->csrVal,
-            sm_cuda->csrRowPtr, sm_cuda->csrColIdx, sm_cuda->csrVal
+            sm_cuda->csrRowPtr, sm_cuda->csrColIdx, sm_cuda->csrVal,
+            transposers::scan_csr2csc
         );
 
-        delete sm, sm_refe, sm_cuda;
-
-        return          
+        bool ok =          
             utils::equals(sm_refe->csrRowPtr, sm_cuda->csrRowPtr, N+1) ||
             utils::equals(sm_refe->csrColIdx, sm_cuda->csrColIdx, NNZ) ||
             utils::equals(sm_refe->csrVal, sm_cuda->csrVal, NNZ);
+
+        delete sm, sm_refe, sm_cuda;
+
+        return ok;
+    }
+};
+
+
+class merge_transposer_tester : public tester {
+
+public:
+
+    bool test_instance(int instance_number) {
+
+        int M = 4, N = 6, NNZ = 15;
+        int a[] = { 0, 2, 6, 10, 15 };
+        int b[] = { 1, 3, 0, 1, 2, 3, 2, 3, 4, 5, 1, 2, 3, 4, 5 };
+        float c[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+
+        matrix::SparseMatrix *sm = new matrix::SparseMatrix(M, N, NNZ, matrix::ALL_ZEROS_INITIALIZATION);
+        utils::copy_array(sm->csrRowPtr, a, M+1);
+        utils::copy_array(sm->csrColIdx, b, NNZ);
+        utils::copy_array(sm->csrVal,    c, NNZ);
+
+        matrix::SparseMatrix *sm_refe = new matrix::SparseMatrix(N, M, NNZ, matrix::ALL_ZEROS_INITIALIZATION);
+        
+        matrix::SparseMatrix *sm_cuda = new matrix::SparseMatrix(N, M, NNZ, matrix::ALL_ZEROS_INITIALIZATION);
+
+        int esito_refe = transposers::serial_csr2csc(
+            M, N, NNZ,
+            sm->csrRowPtr, sm->csrColIdx, sm->csrVal,
+            sm_refe->csrRowPtr, sm_refe->csrColIdx, sm_refe->csrVal
+        );
+
+        // scan trans implementation
+        int esito_cuda = transposers::cuda_wrapper(
+            M, N, NNZ,
+            sm->csrRowPtr, sm->csrColIdx, sm->csrVal,
+            sm_cuda->csrRowPtr, sm_cuda->csrColIdx, sm_cuda->csrVal,
+            transposers::merge_csr2csc
+        );
+
+        bool ok =          
+            utils::equals(sm_refe->csrRowPtr, sm_cuda->csrRowPtr, N+1) ||
+            utils::equals(sm_refe->csrColIdx, sm_cuda->csrColIdx, NNZ) ||
+            utils::equals(sm_refe->csrVal, sm_cuda->csrVal, NNZ); 
+
+        delete sm, sm_refe, sm_cuda;
+
+        return ok;
     }
 };
 
@@ -324,7 +373,7 @@ int main(int argc, char **argv) {
 
     bool all_ok = true;
 
-    scan_transposer_tester t1;
+    merge_transposer_tester t1;
 
     all_ok &= t1.test_many_instances();
 
