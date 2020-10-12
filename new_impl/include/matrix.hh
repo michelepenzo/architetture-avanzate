@@ -49,7 +49,7 @@ namespace matrix {
         SparseMatrix(const int m, const int n, const int nnz, const MatrixInitialization mi = RANDOM_INITIALIZATION);
         
         // costruttore da file MTX
-        SparseMatrix(std::ifstream mtx_file);
+        SparseMatrix(std::ifstream& mtx_file);
 
         // distruttore
         ~SparseMatrix();

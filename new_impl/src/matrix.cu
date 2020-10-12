@@ -52,10 +52,46 @@ namespace matrix {
         }
     }
 
-    SparseMatrix::SparseMatrix(std::ifstream mtx_file) {
-        m=0;
-        n=0;
-        nnz=0;
+    SparseMatrix::SparseMatrix(std::ifstream& mtx_file) {
+
+        std::cout << "Reading file from file...\n";
+
+        // ignoro l'header e i commenti
+        while(mtx_file.peek() == '%') {
+            mtx_file.ignore(2048, '\n');
+        }
+
+        // dimensioni e specifiche della matrice
+        std::cout << "Reading specs\n";
+        mtx_file >> m >> n >> nnz;
+        std::cout << "m " << m << "  n " << n << "  nnz " << nnz << "\n";
+
+
+
+        // check dimensioni
+        if(m <= 0 || n <= 0 || nnz <= 0 || nnz > n * m) {
+            throw std::invalid_argument("received negative value");
+        }
+
+        // alloco lo spazio necessario
+        int * inter;
+        int * csrRowIdx     = new int[nnz]();
+        int * csrRowPtrTemp = new int[m+1]();
+        csrRowPtr           = new int[m+1]();
+        csrColIdx           = new int[nnz]();
+        csrVal              = new float[nnz]();
+
+        // leggo da file
+        for(int i = 0; i < nnz; i++) {
+            mtx_file >> csrRowIdx[i] >> csrColIdx[i] >> csrVal[i];
+        }
+
+        // sistemo array puntatori
+        procedures::reference::indexes_to_pointers(csrRowIdx, nnz, &inter, csrRowPtrTemp, m);
+        procedures::reference::scan(csrRowPtrTemp, csrRowPtr, m+1);
+        
+        delete[] csrRowIdx;
+        delete[] inter;
     }
 
     SparseMatrix::~SparseMatrix() {
