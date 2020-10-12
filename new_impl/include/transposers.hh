@@ -6,20 +6,28 @@
 
 namespace transposers {
 
-    int serial_csr2csc(
+    typedef void (*algo)(int, int, int, int*, int*, float*, int*, int*, float*);
+
+    void serial_csr2csc(
         int m, int n, int nnz, 
         int* csrRowPtr, int* csrColIdx, float* csrVal, 
         int* cscColPtr, int* cscRowIdx, float* cscVal);
 
-    int scan_csr2csc(
+    void cuda_wrapper(
+        int m, int n, int nnz,
+        int* csrRowPtr, int* csrColIdx, float* csrVal, 
+        int* cscColPtr, int* cscRowIdx, float* cscVal,
+        algo _algo);
+
+    void scan_csr2csc(
         int m, int n, int nnz, 
         int* csrRowPtr, int* csrColIdx, float* csrVal, 
         int* cscColPtr, int* cscRowIdx, float* cscVal);
 
+    void merge_csr2csc(
+        int m, int n, int nnz, 
+        int* csrRowPtr, int* csrColIdx, float* csrVal, 
+        int* cscColPtr, int* cscRowIdx, float* cscVal);
 }
-
-
-
-
 
 #endif

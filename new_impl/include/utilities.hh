@@ -17,9 +17,6 @@
 #define NUMERIC_TEMPLATE(T) template< typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type >
 #define DIV_THEN_CEIL(a,b) (a%b?((a/b)+1):(a/b))
 
-#define COMPUTATION_OK 0
-#define COMPUTATION_ERROR -1
-
 #define CUDA_CHECK_ERROR { utils::cuda::check_error(__FILE__, __LINE__, __func__); }
 #define CUDA_SAFE_CALL(function) { utils::cuda::safe_call(function, __FILE__, __LINE__, __func__); }
 
@@ -125,17 +122,20 @@ namespace utils {
 
         inline int generate(int min, int max) {
             std::uniform_int_distribution<int> values_distrib(min, max);
-            return values_distrib(generator());
+            int result = values_distrib(generator());
+            // DPRINT_MSG("Generate between %d %d: %d", min, max, result)
+            return result;
         }
 
         inline int generate(int max) {
             return generate(0, max);
         }
 
-        inline int* generate_array(int min, int max, int len) {
-            int* array = new int[len];
+        NUMERIC_TEMPLATE(T)
+        inline T* generate_array(T min, T max, int len) {
+            T* array = new T[len];
             for(int i = 0; i < len; i++) {
-                array[i] = generate(min, max);
+                array[i] = (T) generate(((int)min), ((int)max));
             }
             return array;
         }
@@ -192,6 +192,14 @@ namespace utils {
         }
 
         NUMERIC_TEMPLATE(T)
+        __device__
+        void devcopy(T * output, T INPUT_ARRAY input, int len) {
+            for(int i = 0; i < len; i++) {
+                output[i] = input[i];
+            }
+        }
+
+        NUMERIC_TEMPLATE(T)
         inline void deallocate(T *ptr) {
             CUDA_SAFE_CALL(cudaFree(ptr))
         }
@@ -211,7 +219,7 @@ namespace utils {
 
         NUMERIC_TEMPLATE(T)
         inline void print(std::string name, T *cuda_array, int len) {
-            T *host_array = new int[len];
+            T *host_array = new T[len];
             recv<T>(host_array, cuda_array, len);
             utils::print(name, host_array, len);
             delete host_array;

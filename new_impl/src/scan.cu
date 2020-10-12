@@ -2,8 +2,8 @@
 #include <iomanip>
 #include "procedures.hh"
 
-int THREADS_PER_BLOCK = 512;
-int ELEMENTS_PER_BLOCK = THREADS_PER_BLOCK * 2;
+static const int THREADS_PER_BLOCK = 512;
+static const int ELEMENTS_PER_BLOCK = (THREADS_PER_BLOCK * 2);
 
 void scanLargeDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length);
 
@@ -95,7 +95,7 @@ __global__ void prescan_arbitrary_unoptimized(int *output, int *input, int n, in
 		temp[2 * threadID] = input[2 * threadID]; // load input into shared memory
 		temp[2 * threadID + 1] = input[2 * threadID + 1];
 	}
-	else {
+	else { 
 		temp[2 * threadID] = 0;
 		temp[2 * threadID + 1] = 0;
 	}

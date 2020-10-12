@@ -1,11 +1,6 @@
-#include "procedures.hh"
+/*
 
-__device__
-void copy(int * output, int INPUT_ARRAY input, int len) {
-    for(int i = 0; i < len; i++) {
-        output[i] = input[i];
-    }
-}
+#include "procedures.hh"
 
 __device__
 int find_position_in_sorted_array(int element_to_search, int INPUT_ARRAY input, int len) {
@@ -132,9 +127,9 @@ void uniform_merge_kernel(int INPUT_ARRAY input, int * output, int INPUT_ARRAY i
     
     // carico gli elementi in temp_in
     if(endA - startA > SEGMERGE_SM_SPLITTER_DISTANCE) printf("!!!Error A[%d:%d] > %d SM SP S\n", startA, endA, SEGMERGE_SM_SPLITTER_DISTANCE);
-    copy(temp_in, inputA + startA, endA - startA);
+    utils::cuda::devcopy<int>(temp_in, inputA + startA, endA - startA);
     if(endB - startB > SEGMERGE_SM_SPLITTER_DISTANCE) printf("!!!Error B[%d:%d] > %d SM SP S\n", startB, endB, SEGMERGE_SM_SPLITTER_DISTANCE);
-    copy(temp_in + SEGMERGE_SM_SPLITTER_DISTANCE, inputB + startB, endB - startB);
+    utils::cuda::devcopy<int>(temp_in + SEGMERGE_SM_SPLITTER_DISTANCE, inputB + startB, endB - startB);
     __syncthreads();
 
     // effettuo merge
@@ -233,7 +228,7 @@ void procedures::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int
     utils::cuda::deallocate(indexB_out);
 }
 
-void procedures::cuda::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::cuda::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
     segmerge3_step(input, output, len, BLOCK_SIZE, a_in, a_out, b_in, b_out);
 }
 
@@ -241,6 +236,8 @@ void procedures::reference::segmerge_sm_step(int INPUT_ARRAY input, int * output
     segmerge_step(input, output, len, BLOCK_SIZE);
 }
 
-void procedures::reference::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::reference::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
     segmerge3_step(input, output, len, BLOCK_SIZE, a_in, a_out, b_in, b_out);
 }
+
+*/

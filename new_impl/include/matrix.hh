@@ -27,10 +27,16 @@ namespace matrix {
         SparseMatrix(const int m, const int n, const int nnz, const MatrixInitialization mi = RANDOM_INITIALIZATION) 
             : m(m), n(n), nnz(nnz)
         { 
+            if(m <= 0 || n <= 0 || nnz <= 0 || nnz > n * m) {
+                throw std::invalid_argument("received negative value");
+            }
 
             this->csrRowPtr = new int[this->m+1]();
+            //DPRINT_MSG("Allocating csrRowPtr: %p", this->csrRowPtr)
             this->csrColIdx = new int[this->nnz]();
+            //DPRINT_MSG("Allocating csrColIdx: %p", this->csrColIdx)
             this->csrVal = new float[this->nnz]();
+            //DPRINT_MSG("Allocating csrVal: %p", this->csrVal)
 
             if(mi == RANDOM_INITIALIZATION) {
 
@@ -38,10 +44,11 @@ namespace matrix {
                 std::set< std::tuple<int, int> > indices; // set prevents duplicate insertion
                 
                 while(indices.size() < nnz) {
-                    indices.insert(std::make_tuple<int, int>(
+                    std::tuple<int, int> t = std::make_tuple<int, int>(
                         utils::random::generate(m-1), 
                         utils::random::generate(n-1)
-                    ));
+                    );
+                    indices.insert(t);
                 }
 
                 // 2. fill values
@@ -68,9 +75,13 @@ namespace matrix {
         }
 
         ~SparseMatrix() {
+            //DPRINT_MSG("Deallocating csrRowPtr: %p", csrRowPtr)
             delete[] csrRowPtr;
+            //DPRINT_MSG("Deallocating csrColIdx: %p", csrColIdx)
             delete[] csrColIdx;
+            //DPRINT_MSG("Deallocating csrVal: %p", csrVal)
             delete[] csrVal;
+            //DPRINT_MSG("End deallocating")
         }
 
         bool equals(SparseMatrix* sm) {

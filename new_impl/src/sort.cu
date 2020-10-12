@@ -26,7 +26,7 @@ void procedures::cuda::sort(int INPUT_ARRAY input, int * output, int len) {
     utils::cuda::deallocate(output_buffer[1]);
 }
 
-void procedures::cuda::sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::cuda::sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
 
     // applico prima segsort
     procedures::cuda::segsort3(input, output, len, a_in, a_out, b_in, b_out);
@@ -34,7 +34,7 @@ void procedures::cuda::sort3(int INPUT_ARRAY input, int * output, int len, int I
     // alloco spazio necessario
     int* output_buffer[2] = { output, utils::cuda::allocate<int>(len) };
     int* a_buffer[2]      = {  a_out, utils::cuda::allocate<int>(len) };
-    int* b_buffer[2]      = {  b_out, utils::cuda::allocate<int>(len) };
+    float* b_buffer[2]    = {  b_out, utils::cuda::allocate<float>(len) };
     int full = 0;
 
     // applico merge
@@ -47,9 +47,9 @@ void procedures::cuda::sort3(int INPUT_ARRAY input, int * output, int len, int I
     // eventualmente copio nell'array di output nel caso non sia stato l'ultimo
     // ad essere riempito...
     if(full != 0) {
-        utils::cuda::copy(output, output_buffer[1], len);
-        utils::cuda::copy( a_out,      a_buffer[1], len);
-        utils::cuda::copy( b_out,      b_buffer[1], len);
+        utils::cuda::copy<int>(output, output_buffer[1], len);
+        utils::cuda::copy<int>( a_out,      a_buffer[1], len);
+        utils::cuda::copy<float>( b_out,      b_buffer[1], len);
     }
 
     // dealloco array temporaneo
@@ -60,11 +60,11 @@ void procedures::cuda::sort3(int INPUT_ARRAY input, int * output, int len, int I
 
 void procedures::reference::sort(int INPUT_ARRAY input, int * output, int len) {
 
-    utils::copy_array(output, input, len);
+    utils::copy_array<int>(output, input, len);
     std::sort(output, output + len);
 }
 
-void procedures::reference::sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out) {
+void procedures::reference::sort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
 
     // struttura che implementa il comparatore da applicare sugli array degli indici
     class sort_indices {
