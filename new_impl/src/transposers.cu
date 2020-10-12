@@ -90,12 +90,17 @@ void reorder_elements_kernel(
     const int end = min((j+1)*BLOCK_SIZE, nnz);
     const int len = end - start;
 
+    // printf("(%2d): START=%d, LEN=%d\n", j, start, len);
+
     // calcolo la posizione degli elementi
     for(int i = 0; i < len; i++) {
         int cid = csrColIdx[start + i];
-        int loc = cscColPtr[cid] + inter[cid] + intra[i];
+        int loc = cscColPtr[cid] + inter[cid] + intra[start + i];
         cscRowIdx[loc] = csrRowIdx[start + i];
         cscVal[loc] = csrVal[start + i];
+
+        // printf("(%2d): i=%2d, start+i=%2d, { cid=%2d | colptr=%2d, inter=%d, intra=%2d }-> loc=%2d, csrVal[start+i]=%2.0f, cscVal[loc]=%2.0f\n",
+        //     j, i, start+i, cid, cscColPtr[cid], inter[cid], intra[i], loc, csrVal[start+i], cscVal[loc]);
     }
 }
 
@@ -107,12 +112,17 @@ void transposers::scan_csr2csc(
     // 1. espandi l'array di puntatori agli indici di riga, nell'array di indici esteso
     int * csrRowIdx = utils::cuda::allocate_zero<int>(nnz);
     procedures::cuda::pointers_to_indexes(csrRowPtr, m, csrRowIdx, nnz);
+    DPRINT_ARR_CUDA(csrRowIdx, nnz)
 
     // 2. riempi inter, intra, e colPtr
     int * inter;
     int * intra = utils::cuda::allocate_zero<int>(nnz);
     int * colPtr = utils::cuda::allocate_zero<int>(n+1);
     procedures::cuda::indexes_to_pointers(csrColIdx, nnz, &inter, intra, colPtr, n);
+    for(int i = 0; i <= HISTOGRAM_BLOCKS; i++) {
+        DPRINT_ARR_CUDA(inter+i*n, n)
+    }
+    DPRINT_ARR_CUDA(intra, nnz)
 
     // 3. applica scan ai puntatori
     procedures::cuda::scan(colPtr, cscColPtr, n+1);
@@ -222,4 +232,152 @@ void transposers::merge_csr2csc(
     utils::cuda::deallocate(buffer[1].colIdx);
     utils::cuda::deallocate(buffer[0].rowIdx);
     utils::cuda::deallocate(buffer[0].val);
+}
+
+const char* _cusparseGetErrorName(int status) {
+    switch(status) {
+        case CUSPARSE_STATUS_SUCCESS	        : return "CUSPARSE_STATUS_SUCCESS: the operation completed successfully.";
+        case CUSPARSE_STATUS_NOT_INITIALIZED	: return "CUSPARSE_STATUS_NOT_INITIALIZED: the library was not initialized.";
+        case CUSPARSE_STATUS_ALLOC_FAILED	    : return "CUSPARSE_STATUS_ALLOC_FAILED: the reduction buffer could not be allocated.";
+        case CUSPARSE_STATUS_INVALID_VALUE	    : return "CUSPARSE_STATUS_INVALID_VALUE: the idxBase is neither CUSPARSE_INDEX_BASE_ZERO nor CUSPARSE_INDEX_BASE_ONE.";
+        case CUSPARSE_STATUS_ARCH_MISMATCH	    : return "CUSPARSE_STATUS_ARCH_MISMATCH: the device does not support double precision.";
+        case CUSPARSE_STATUS_EXECUTION_FAILED	: return "CUSPARSE_STATUS_EXECUTION_FAILED: the function failed to launch on the GPU.";
+        case CUSPARSE_STATUS_INTERNAL_ERROR	    : return "CUSPARSE_STATUS_INTERNAL_ERROR: an internal operation failed (check if you are compiling correctly wrt your GPU architecture).";
+        default                                 : return "UNKNOWN ERROR";
+    }
+}
+
+void cusparse_generic_csr2csc_gpumemory(
+    int m, int n, int nnz, 
+    int* csrRowPtr, int* csrColIdx, float* csrVal, 
+    int* cscColPtr, int* cscRowIdx, float* cscVal, bool use_algo1) {
+
+    #if (CUDART_VERSION >= 9000) && (CUDART_VERSION < 10000)
+
+        cusparseHandle_t handle;
+        cusparseStatus_t status;
+
+        // 1. allocate resources
+        status = cusparseCreate(&handle);
+        if(status != CUSPARSE_STATUS_SUCCESS) {
+            std::cerr << "csr2csc_cusparse - Error while calling cusparseCreate: " << _cusparseGetErrorName(status) << std::endl;
+            return;
+        }
+
+        // 2. call transpose
+        // reference: https://docs.nvidia.com/cuda/archive/9.0/cusparse/index.html#cusparse-lt-t-gt-csr2csc
+        status = cusparseScsr2csc(
+            handle, 
+            m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscRowIdx, cscColPtr,
+            CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
+            CUSPARSE_INDEX_BASE_ZERO);  // [idxBase]
+
+        if(status != CUSPARSE_STATUS_SUCCESS) {
+            std::cerr << "csr2csc_cusparse - Error while calling cusparseScsr2csc: " << _cusparseGetErrorName(status) << std::endl;
+            cusparseDestroy(handle);
+            return;
+        }
+
+        status = cusparseDestroy(handle);
+        if(status != CUSPARSE_STATUS_SUCCESS) {
+            std::cerr << "csr2csc_cusparse - Error while calling cusparseDestroy: " << _cusparseGetErrorName(status) << std::endl;
+            return;
+        }
+
+        return;
+
+    #elif (CUDART_VERSION >= 10000) 
+
+        cusparseHandle_t handle;
+        cusparseStatus_t status;
+        size_t buffer_size;
+
+        // 1. allocate resources
+        status = cusparseCreate(&handle);
+        if(status != CUSPARSE_STATUS_SUCCESS) {
+            std::cerr << "csr2csc_cusparse - Error while calling cusparseCreate: " << cusparseGetErrorName(status) << std::endl;
+            return;
+        }
+
+        // 2. ask cusparse how much space it needs to operate
+        status = cusparseCsr2cscEx2_bufferSize(
+            handle,                     // link to cusparse engine
+            m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
+            CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
+            CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
+            CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
+            (use_algo1 ? CUSPARSE_CSR2CSC_ALG1 : CUSPARSE_CSR2CSC_ALG2),
+                                        // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
+            &buffer_size);              // fill buffer_size variable
+
+        if(status != CUSPARSE_STATUS_SUCCESS) {
+            std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2_bufferSize: " << cusparseGetErrorName(status) << std::endl;
+            cusparseDestroy(handle);
+            return;
+        } else if(buffer_size <= 0) {
+            std::cerr << "csr2csc_cusparse - warning: buffer_size is not positive" << std::endl;
+        }
+
+        // 3. callocate buffer space
+        void* buffer = NULL;
+        SAFE_CALL( cudaMalloc(&buffer, buffer_size) );
+        std::cout << "Needed " << buffer_size << " bytes to esecute Csr2csc" << std::endl; 
+
+        // 4. call transpose
+        status = cusparseCsr2cscEx2(
+            handle, 
+            m, n, nnz, csrVal, csrRowPtr, csrColIdx, cscVal, cscColPtr, cscRowIdx, 
+            CUDA_R_32F,                 // [valType] data type of csrVal, cscVal arrays is 32-bit real (non-complex) single precision floating-point
+            CUSPARSE_ACTION_NUMERIC,    // [copyValues] the operation is performed on data and indices.
+            CUSPARSE_INDEX_BASE_ZERO,   // [idxBase]
+            (use_algo1 ? CUSPARSE_CSR2CSC_ALG1 : CUSPARSE_CSR2CSC_ALG2),
+                                        // which algorithm is used? CUSPARSE_CSR2CSC_ALG1 or CUSPARSE_CSR2CSC_ALG2
+            buffer);                    // cuda buffer
+
+        if(status != CUSPARSE_STATUS_SUCCESS) {
+            std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorName(status) << std::endl;
+            std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorString(status) << std::endl;
+            SAFE_CALL( cudaFree( buffer ) );
+            cusparseDestroy(handle);
+            return;
+        }
+
+        SAFE_CALL( cudaFree( buffer ) );
+        status = cusparseDestroy(handle);
+        if(status != CUSPARSE_STATUS_SUCCESS) {
+            std::cerr << "csr2csc_cusparse - Error while calling cusparseDestroy: " << cusparseGetErrorName(status) << std::endl;
+            return;
+        }
+        
+    #else
+
+        #error "Versione di CUDA non supportata"
+
+    #endif
+}
+
+void transposers::cusparse1_csr2csc(
+    int m, int n, int nnz, 
+    int* csrRowPtr, int* csrColIdx, float* csrVal, 
+    int* cscColPtr, int* cscRowIdx, float* cscVal)
+{
+    cusparse_generic_csr2csc_gpumemory(
+        m, n, nnz, 
+        csrRowPtr, csrColIdx, csrVal, 
+        cscColPtr, cscRowIdx, cscVal, 
+        true
+    );
+}
+
+void transposers::cusparse2_csr2csc(
+    int m, int n, int nnz, 
+    int* csrRowPtr, int* csrColIdx, float* csrVal, 
+    int* cscColPtr, int* cscRowIdx, float* cscVal)
+{
+    cusparse_generic_csr2csc_gpumemory(
+        m, n, nnz, 
+        csrRowPtr, csrColIdx, csrVal, 
+        cscColPtr, cscRowIdx, cscVal, 
+        false
+    );
 }

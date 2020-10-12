@@ -4,7 +4,7 @@ LOCAL_INCLUDE	= ./include
 LOCAL_SRC		= ./src
 LOCAL_TEST		= ./test
 LOCAL_BUILD 	= build
-OBJECT_LIST     = $(LOCAL_BUILD)/transposers.o $(LOCAL_BUILD)/indexes_to_pointers.o $(LOCAL_BUILD)/pointers_to_indexes.o $(LOCAL_BUILD)/scan.o $(LOCAL_BUILD)/sort.o $(LOCAL_BUILD)/segsort.o $(LOCAL_BUILD)/segmerge_step.o $(LOCAL_BUILD)/segmerge_sm_step.o
+OBJECT_LIST     = $(LOCAL_BUILD)/transposers.o $(LOCAL_BUILD)/matrix.o $(LOCAL_BUILD)/indexes_to_pointers.o $(LOCAL_BUILD)/pointers_to_indexes.o $(LOCAL_BUILD)/scan.o $(LOCAL_BUILD)/sort.o $(LOCAL_BUILD)/segsort.o $(LOCAL_BUILD)/segmerge_step.o $(LOCAL_BUILD)/segmerge_sm_step.o
 
 # personalize code considering CUDA version 9 or 11
 NVCC_VERSION    = ${shell nvcc -V | grep -oh "release [0-9]*\." | grep -oh "[0-9]*"}
@@ -25,6 +25,9 @@ $(LOCAL_BUILD)/test_main.o: $(LOCAL_TEST)/test_main.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
+$(LOCAL_BUILD)/matrix.o: $(LOCAL_SRC)/matrix.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 $(LOCAL_BUILD)/indexes_to_pointers.o: $(LOCAL_SRC)/indexes_to_pointers.cu

@@ -4,6 +4,9 @@
 
 #include "procedures.hh"
 
+#include "cublas_v2.h"
+#include "cusparse_v2.h"
+
 namespace transposers {
 
     typedef void (*algo)(int, int, int, int*, int*, float*, int*, int*, float*);
@@ -25,6 +28,16 @@ namespace transposers {
         int* cscColPtr, int* cscRowIdx, float* cscVal);
 
     void merge_csr2csc(
+        int m, int n, int nnz, 
+        int* csrRowPtr, int* csrColIdx, float* csrVal, 
+        int* cscColPtr, int* cscRowIdx, float* cscVal);
+
+    void cusparse1_csr2csc(
+        int m, int n, int nnz, 
+        int* csrRowPtr, int* csrColIdx, float* csrVal, 
+        int* cscColPtr, int* cscRowIdx, float* cscVal);
+
+    void cusparse2_csr2csc(
         int m, int n, int nnz, 
         int* csrRowPtr, int* csrColIdx, float* csrVal, 
         int* cscColPtr, int* cscRowIdx, float* cscVal);

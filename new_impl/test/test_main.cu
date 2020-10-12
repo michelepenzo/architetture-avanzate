@@ -8,7 +8,7 @@
 
 #define TESTER_ALL_INSTANCES_MIN 1
 #define TESTER_ALL_INSTANCES_MAX 20'000
-#define TESTER_BIG_INSTANCES -1
+#define TESTER_BIG_INSTANCES 100'000'000
 
 class tester {
 
@@ -50,7 +50,7 @@ private:
     bool test_instance(int len) override {
 
         // generate input
-        int * input = utils::random::generate_array<int>(1, 4, len);
+        int * input = utils::random::generate_array<int>(1, 100, len);
 
         // run reference implementation
         int * reference_output = new int[len];
@@ -339,15 +339,52 @@ public:
     }
 };
 
-int main(int argc, char **argv) {
+class matrix_transposer_tester : public tester {
 
-    algo_transposer_tester t9(transposers::merge_csr2csc);
-    t9.test_many_instances();
+public:
+    bool test_instance(int instance_number) {
+
+        bool all_ok = true;
+
+        int NNZ = instance_number;
+        int N = 0, M = 0;
+        while(instance_number > N * M) {
+            N = utils::random::generate(instance_number*3)+1;
+            M = utils::random::generate(instance_number*3)+1;
+        }
+
+        DPRINT_MSG("M=%d, N=%d, NNZ=%d", M, N, NNZ)
+
+        matrix::FullMatrix * fm   = new matrix::FullMatrix(M, N, NNZ);
+        matrix::FullMatrix * fmt  = fm->transpose();
+        matrix::SparseMatrix * sm = fm->to_sparse();
+
+        std::cout << std::endl;
+        for(int i = matrix::TranspositionMethod::SERIAL; i <= matrix::TranspositionMethod::CUSPARSE2; ++i) {
+            matrix::TranspositionMethod tm = static_cast<matrix::TranspositionMethod>(i);
+            matrix::SparseMatrix * smt = sm->transpose(tm);
+            matrix::FullMatrix * fmtt = new matrix::FullMatrix(smt);
+            bool ok = fmt->equals(fmtt);
+            all_ok &= ok;
+            std::cout << "Transposition method=" << i << " results=" << (ok ? "OK" : "ERR") << std::endl;
+            delete smt, fmtt;
+        }
+        
+        delete fm, fmt, sm;
+
+        return all_ok;
+    }
+};
+
+int old_main(int argc, char **argv) {
+
+    matrix_transposer_tester ta;
+    ta.test_many_instances();
 
     return 0;
 }
 
-int soon_main(int argc, char **argv) {
+int main(int argc, char **argv) {
 
     std::atexit(reinterpret_cast<void(*)()>(cudaDeviceReset));
 
@@ -360,9 +397,10 @@ int soon_main(int argc, char **argv) {
     fn3_tester                  t7(procedures::reference::sort3, procedures::cuda::sort3);
     algo_transposer_tester      t8(transposers::scan_csr2csc);
     algo_transposer_tester      t9(transposers::merge_csr2csc);
+    matrix_transposer_tester    ta;
 
-    tester* tests[] = { &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8, &t9 };
-    std::string names[] = { "IDX TO PTR", "PTR TO IDX", "SCAN", "SEGSORT", "SORT", "SEGSORT3", "SORT3", "SCANTRANS", "MERGETRANS" };
+    tester* tests[] = { &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8, &t9, &ta };
+    std::string names[] = { "IDX TO PTR", "PTR TO IDX", "SCAN", "SEGSORT", "SORT", "SEGSORT3", "SORT3", "SCANTRANS", "MERGETRANS", "MATRIX" };
 
     bool all_ok = true;
     for(int i = 0; i < 9; i++) {
