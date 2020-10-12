@@ -2,104 +2,99 @@
 #ifndef MATRIX_HH_
 #define MATRIX_HH_
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <set>
+#include <fstream>
 #include "utilities.hh"
-
-#define SPARSE_MATRIX_MIN_VAL 1
-#define SPARSE_MATRIX_MAX_VAL 100
+#include "procedures.hh"
+#include "transposers.hh"
 
 namespace matrix {
 
     enum MatrixInitialization {
-        ALL_ZEROS_INITIALIZATION = 0,
-        RANDOM_INITIALIZATION = 1
+        ALL_ZEROS_INITIALIZATION    = 0,
+        RANDOM_INITIALIZATION       = 1
     };
 
+    enum TranspositionMethod {
+        SERIAL      = 0,
+        SCANTRANS   = 1, 
+        MERGETRANS  = 2,
+        CUSPARSE1   = 3,
+        CUSPARSE2   = 4
+    };
+
+    // rappresentazione della matrice in formato CSR
     class SparseMatrix {
+
     public:
+        // dimensioni della matrice
+        int m, n;
+        
+        // numero di elementi non nulli
+        int nnz;
+        
+        // puntatore agli elementi di inizio riga
+        int * csrRowPtr;
+        
+        // array dell'indice di colonna degli elementi
+        int * csrColIdx;
+        
+        // array dei valori degli elementi
+        float * csrVal;
+        
+        // costruttore, se mi=RANDOM_INITIALIZATION allora genera matrice causale
+        SparseMatrix(const int m, const int n, const int nnz, const MatrixInitialization mi = RANDOM_INITIALIZATION);
+        
+        // costruttore da file MTX
+        SparseMatrix(std::ifstream mtx_file);
 
-        const int m, n, nnz;
-        int *csrRowPtr, *csrColIdx;
-        float *csrVal;
+        // distruttore
+        ~SparseMatrix();
+        
+        // true se le matrici sono uguali
+        bool equals(SparseMatrix* sm);
 
-        SparseMatrix(const int m, const int n, const int nnz, const MatrixInitialization mi = RANDOM_INITIALIZATION) 
-            : m(m), n(n), nnz(nnz)
-        { 
-            if(m <= 0 || n <= 0 || nnz <= 0 || nnz > n * m) {
-                throw std::invalid_argument("received negative value");
-            }
-
-            this->csrRowPtr = new int[this->m+1]();
-            //DPRINT_MSG("Allocating csrRowPtr: %p", this->csrRowPtr)
-            this->csrColIdx = new int[this->nnz]();
-            //DPRINT_MSG("Allocating csrColIdx: %p", this->csrColIdx)
-            this->csrVal = new float[this->nnz]();
-            //DPRINT_MSG("Allocating csrVal: %p", this->csrVal)
-
-            if(mi == RANDOM_INITIALIZATION) {
-
-                // 1. generate indices
-                std::set< std::tuple<int, int> > indices; // set prevents duplicate insertion
-                
-                while(indices.size() < nnz) {
-                    std::tuple<int, int> t = std::make_tuple<int, int>(
-                        utils::random::generate(m-1), 
-                        utils::random::generate(n-1)
-                    );
-                    indices.insert(t);
-                }
-
-                // 2. fill values
-                int i = 0;
-                for(const std::tuple<int, int>& index : indices) {
-
-                    int row = std::get<0>(index);
-                    int col = std::get<1>(index);
-                    int val = utils::random::generate(SPARSE_MATRIX_MIN_VAL, SPARSE_MATRIX_MAX_VAL);
-
-                    ASSERT_LIMIT(row, m)
-                    ASSERT_LIMIT(col, n)
-                    ASSERT_RANGE(val)
-
-                    csrRowPtr[row+1]++;
-                    csrColIdx[i] = col;
-                    csrVal[i] = val;
-                    i++;
-                }
-
-                // 3. prefix_sum on csrRowPtr
-                utils::prefix_sum(csrRowPtr, m+1);
-            }
-        }
-
-        ~SparseMatrix() {
-            //DPRINT_MSG("Deallocating csrRowPtr: %p", csrRowPtr)
-            delete[] csrRowPtr;
-            //DPRINT_MSG("Deallocating csrColIdx: %p", csrColIdx)
-            delete[] csrColIdx;
-            //DPRINT_MSG("Deallocating csrVal: %p", csrVal)
-            delete[] csrVal;
-            //DPRINT_MSG("End deallocating")
-        }
-
-        bool equals(SparseMatrix* sm) {
-            return m == sm->m && n == sm->n && nnz == sm->nnz 
-                && utils::equals(csrRowPtr, sm->csrRowPtr, m+1)
-                && utils::equals(csrColIdx, sm->csrColIdx, nnz)
-                && utils::equals(csrVal, sm->csrVal, nnz);
-        }
-
-        void print() {
-            utils::print("csrRowPtr", csrRowPtr, m+1);
-            utils::print("csrColIdx", csrColIdx, nnz);
-            utils::print("   csrVal", csrVal, nnz);
-            printf("%p %p %p\n", csrRowPtr, csrColIdx, csrVal);
-        }
-
+        // ritorna la matrice trasposta attraverso il metodo deciso da tm
+        SparseMatrix* transpose(TranspositionMethod tm);
     };
 
+    // rappresentazione della matrice in formato esteso
+    class FullMatrix {
+
+        // inizializzazione degli elementi
+        void fill_with_rand_numbers();
+
+    public:
+        // dimensioni della matrice
+        int m, n;
+        
+        // numero di elementi non nulli
+        int nnz;
+
+        // array degli elementi m * n
+        float* matrix;
+
+        // costruttore, se mi=RANDOM_INITIALIZATION allora genera matrice causale
+        FullMatrix(const int m, const int n, const int nnz, const MatrixInitialization mi = RANDOM_INITIALIZATION);
+
+        // costruttore, inizializza partendo dalla matrice sparsa
+        FullMatrix(const SparseMatrix* sm);
+
+        // distruttore
+        ~FullMatrix();
+
+        // true se le matrici sono uguali
+        bool equals(FullMatrix* fm);
+
+        // traspone la matrice
+        FullMatrix* transpose();
+
+        // restituisce una copia della matrice in formato CSR
+        SparseMatrix* to_sparse();
+    };
 }
 
 #endif

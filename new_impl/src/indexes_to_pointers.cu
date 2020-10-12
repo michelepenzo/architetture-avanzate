@@ -11,13 +11,14 @@ void parallel_histogram_kernel(int INPUT_ARRAY idx, int idx_len, int * inter, in
     const int START = BLOCK_SIZE * j;
     const int END = min(BLOCK_SIZE * (j+1), idx_len);
 
-    if(t < END - START) {
-        // ogni [blocco di thread] segna i contributi di una [porzione di idx]
-        for(int i = START + t; i < END; i += blockDim.x) {
-            int index = idx[i];
-            intra[i] = inter[HISTO_ROW_LEN * (j+1) + index];
-            atomicAdd(inter + HISTO_ROW_LEN * (j+1) + index, 1);
-        }
+    // ogni [blocco di thread] segna i contributi di una [porzione di idx]
+    for(int i = START; i < END; i++) {
+        int index = idx[i];
+        intra[i] = inter[HISTO_ROW_LEN * (j+1) + index];
+        inter[HISTO_ROW_LEN * (j+1) + index]++;
+        //printf("(%2d): i=%2d, index=%2d, intra[i]=%2d, inter[index]=%2d\n",
+        //    j, i, index, intra[i], inter[HISTO_ROW_LEN * (j+1) + index]
+        //);
     }
 }
 
@@ -70,7 +71,7 @@ void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int
 
     *inter = utils::cuda::allocate_zero<int>((HISTOGRAM_BLOCKS+1) * ptr_len);
 
-    parallel_histogram_kernel<<<HISTOGRAM_BLOCKS, 1024>>>(idx, idx_len, *inter, intra, ptr_len);
+    parallel_histogram_kernel<<<HISTOGRAM_BLOCKS, 1>>>(idx, idx_len, *inter, intra, ptr_len);
     CUDA_CHECK_ERROR
 
     vertical_scan_kernel<<<ptr_len, 1>>>(*inter, ptr, ptr_len);
