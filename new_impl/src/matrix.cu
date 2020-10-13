@@ -8,16 +8,13 @@ namespace matrix {
         long long max_nnz = ((long long) m) *((long long) n);
         
         if(m <= 0 ) {
-            throw std::invalid_argument("m");
-        }
-        else if(n <= 0 ){
-                throw std::invalid_argument("n");
-            }
-        else if(nnz <= 0){
-                throw std::invalid_argument("nnz");
-                }
-        else if( nnz > max_nnz){
-            throw std::invalid_argument("per");
+            throw std::invalid_argument("SparseMatrix has number of rows m <= 0");
+        } else if(n <= 0 ){
+            throw std::invalid_argument("SparseMatrix has number of cols n <= 0");
+        } else if(nnz <= 0){
+            throw std::invalid_argument("SparseMatrix has number of nonzero elements nnz <= 0");
+        } else if( nnz > max_nnz){
+            throw std::invalid_argument("SparseMatrix has number of nonzero elements nnz that cannot fit in m*n sized matrix");
         }
 
         this->csrRowPtr = new int[this->m+1]();
@@ -78,16 +75,13 @@ namespace matrix {
         long long max_nnz = ((long long) m) *((long long) n);
         
         if(m <= 0 ) {
-            throw std::invalid_argument("m");
-        }
-        else if(n <= 0 ){
-                throw std::invalid_argument("n");
-            }
-        else if(nnz <= 0){
-                throw std::invalid_argument("nnz");
-                }
-        else if( nnz > max_nnz){
-            throw std::invalid_argument("per");
+            throw std::invalid_argument("SparseMatrix has number of rows m <= 0");
+        } else if(n <= 0 ){
+            throw std::invalid_argument("SparseMatrix has number of cols n <= 0");
+        } else if(nnz <= 0){
+            throw std::invalid_argument("SparseMatrix has number of nonzero elements nnz <= 0");
+        } else if( nnz > max_nnz){
+            throw std::invalid_argument("SparseMatrix has number of nonzero elements nnz that cannot fit in m*n sized matrix");
         }
 
         // alloco lo spazio necessario
