@@ -29,29 +29,29 @@ namespace matrix {
 
         if(mi == RANDOM_INITIALIZATION) {
 
-            // 1. generate indices
-            std::set< std::tuple<int, int> > indices; // set prevents duplicate insertion
-            
-            while(indices.size() < nnz) {
-                std::tuple<int, int> t = std::make_tuple<int, int>(
-                    utils::random::generate(m-1), 
-                    utils::random::generate(n-1)
-                );
-                std::cout << "generate.. " << indices.size() << "\n";
-                indices.insert(t);
+            // 0. generate indices
+            std::set<unsigned long long> indices_compact; // set prevents duplicate insertion
+            while(indices_compact.size() < nnz) {
+                int a = utils::random::generate(0, m-1);
+                int b = utils::random::generate(0, n-1);
+                unsigned long long x = (((long long)a) << 32) | ((long long)b);
+                indices_compact.insert(x);
+                //std::cout << indices_compact.size() << std::endl << std::flush;
             }
 
             // 2. fill values
             int i = 0;
-            for(const std::tuple<int, int>& index : indices) {
+            for(const unsigned long long& index : indices_compact) {
 
-                int row = std::get<0>(index);
-                int col = std::get<1>(index);
+                int row = (int) (index >> 32);
+                int col = (int) (index & 0x00000000FFFFFFFF);
                 int val = utils::random::generate(1, 100);
 
-                ASSERT_LIMIT(row, m)
-                ASSERT_LIMIT(col, n)
-                ASSERT_RANGE(val)
+                if(row < 0 || row > m) {
+                    std::cout << "Error row\n" << std::flush;
+                } else if(col < 0 || col > n) {
+                    std::cout << "Error col\n" << std::flush;
+                }
 
                 csrRowPtr[row+1]++;
                 csrColIdx[i] = col;

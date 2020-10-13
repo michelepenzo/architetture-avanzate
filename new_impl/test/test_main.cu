@@ -7,9 +7,8 @@
 #include "transposers.hh"
 
 #include <unistd.h> // sleep
-
-#define TESTER_ALL_INSTANCES_MIN 1
-#define TESTER_ALL_INSTANCES_MAX 20'000
+#define TESTER_ALL_INSTANCES_MIN 2'000
+#define TESTER_ALL_INSTANCES_MAX 5'000
 #define TESTER_BIG_INSTANCES 100'000'000
 
 class tester {
@@ -27,8 +26,9 @@ public:
             std::cout << (ok ? "OK" : "NO") << std::endl << std::flush;
             all_ok &= ok;
         }
-        for(int m = 10; m < TESTER_BIG_INSTANCES; m *= 2) {
-            std::cout << "big) Testing with m=" << std::setw(10) << m << ": ";
+        for(int m = 5'000'000; m < TESTER_BIG_INSTANCES; m *= 2) {
+            std::cout << "Testing with m=" << std::setw(10) << m << ": ";
+
             bool ok = test_instance(m);
             std::cout << (ok ? "OK" : "NO") << std::endl;
             all_ok &= ok;
@@ -349,13 +349,7 @@ public:
         bool all_ok = true;
 
         int NNZ = instance_number;
-        int N = 0, M = 0;
-        while(instance_number > N * M) {
-            N = utils::random::generate(instance_number*3)+1;
-            M = utils::random::generate(instance_number*3)+1;
-        }
-
-        DPRINT_MSG("M=%d, N=%d, NNZ=%d", M, N, NNZ)
+        int N = instance_number, M = instance_number;
 
         matrix::FullMatrix * fm   = new matrix::FullMatrix(M, N, NNZ);
         matrix::FullMatrix * fmt  = fm->transpose();
@@ -378,15 +372,15 @@ public:
     }
 };
 
-int old_main(int argc, char **argv) {
+int main(int argc, char **argv) {
 
-    matrix_transposer_tester ta;
+    matrix_transposer_tester ta; //(procedures::reference::scan, procedures::cuda::scan);
     ta.test_many_instances();
 
     return 0;
 }
 
-int main(int argc, char **argv) {
+int old_main(int argc, char **argv) {
 
     std::atexit(reinterpret_cast<void(*)()>(cudaDeviceReset));
 

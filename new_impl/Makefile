@@ -56,7 +56,6 @@ $(LOCAL_BUILD)/transposers.o: $(LOCAL_SRC)/transposers.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 
-
 # The .PHONY rule keeps make from doing something with a file named clean.
 .PHONY: clean test run
 

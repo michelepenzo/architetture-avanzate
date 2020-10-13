@@ -2,18 +2,20 @@
 #include <iomanip>
 #include "procedures.hh"
 
-static const int THREADS_PER_BLOCK = 512;
-static const int ELEMENTS_PER_BLOCK = (THREADS_PER_BLOCK * 2);
+void procedures::reference::scan(int INPUT_ARRAY input, int * output, int len) {
+    output[0] = 0;
+    for(int i = 1; i < len; i++) {
+        output[i] = output[i-1] + input[i-1];
+    }
+}
 
-void scanLargeDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length);
+static const int THREADS_PER_BLOCK = 512;
+
+static const int ELEMENTS_PER_BLOCK = THREADS_PER_BLOCK * 2;
 
 void scanSmallDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length);
 
 void scanLargeEvenDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length);
-
-bool isPowerOfTwo(int x);
-
-int nextPowerOfTwo(int x);
 
 __global__ void prescan_arbitrary_unoptimized(int *output, int *input, int n, int powerOfTwo);
 
@@ -21,30 +23,22 @@ __global__ void prescan_large_unoptimized(int *output, int *input, int n, int *s
 
 __global__ void add(int *output, int length, int *n);
 
-__global__ void add(int *output, int length, int *n1, int *n2);
+void add_single_offset(int * output, int length, int INPUT_ARRAY n1, int INPUT_ARRAY n2);
 
 
+void procedures::cuda::scan(int INPUT_ARRAY d_in, int * d_out, int length) {
 
+	if (length <= ELEMENTS_PER_BLOCK) {
 
-void scan_on_cuda(int *d_out, int INPUT_ARRAY d_in, int length) {
-
-	if (length > ELEMENTS_PER_BLOCK) {
-		scanLargeDeviceArray(d_out, d_in, length);
-	}
-	else {
 		scanSmallDeviceArray(d_out, d_in, length);
 	}
+	else if(length % ELEMENTS_PER_BLOCK == 0) {
 
-	return;
-}
-
-void scanLargeDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length) {
-	int remainder = length % (ELEMENTS_PER_BLOCK);
-	if (remainder == 0) {
 		scanLargeEvenDeviceArray(d_out, d_in, length);
-	}
-	else {
+	} else {
+
 		// perform a large scan on a compatible multiple of elements
+		int remainder = length % ELEMENTS_PER_BLOCK;
 		int lengthMultiple = length - remainder;
 		scanLargeEvenDeviceArray(d_out, d_in, lengthMultiple);
 
@@ -52,39 +46,35 @@ void scanLargeDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length) {
 		int *startOfOutputArray = &(d_out[lengthMultiple]);
 		scanSmallDeviceArray(startOfOutputArray, &(d_in[lengthMultiple]), remainder);
 
-		add<<<1, remainder>>>(startOfOutputArray, remainder, &(d_in[lengthMultiple - 1]), &(d_out[lengthMultiple - 1]));
+		add_single_offset(startOfOutputArray, remainder, &(d_in[lengthMultiple - 1]), &(d_out[lengthMultiple - 1]));
 	}
+
+	return;
 }
 
 void scanSmallDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length) {
-	int powerOfTwo = nextPowerOfTwo(length);
-    prescan_arbitrary_unoptimized<<<1, (length + 1) / 2, 2 * powerOfTwo * sizeof(int)>>>(d_out, d_in, length, powerOfTwo);
+	int powerOfTwo = utils::next_two_pow(length);
+    prescan_arbitrary_unoptimized<<<1, DIV_THEN_CEIL(length, 2), 2 * powerOfTwo * sizeof(int)>>>(
+		d_out, d_in, length, powerOfTwo);
 }
 
 void scanLargeEvenDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length) {
-	const int blocks = length / ELEMENTS_PER_BLOCK;
-	const int sharedMemArraySize = ELEMENTS_PER_BLOCK * sizeof(int);
+	const int BLOCKS = length / ELEMENTS_PER_BLOCK;
+	const int SM_SIZE = 2 * ELEMENTS_PER_BLOCK * sizeof(int);
 
-	int *d_sums, *d_incr;
-	cudaMalloc((void **)&d_sums, blocks * sizeof(int));
-	cudaMalloc((void **)&d_incr, blocks * sizeof(int));
+	int * sums = utils::cuda::allocate<int>(BLOCKS);
+	int * incr = utils::cuda::allocate<int>(BLOCKS);
 
-	prescan_large_unoptimized<<<blocks, THREADS_PER_BLOCK, 2 * sharedMemArraySize>>>(d_out, d_in, ELEMENTS_PER_BLOCK, d_sums);
+	prescan_large_unoptimized<<<BLOCKS, THREADS_PER_BLOCK, SM_SIZE>>>(
+		d_out, d_in, ELEMENTS_PER_BLOCK, sums);
 
-	const int sumsArrThreadsNeeded = (blocks + 1) / 2;
-	if (sumsArrThreadsNeeded > THREADS_PER_BLOCK) {
-		// perform a large scan on the sums arr
-		scanLargeDeviceArray(d_incr, d_sums, blocks);
-	}
-	else {
-		// only need one block to scan sums arr so can use small scan
-		scanSmallDeviceArray(d_incr, d_sums, blocks);
-	}
+	procedures::cuda::scan(sums, incr, BLOCKS);
 
-	add<<<blocks, ELEMENTS_PER_BLOCK>>>(d_out, ELEMENTS_PER_BLOCK, d_incr);
+	//add<<<BLOCKS, ELEMENTS_PER_BLOCK>>>(d_out, ELEMENTS_PER_BLOCK, incr);
+	
 
-	cudaFree(d_sums);
-	cudaFree(d_incr);
+	utils::cuda::deallocate(sums);
+	utils::cuda::deallocate(incr);
 }
 
 __global__ void prescan_arbitrary_unoptimized(int *output, int *input, int n, int powerOfTwo) {
@@ -195,37 +185,12 @@ __global__ void add(int *output, int length, int *n) {
 	output[blockOffset + threadID] += n[blockID];
 }
 
-__global__ void add(int *output, int length, int *n1, int *n2) {
-	int blockID = blockIdx.x;
-	int threadID = threadIdx.x;
-	int blockOffset = blockID * length;
-
-	output[blockOffset + threadID] += n1[blockID] + n2[blockID];
+__global__ 
+void add(int *output, int INPUT_ARRAY n1, int INPUT_ARRAY n2) {
+	int i = threadIdx.x;
+	output[i] += n1[0] + n2[0];
 }
 
-// from https://stackoverflow.com/a/3638454
-bool isPowerOfTwo(int x) {
-	return x && !(x & (x - 1));
-}
-
-// from https://stackoverflow.com/a/12506181
-int nextPowerOfTwo(int x) {
-	int power = 1;
-	while (power < x) {
-		power *= 2;
-	}
-	return power;
-}
-
-void procedures::cuda::scan(int INPUT_ARRAY input, int * output, int len) {
-
-    scan_on_cuda(output, input, len);
-}
-
-void procedures::reference::scan(int INPUT_ARRAY input, int * output, int len) {
-
-    output[0] = 0;
-    for(int i = 1; i < len; i++) {
-        output[i] = output[i-1] + input[i-1];
-    }
+void add_single_offset(int * output, int length, int INPUT_ARRAY n1, int INPUT_ARRAY n2) {
+	add<<<1, length>>>(output, n1, n2);
 }
