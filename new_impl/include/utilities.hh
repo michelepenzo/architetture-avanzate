@@ -31,8 +31,8 @@
 #define DPRINT_ARR(array, len) { printf("%20s: ", __func__); utils::print(STRINGIFY(array), array, len); }
 #define DPRINT_ARR_CUDA(array, len) { printf("%20s: ", __func__); utils::cuda::print(STRINGIFY(array), array, len); }
 #else 
-#define ASSERT_LIMIT(value,limit) { value; limit; }
-#define ASSERT_RANGE(value) { value; }
+#define ASSERT_LIMIT(value,limit) { utils::assert_limit(value,limit,__FILE__, __LINE__, __func__); }
+#define ASSERT_RANGE(value) { utils::assert_range(value, 1, 100, __FILE__, __LINE__, __func__); }
 #define DPRINT_MSG(message, ...) { message; } 
 #define DPRINT_ARR(array, len) { array; len; }
 #define DPRINT_ARR_CUDA(array, len) { array; len; }
@@ -123,6 +123,14 @@ namespace utils {
         inline int generate(int min, int max) {
             std::uniform_int_distribution<int> values_distrib(min, max);
             int result = values_distrib(generator());
+            // DPRINT_MSG("Generate between %d %d: %d", min, max, result)
+            return result;
+        }
+
+        inline long long generate_product(int n, int m) {
+            long long product = ((long long)n)*((long long)m);
+            std::uniform_int_distribution<long long> values_distrib(0, product);
+            long long result = values_distrib(generator());
             // DPRINT_MSG("Generate between %d %d: %d", min, max, result)
             return result;
         }

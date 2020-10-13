@@ -18,18 +18,31 @@ namespace matrix {
 
         if(mi == RANDOM_INITIALIZATION) {
 
-            // 1. generate indices
-            std::set< std::tuple<int, int> > indices; // set prevents duplicate insertion
-            
-            while(indices.size() < nnz) {
+            std::cout << "Random init gen\n" << std::flush;
+
+            // 0. generate indices
+            std::set<long long> indices_compact; // set prevents duplicate insertion
+            while(indices_compact.size() < nnz) {
+                indices_compact.insert(utils::random::generate_product(m, n));
+                std::cout << indices_compact.size() << std::endl << std::flush;
+            }
+
+            std::cout << "Started gen\n" << std::flush;
+
+            // 1. recupero tuple
+            std::set< std::tuple<int, int> > indices;
+            for(const int index : indices_compact) {
                 std::tuple<int, int> t = std::make_tuple<int, int>(
-                    utils::random::generate(m-1), 
-                    utils::random::generate(n-1)
+                    (int) (index / n),
+                    (int) (index % n)
                 );
                 indices.insert(t);
             }
 
             // 2. fill values
+
+            std::cout << "End gen\n" << std::flush;
+
             int i = 0;
             for(const std::tuple<int, int>& index : indices) {
 
@@ -37,9 +50,13 @@ namespace matrix {
                 int col = std::get<1>(index);
                 int val = utils::random::generate(1, 100);
 
-                ASSERT_LIMIT(row, m)
-                ASSERT_LIMIT(col, n)
-                ASSERT_RANGE(val)
+
+
+                if(row > m) {
+                    std::cout << "EERRRRR\n";
+                } else if(col > n) {
+                    std::cout << "EERRRRRawwaawaw\n";
+                }
 
                 csrRowPtr[row+1]++;
                 csrColIdx[i] = col;
@@ -47,8 +64,12 @@ namespace matrix {
                 i++;
             }
 
+            std::cout << "End val\n" << std::flush;
+
             // 3. prefix_sum on csrRowPtr
             utils::prefix_sum(csrRowPtr, m+1);
+
+            std::cout << "End prefix sum\n" << std::flush;
         }
     }
 
@@ -109,6 +130,8 @@ namespace matrix {
 
 
     SparseMatrix* SparseMatrix::transpose(TranspositionMethod tm) {
+
+        std::cout << "Processing method " << ((int)tm) << std::endl << std::flush;
 
         matrix::SparseMatrix *sm = this;
 

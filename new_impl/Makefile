@@ -63,7 +63,7 @@ clean:
 	@rm -f $(EXE) $(EXE_TEST) $(LOCAL_BUILD)/*
 
 run:
-	@./$(EXE) test1.mtx
+	@./$(EXE)
 
 test:
 	@./$(EXE_TEST)
