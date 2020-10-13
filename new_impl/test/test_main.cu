@@ -6,6 +6,8 @@
 #include "procedures.hh"
 #include "transposers.hh"
 
+#include <unistd.h> // sleep
+
 #define TESTER_ALL_INSTANCES_MIN 1
 #define TESTER_ALL_INSTANCES_MAX 20'000
 #define TESTER_BIG_INSTANCES 100'000'000
@@ -20,13 +22,13 @@ public:
         
         bool all_ok = true;
         for(int m = TESTER_ALL_INSTANCES_MIN; m < TESTER_ALL_INSTANCES_MAX; m++) {
-            std::cout << "Testing with m=" << std::setw(10) << m << ": " << std::flush;
+            std::cout << "all) Testing with m=" << std::setw(10) << m << ": " << std::flush;
             bool ok = test_instance(m);
             std::cout << (ok ? "OK" : "NO") << std::endl << std::flush;
             all_ok &= ok;
         }
         for(int m = 10; m < TESTER_BIG_INSTANCES; m *= 2) {
-            std::cout << "Testing with m=" << std::setw(10) << m << ": ";
+            std::cout << "big) Testing with m=" << std::setw(10) << m << ": ";
             bool ok = test_instance(m);
             std::cout << (ok ? "OK" : "NO") << std::endl;
             all_ok &= ok;
@@ -48,7 +50,7 @@ private:
     fn reference_fun, cuda_fun;
 
     bool test_instance(int len) override {
-
+        std::cout << "fn_tester: ";
         // generate input
         int * input = utils::random::generate_array<int>(1, 100, len);
 
@@ -107,7 +109,7 @@ public:
         : reference_fun(reference_fun), cuda_fun(cuda_fun) { }
 
     bool test_instance(int len) override {
-
+        std::cout << "fn3_tester: ";
         // generate input
         int * input  = utils::random::generate_array<int>(1, 100, len);
         int * a_in   = utils::random::generate_array<int>(1, 100, len);
@@ -118,7 +120,7 @@ public:
         int * reference_a_out  = new int[len];
         float * reference_b_out  = new float[len];
         reference_fun(input, reference_output, len, a_in, reference_a_out, b_in, reference_b_out);
-
+        sleep(0.003);
         // run parallel implementation
         int * parallel_output      = new int[len];
         int * parallel_a_out       = new int[len];
@@ -154,7 +156,7 @@ public:
 class pointer_to_index_tester : public tester {
 
     bool test_instance(int instance_number) override {
-
+        std::cout << "pointer_to_index_tester: ";
         int m = instance_number;
 
         // generate input
@@ -170,7 +172,7 @@ class pointer_to_index_tester : public tester {
         // run reference implementation
         int * reference_output = new int[nnz](); // init to zeros
         procedures::reference::pointers_to_indexes(input, m, reference_output, nnz);
-
+        //sleep(0.003);
         // run parallel implementation
         int * parallel_output      = new int[nnz];
         int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, m+1);
@@ -195,7 +197,7 @@ class pointer_to_index_tester : public tester {
 class indexes_to_pointers_tester : public tester {
 
     bool test_instance(int instance_number) override {
-
+        std::cout << "indexes_to_pointers_tester: ";
         int NNZ = instance_number, N = utils::random::generate(instance_number*2)+1;
 
         int * colIdx = utils::random::generate_array<int>(0, N-1, NNZ);
@@ -296,7 +298,7 @@ public:
     }
 
     bool test_instance(int instance_number) {
-
+        std::cout<<"algo_transposer_tester: ";
         int NNZ = instance_number;
         int N = 0, M = 0;
         while(instance_number > N * M) {
@@ -343,7 +345,7 @@ class matrix_transposer_tester : public tester {
 
 public:
     bool test_instance(int instance_number) {
-
+        std::cout<<"matrix_transposer_tester: ";
         bool all_ok = true;
 
         int NNZ = instance_number;

@@ -320,8 +320,8 @@ void cusparse_generic_csr2csc_gpumemory(
 
         // 3. callocate buffer space
         void* buffer = NULL;
-        SAFE_CALL( cudaMalloc(&buffer, buffer_size) );
-        std::cout << "Needed " << buffer_size << " bytes to esecute Csr2csc" << std::endl; 
+        CUDA_SAFE_CALL( cudaMalloc(&buffer, buffer_size) );
+        //std::cout << "Needed " << buffer_size << " bytes to esecute Csr2csc" << std::endl; 
 
         // 4. call transpose
         status = cusparseCsr2cscEx2(
@@ -337,12 +337,12 @@ void cusparse_generic_csr2csc_gpumemory(
         if(status != CUSPARSE_STATUS_SUCCESS) {
             std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorName(status) << std::endl;
             std::cerr << "csr2csc_cusparse - Error while calling cusparseCsr2cscEx2: " << cusparseGetErrorString(status) << std::endl;
-            SAFE_CALL( cudaFree( buffer ) );
+            CUDA_SAFE_CALL( cudaFree( buffer ) );
             cusparseDestroy(handle);
             return;
         }
 
-        SAFE_CALL( cudaFree( buffer ) );
+        CUDA_SAFE_CALL( cudaFree( buffer ) );
         status = cusparseDestroy(handle);
         if(status != CUSPARSE_STATUS_SUCCESS) {
             std::cerr << "csr2csc_cusparse - Error while calling cusparseDestroy: " << cusparseGetErrorName(status) << std::endl;

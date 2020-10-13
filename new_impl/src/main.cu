@@ -6,31 +6,28 @@
 #include "Timer.cuh"
 using namespace timer;
 
-const int ITERATION_NUMBER = 1000;
+const int ITERATION_NUMBER = 10;
 
 int main(int argc, char **argv) {
 
     matrix::SparseMatrix * sm;
     std::string filename;
 
-    for(int i = 0; i < argc; i++) {
-        std::cout << i << " " << argv[i] << "\n";
-    }
-
     // inizializzazione della matrice
     if(argc > 1) {
 
         // leggo file mtx esterno
         filename = std::string(argv[1]);
-        std::cout << "Reading filename " << filename << "\n";
+        //std::cout << "Reading filename " << filename << "\n";
         std::ifstream file(filename);
         sm = new matrix::SparseMatrix(file);
+        file.close();
     } else {
 
         // matrice generata casualmente
         filename = "random";
-        std::cout << "Reading random\n";
-        sm = new matrix::SparseMatrix(100'000, 100'000, 1'000'000);
+        //std::cout << "Reading random\n";
+        sm = new matrix::SparseMatrix(100'000, 100'000, 10'000'000);
     }
 
     // stampa dei dati della matrice

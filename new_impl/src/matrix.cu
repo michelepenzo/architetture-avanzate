@@ -5,8 +5,19 @@ namespace matrix {
     SparseMatrix::SparseMatrix(const int m, const int n, const int nnz, const MatrixInitialization mi) 
         : m(m), n(n), nnz(nnz) { 
 
-        if(m <= 0 || n <= 0 || nnz <= 0 || nnz > n * m) {
-            throw std::invalid_argument("received negative value");
+        long long max_nnz = ((long long) m) *((long long) n);
+        
+        if(m <= 0 ) {
+            throw std::invalid_argument("m");
+        }
+        else if(n <= 0 ){
+                throw std::invalid_argument("n");
+            }
+        else if(nnz <= 0){
+                throw std::invalid_argument("nnz");
+                }
+        else if( nnz > max_nnz){
+            throw std::invalid_argument("per");
         }
 
         this->csrRowPtr = new int[this->m+1]();
@@ -26,6 +37,7 @@ namespace matrix {
                     utils::random::generate(m-1), 
                     utils::random::generate(n-1)
                 );
+                std::cout << "generate.. " << indices.size() << "\n";
                 indices.insert(t);
             }
 
@@ -53,24 +65,29 @@ namespace matrix {
     }
 
     SparseMatrix::SparseMatrix(std::ifstream& mtx_file) {
-
-        std::cout << "Reading file from file...\n";
-
+       
         // ignoro l'header e i commenti
         while(mtx_file.peek() == '%') {
             mtx_file.ignore(2048, '\n');
         }
 
         // dimensioni e specifiche della matrice
-        std::cout << "Reading specs\n";
         mtx_file >> m >> n >> nnz;
-        std::cout << "m " << m << "  n " << n << "  nnz " << nnz << "\n";
-
-
 
         // check dimensioni
-        if(m <= 0 || n <= 0 || nnz <= 0 || nnz > n * m) {
-            throw std::invalid_argument("received negative value");
+        long long max_nnz = ((long long) m) *((long long) n);
+        
+        if(m <= 0 ) {
+            throw std::invalid_argument("m");
+        }
+        else if(n <= 0 ){
+                throw std::invalid_argument("n");
+            }
+        else if(nnz <= 0){
+                throw std::invalid_argument("nnz");
+                }
+        else if( nnz > max_nnz){
+            throw std::invalid_argument("per");
         }
 
         // alloco lo spazio necessario
@@ -85,13 +102,13 @@ namespace matrix {
         for(int i = 0; i < nnz; i++) {
             mtx_file >> csrRowIdx[i] >> csrColIdx[i] >> csrVal[i];
         }
-
         // sistemo array puntatori
         procedures::reference::indexes_to_pointers(csrRowIdx, nnz, &inter, csrRowPtrTemp, m);
         procedures::reference::scan(csrRowPtrTemp, csrRowPtr, m+1);
-        
+
         delete[] csrRowIdx;
         delete[] inter;
+        delete[] csrRowPtrTemp;
     }
 
     SparseMatrix::~SparseMatrix() {
@@ -171,10 +188,19 @@ namespace matrix {
     FullMatrix::FullMatrix(const int m, const int n, const int nnz, const MatrixInitialization mi) 
         : m(m), n(n), nnz(nnz)
     { 
-        if(m <= 0 || n <= 0 || nnz <= 0 || nnz > n * m) {
-            throw std::invalid_argument("received negative value");
+        long long max_nnz = ((long long) m) *((long long) n);
+        if(m <= 0 ) {
+            throw std::invalid_argument("m");
         }
-
+        else if(n <= 0 ){
+                throw std::invalid_argument("n");
+            }
+        else if(nnz <= 0){
+                throw std::invalid_argument("nnz");
+                }
+        else if( nnz > max_nnz){
+            throw std::invalid_argument("per");
+        }
         matrix = new float[m*n]();
 
         if(mi == RANDOM_INITIALIZATION) {
