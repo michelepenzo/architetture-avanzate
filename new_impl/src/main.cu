@@ -1,12 +1,14 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <chrono>
+#include <thread>
 #include "matrix.hh"
 #include "procedures.hh"
 #include "Timer.cuh"
 using namespace timer;
 
-const int ITERATION_NUMBER = 1000;
+const int ITERATION_NUMBER = 10;
 
 int main(int argc, char **argv) {
 
@@ -30,7 +32,7 @@ int main(int argc, char **argv) {
         // matrice generata casualmente
         filename = "random";
         std::cout << "Reading random\n";
-        sm = new matrix::SparseMatrix(100'000, 100'000, 1'000'000);
+        sm = new matrix::SparseMatrix(100'000, 100'000, 10'000'000);
     }
 
     // stampa dei dati della matrice
@@ -45,6 +47,8 @@ int main(int argc, char **argv) {
 
         for(int i = matrix::SERIAL; i <= matrix::CUSPARSE2; i++) {
 
+            std::cout << "Processing " << i << "\n" << std::flush;
+
             // modalità nel quale sto trasponendo
             matrix::TranspositionMethod tm = (matrix::TranspositionMethod) i;
             
@@ -52,6 +56,8 @@ int main(int argc, char **argv) {
             timers[i].start();
             matrix::SparseMatrix * smt = sm->transpose(tm);
             timers[i].stop();
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
     }

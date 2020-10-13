@@ -127,14 +127,6 @@ namespace utils {
             return result;
         }
 
-        inline long long generate_product(int n, int m) {
-            long long product = ((long long)n)*((long long)m);
-            std::uniform_int_distribution<long long> values_distrib(0, product);
-            long long result = values_distrib(generator());
-            // DPRINT_MSG("Generate between %d %d: %d", min, max, result)
-            return result;
-        }
-
         inline int generate(int max) {
             return generate(0, max);
         }
