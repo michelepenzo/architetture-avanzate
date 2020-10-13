@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
         for(int i = matrix::SERIAL; i <= matrix::CUSPARSE2; i++) {
 
-            std::cout << "Processing " << i << "\n" << std::flush;
+            //std::cout << "Processing " << i << "\n" << std::flush;
 
             // modalità nel quale sto trasponendo
             matrix::TranspositionMethod tm = (matrix::TranspositionMethod) i;
