@@ -65,21 +65,20 @@ clean:
 run:
 	@rm -rf out.csv
 	@./$(EXE) $(MAT_DIR)language.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)ASIC_680k.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)memchip.mtx >> out.csv 
-	#@./$(EXE) $(MAT_DIR)FullChip.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)cage14.mtx >> out.csv 
-	#@./$(EXE) $(MAT_DIR)cant.mtx >> out.csv
+	@./$(EXE) $(MAT_DIR)cant.mtx >> out.csv
+	@./$(EXE) $(MAT_DIR)rajat21.mtx >> out.csv
+	@./$(EXE) $(MAT_DIR)webbase-1M.mtx >> out.csv
+	@./$(EXE) $(MAT_DIR)web-Google.mtx >> out.csv
+	@./$(EXE) $(MAT_DIR)stomach.mtx >> out.csv
+	@./$(EXE) $(MAT_DIR)ASIC_680k.mtx >> out.csv
+	@./$(EXE) $(MAT_DIR)rajat29.mtx >> out.csv	
+	@./$(EXE) $(MAT_DIR)memchip.mtx >> out.csv
+	@./$(EXE) $(MAT_DIR)FullChip.mtx >> out.csv
 	#@./$(EXE) $(MAT_DIR)circuit5M.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)para-4.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)rajat21.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)rajat29.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)sme3Dc.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)stomach.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)torso1.mtx >> out.csv
 	#@./$(EXE) $(MAT_DIR)venkat01.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)web-Google.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)webbase-1M.mtx >> out.csv  
+	#@./$(EXE) $(MAT_DIR)para-4.mtx >> out.csv
+	#@./$(EXE) $(MAT_DIR)sme3Dc.mtx >> out.csv
+	#@./$(EXE) $(MAT_DIR)torso1.mtx >> out.csv
 
 test:
 	@./$(EXE_TEST)

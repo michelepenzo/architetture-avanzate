@@ -8,7 +8,7 @@
 #include "Timer.cuh"
 using namespace timer;
 
-const int ITERATION_NUMBER = 10;
+const int ITERATION_NUMBER = 5;
 
 int main(int argc, char **argv) {
 
@@ -20,7 +20,6 @@ int main(int argc, char **argv) {
 
         // leggo file mtx esterno
         filename = std::string(argv[1]);
-        //std::cout << "Reading filename " << filename << "\n";
         std::ifstream file(filename);
         sm = new matrix::SparseMatrix(file);
         file.close();
@@ -28,7 +27,6 @@ int main(int argc, char **argv) {
 
         // matrice generata casualmente
         filename = "random";
-        //std::cout << "Reading random\n";
         sm = new matrix::SparseMatrix(100'000, 100'000, 10'000'000);
     }
 
@@ -44,8 +42,7 @@ int main(int argc, char **argv) {
 
         for(int i = matrix::SERIAL; i <= matrix::CUSPARSE2; i++) {
 
-            //std::cout << "Processing " << i << "\n" << std::flush;
-
+            //std::cout << "\nProcessing " << i << std::flush;
             // modalità nel quale sto trasponendo
             matrix::TranspositionMethod tm = (matrix::TranspositionMethod) i;
             
@@ -63,6 +60,8 @@ int main(int argc, char **argv) {
     for(int i = matrix::SERIAL; i <= matrix::CUSPARSE2; i++) {
         std::cout << timers[i].average() << "; ";
     }
+
+    std::cout << "\n";
 
     return 0;
 }
