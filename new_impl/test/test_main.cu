@@ -7,9 +7,9 @@
 #include "transposers.hh"
 
 #include <unistd.h> // sleep
-#define TESTER_ALL_INSTANCES_MIN 2'000
-#define TESTER_ALL_INSTANCES_MAX 5'000
-#define TESTER_BIG_INSTANCES 100'000'000
+#define TESTER_ALL_INSTANCES_MIN 10000
+#define TESTER_ALL_INSTANCES_MAX 20'000
+#define TESTER_BIG_INSTANCES -1
 
 class tester {
 
@@ -19,9 +19,11 @@ public:
 
     bool test_many_instances() {
         
+        sleep(0.03);
+
         bool all_ok = true;
         for(int m = TESTER_ALL_INSTANCES_MIN; m < TESTER_ALL_INSTANCES_MAX; m++) {
-            std::cout << "all) Testing with m=" << std::setw(10) << m << ": " << std::flush;
+            std::cout << "Testing with m=" << std::setw(10) << m << ": " << std::flush;
             bool ok = test_instance(m);
             std::cout << (ok ? "OK" : "NO") << std::endl << std::flush;
             all_ok &= ok;
@@ -97,6 +99,163 @@ private:
 
 };
 
+typedef void (*fn_seg)(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE); 
+
+class fn_seg_tester : public tester {
+public:
+
+    fn_seg_tester(fn_seg reference_fun, fn_seg cuda_fun) 
+        : reference_fun(reference_fun), cuda_fun(cuda_fun) { }
+
+private:
+
+    fn_seg reference_fun, cuda_fun;
+
+    bool test_instance(int len) override {
+        std::cout << "fn_seg_tester: ";
+
+        const int SEGMENTS = 5;
+        const int BLOCK_SIZE = utils::next_two_pow(len / SEGMENTS);
+        if(BLOCK_SIZE == 0) return true;
+
+        DPRINT_MSG("Segments=%2d, BLOCK_SIZE=%2d", SEGMENTS, BLOCK_SIZE)
+        // generate input
+        int * input = new int[len];
+        for(int i = 0; i < len; i++) {
+            input[i] = 99 - i;
+        }
+        for(int i = 0; i < SEGMENTS; i++) {
+            int start = i * BLOCK_SIZE;
+            int end = min((i+1)*BLOCK_SIZE, len);
+            if(start < end) {
+                std::sort(input + start, input + end);
+            }
+        }
+        DPRINT_ARR(input, len)
+
+        // run reference implementation
+        int * reference_output = new int[len];
+        reference_fun(input, reference_output, len, BLOCK_SIZE);
+        DPRINT_ARR(reference_output, len)
+
+        // run parallel implementation
+        int * parallel_output      = new int[len];
+        int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, len);
+        int * parallel_cuda_output = utils::cuda::allocate<int>(len);
+        cuda_fun(parallel_cuda_input, parallel_cuda_output, len, BLOCK_SIZE);
+        utils::cuda::recv(parallel_output, parallel_cuda_output, len);
+        DPRINT_ARR(parallel_output, len)
+
+        // compare implementations
+        bool ok = utils::equals<int>(reference_output, parallel_output, len);
+
+        // deallocate resources
+        utils::cuda::deallocate(parallel_cuda_input);
+        utils::cuda::deallocate(parallel_cuda_output);
+        delete input, reference_output, parallel_output;
+
+        return ok;
+    }
+
+};
+
+
+
+typedef void (*fn_seg3)(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out); 
+
+class fn_seg3_tester : public tester {
+public:
+
+    fn_seg3_tester(fn_seg3 reference_fun, fn_seg3 cuda_fun) 
+        : reference_fun(reference_fun), cuda_fun(cuda_fun) { }
+
+private:
+
+    fn_seg3 reference_fun, cuda_fun;
+
+    bool test_instance(int len) override {
+        std::cout << "fn_seg3_tester: ";
+
+        const int SEGMENTS = 5;
+        const int BLOCK_SIZE = utils::next_two_pow(len / SEGMENTS);
+        if(BLOCK_SIZE == 0) return true;
+
+        DPRINT_MSG("Segments=%2d, BLOCK_SIZE=%2d", SEGMENTS, BLOCK_SIZE)
+        // generate input
+        int * input = new int[len];
+        int * a_in = new int[len];
+        float * b_in = new float[len];
+        for(int i = 0; i < len; i++) {
+            input[i] = 99 - i;
+            a_in[i]  = 99 - i;
+            b_in[i]  = 99 - i;
+        }
+        for(int i = 0; i < SEGMENTS; i++) {
+            int start = i * BLOCK_SIZE;
+            int end = min((i+1)*BLOCK_SIZE, len);
+            if(start < end) {
+                std::sort(input + start, input + end);
+                std::sort(a_in  + start,  a_in + end);
+                std::sort(b_in  + start,  b_in + end);
+            }
+        }
+        DPRINT_ARR(input, len)
+        DPRINT_ARR(a_in, len)
+        DPRINT_ARR(b_in, len)
+
+        // run reference implementation
+        int * reference_output = new int[len];
+        int * reference_a_out  = new int[len];
+        float * reference_b_out= new float[len];
+        reference_fun(input, reference_output, len, BLOCK_SIZE, a_in, reference_a_out, b_in, reference_b_out);
+        DPRINT_ARR(reference_output, len)
+        DPRINT_ARR(reference_a_out,  len)
+        DPRINT_ARR(reference_b_out,  len)
+
+        // run parallel implementation
+        int * parallel_output      = new int[len];
+        int * parallel_a_out       = new int[len];
+        float * parallel_b_out     = new float[len];
+
+        int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, len);
+        int * parallel_cuda_a_in   = utils::cuda::allocate_send<int>(a_in,  len);
+        float * parallel_cuda_b_in = utils::cuda::allocate_send<float>(b_in,  len);
+        
+        int * parallel_cuda_output = utils::cuda::allocate<int>(len);
+        int * parallel_cuda_a_out  = utils::cuda::allocate<int>(len);
+        float * parallel_cuda_b_out= utils::cuda::allocate<float>(len);
+        
+        cuda_fun(parallel_cuda_input, parallel_cuda_output, len, BLOCK_SIZE, 
+            parallel_cuda_a_in, parallel_cuda_a_out, 
+            parallel_cuda_b_in, parallel_cuda_b_out);
+
+        utils::cuda::recv(parallel_output, parallel_cuda_output, len);
+        utils::cuda::recv(parallel_a_out,  parallel_cuda_a_out,  len);
+        utils::cuda::recv(parallel_b_out,  parallel_cuda_b_out,  len);
+        
+        DPRINT_ARR(parallel_output, len)
+        DPRINT_ARR(parallel_a_out,  len)
+        DPRINT_ARR(parallel_b_out,  len)
+
+        // compare implementations
+        bool ok = 
+            utils::equals<int>(reference_output, parallel_output, len) &&
+            utils::equals<int>(reference_a_out,  parallel_a_out,  len) &&
+            utils::equals<float>(reference_b_out,  parallel_b_out,  len);
+
+        // deallocate resources
+        utils::cuda::deallocate(parallel_cuda_input);
+        utils::cuda::deallocate(parallel_cuda_output);
+        delete input, reference_output, parallel_output;
+
+        return ok;
+    }
+
+};
+
+
+
+
 typedef void (*fn3)(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) ;
 
 class fn3_tester : public tester {
@@ -120,7 +279,7 @@ public:
         int * reference_a_out  = new int[len];
         float * reference_b_out  = new float[len];
         reference_fun(input, reference_output, len, a_in, reference_a_out, b_in, reference_b_out);
-        sleep(0.003);
+        
         // run parallel implementation
         int * parallel_output      = new int[len];
         int * parallel_a_out       = new int[len];
@@ -172,7 +331,7 @@ class pointer_to_index_tester : public tester {
         // run reference implementation
         int * reference_output = new int[nnz](); // init to zeros
         procedures::reference::pointers_to_indexes(input, m, reference_output, nnz);
-        //sleep(0.003);
+        
         // run parallel implementation
         int * parallel_output      = new int[nnz];
         int * parallel_cuda_input  = utils::cuda::allocate_send<int>(input, m+1);
@@ -358,7 +517,9 @@ public:
         std::cout << std::endl;
         for(int i = matrix::TranspositionMethod::SERIAL; i <= matrix::TranspositionMethod::CUSPARSE2; ++i) {
             matrix::TranspositionMethod tm = static_cast<matrix::TranspositionMethod>(i);
+            sleep(0.01);
             matrix::SparseMatrix * smt = sm->transpose(tm);
+            sleep(0.01);
             matrix::FullMatrix * fmtt = new matrix::FullMatrix(smt);
             bool ok = fmt->equals(fmtt);
             all_ok &= ok;
@@ -372,43 +533,47 @@ public:
     }
 };
 
-int main(int argc, char **argv) {
+int old_main(int argc, char **argv) {
 
-    matrix_transposer_tester ta; //(procedures::reference::scan, procedures::cuda::scan);
-    ta.test_many_instances();
+    bool ok;
+
+    //fn_seg3_tester t3(procedures::reference::segmerge3_sm_step, procedures::cuda::segmerge3_sm_step);
+    //ok = t3.test_many_instances();
+    
+    fn3_tester t5(procedures::reference::sort3,  procedures::cuda::sort3);
+    ok = t5.test_many_instances();
+
+    std::cout << "ESITO: ";
+    std::cout << (ok ? "OK" : "NO") << std::endl;
 
     return 0;
 }
 
-int old_main(int argc, char **argv) {
+int main(int argc, char **argv) {
 
     std::atexit(reinterpret_cast<void(*)()>(cudaDeviceReset));
 
-    indexes_to_pointers_tester  t1;
-    pointer_to_index_tester     t2;
-    fn_tester                   t3(procedures::reference::scan, procedures::cuda::scan);
-    fn_tester                   t4(procedures::reference::segsort, procedures::cuda::segsort);
-    fn_tester                   t5(procedures::reference::sort,  procedures::cuda::sort);
-    fn3_tester                  t6(procedures::reference::segsort3, procedures::cuda::segsort3);
-    fn3_tester                  t7(procedures::reference::sort3, procedures::cuda::sort3);
-    algo_transposer_tester      t8(transposers::scan_csr2csc);
-    algo_transposer_tester      t9(transposers::merge_csr2csc);
+    //indexes_to_pointers_tester  t1;
+    //pointer_to_index_tester     t2;
+    //fn_tester                   t3(procedures::reference::scan, procedures::cuda::scan);
+    //fn_tester                   t4(procedures::reference::segsort, procedures::cuda::segsort);
+    //fn_tester                   t5(procedures::reference::sort,  procedures::cuda::sort);
+    //fn3_tester                  t6(procedures::reference::segsort3, procedures::cuda::segsort3);
+    //fn3_tester                  t7(procedures::reference::sort3, procedures::cuda::sort3);
+    //algo_transposer_tester      t8(transposers::scan_csr2csc);
+    //algo_transposer_tester      t9(transposers::merge_csr2csc);
     matrix_transposer_tester    ta;
 
-    tester* tests[] = { &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8, &t9, &ta };
-    std::string names[] = { "IDX TO PTR", "PTR TO IDX", "SCAN", "SEGSORT", "SORT", "SEGSORT3", "SORT3", "SCANTRANS", "MERGETRANS", "MATRIX" };
+    //tester* tests[] = { &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8, &t9, &ta };
+    tester* tests[] = { &ta };
+    //std::string names[] = { "IDX TO PTR", "PTR TO IDX", "SCAN", "SEGSORT", "SORT", "SEGSORT3", "SORT3", "SCANTRANS", "MERGETRANS", "MATRIX" };
+    std::string names[] = { "MATRIX" };
 
     bool all_ok = true;
-    for(int i = 0; i < 9; i++) {
+    for(int i = 0; i < 1; i++) {
         std::cout << "\n\n\nTesting " << names[i] << "\n";
         all_ok &= tests[i]->test_many_instances();
     }
-
-    std::cout << "\n\n\nTesting " << names[8-1] << " with example given on paper. Working? ";
-    std::cout << (t8.test_sample_instance() ? "YES" : "NO") << std::endl;
-
-    std::cout << "\n\n\nTesting " << names[9-1] << " with example given on paper. Working? ";
-    std::cout << (t9.test_sample_instance() ? "YES" : "NO") << std::endl;
 
     std::cout << "\n\n\nTest result: all is working?" << (all_ok ? "YES" : "NO") << std::endl;
 

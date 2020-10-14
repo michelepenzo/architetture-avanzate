@@ -4,7 +4,6 @@ __global__
 void parallel_histogram_kernel(int INPUT_ARRAY idx, int idx_len, int * inter, int * intra, int HISTO_ROW_LEN) {
     
     int j = blockIdx.x;
-    int t = threadIdx.x;
     
     // allineo inter sulla porzione di array che sto usando
     const int BLOCK_SIZE = DIV_THEN_CEIL(idx_len, HISTOGRAM_BLOCKS);

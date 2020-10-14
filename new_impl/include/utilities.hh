@@ -194,8 +194,10 @@ namespace utils {
         NUMERIC_TEMPLATE(T)
         __device__
         void devcopy(T * output, T INPUT_ARRAY input, int len) {
-            for(int i = 0; i < len; i++) {
-                output[i] = input[i];
+            if(len > 0) {
+                for(int i = 0; i < len; i++) {
+                    output[i] = input[i];
+                }
             }
         }
 

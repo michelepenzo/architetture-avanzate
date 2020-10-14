@@ -196,7 +196,7 @@ void transposers::merge_csr2csc(
 
     while(CURRENT_BLOCK_SIZE < (nnz-1)*2) {
     
-        procedures::cuda::segmerge3_step(
+        procedures::cuda::segmerge3_sm_step(
             buffer[full].colIdx, buffer[1-full].colIdx, 
             nnz, CURRENT_BLOCK_SIZE, 
             buffer[full].rowIdx, buffer[1-full].rowIdx, 

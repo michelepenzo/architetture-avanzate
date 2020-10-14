@@ -11,12 +11,12 @@
 #define SCAN_THREAD_PER_BLOCK 512
 #define SCAN_ELEMENTS_PER_BLOCK (2*SCAN_THREAD_PER_BLOCK)
 
-#define SEGSORT_ELEMENTS_PER_BLOCK 512
+#define SEGSORT_ELEMENTS_PER_BLOCK 128
 
-#define SEGMERGE_SM_SPLITTER_DISTANCE 512
-#define SEGMERGE_SM_MANY_THREADS 512
+#define SEGMERGE_SM_SPLITTER_DISTANCE 128
+#define SEGMERGE_SM_MANY_THREADS 128
 
-#define MERGETRANS_BLOCKS 512
+#define MERGETRANS_BLOCKS 128
 
 namespace procedures {
 
@@ -35,6 +35,8 @@ namespace procedures {
         void segsort3(int INPUT_ARRAY input, int * output, int len, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
 
         void segmerge_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE);
+
+        void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, int INPUT_ARRAY b_in, int * b_out);
 
         void segmerge3_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out);
 

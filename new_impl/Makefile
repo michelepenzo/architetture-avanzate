@@ -3,7 +3,8 @@ EXE_TEST    	= test_app
 LOCAL_INCLUDE	= ./include
 LOCAL_SRC		= ./src
 LOCAL_TEST		= ./test
-MAT_DIR			= /home/mpenzo/matrices/
+MAT_DIR			= /matrices/
+TARGET_CSV      = timing_analysis.csv
 LOCAL_BUILD 	= build
 OBJECT_LIST     = $(LOCAL_BUILD)/transposers.o $(LOCAL_BUILD)/matrix.o $(LOCAL_BUILD)/indexes_to_pointers.o $(LOCAL_BUILD)/pointers_to_indexes.o $(LOCAL_BUILD)/scan.o $(LOCAL_BUILD)/sort.o $(LOCAL_BUILD)/segsort.o $(LOCAL_BUILD)/segmerge_step.o $(LOCAL_BUILD)/segmerge_sm_step.o
 
@@ -36,7 +37,7 @@ $(LOCAL_BUILD)/indexes_to_pointers.o: $(LOCAL_SRC)/indexes_to_pointers.cu
 
 $(LOCAL_BUILD)/pointers_to_indexes.o: $(LOCAL_SRC)/pointers_to_indexes.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
-std::cout << "Reading filename " << filename << "\n";
+
 $(LOCAL_BUILD)/segsort.o: $(LOCAL_SRC)/segsort.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
@@ -63,23 +64,24 @@ clean:
 	@rm -f $(EXE) $(EXE_TEST) $(LOCAL_BUILD)/*
 
 run:
-	@rm -rf out.csv
-	@./$(EXE) $(MAT_DIR)language.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)ASIC_680k.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)memchip.mtx >> out.csv 
-	#@./$(EXE) $(MAT_DIR)FullChip.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)cage14.mtx >> out.csv 
-	#@./$(EXE) $(MAT_DIR)cant.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)circuit5M.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)para-4.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)rajat21.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)rajat29.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)sme3Dc.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)stomach.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)torso1.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)venkat01.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)web-Google.mtx >> out.csv
-	#@./$(EXE) $(MAT_DIR)webbase-1M.mtx >> out.csv  
+	@rm -f $(TARGET_CSV)
+	@echo "NAME; M; N; NNZ; SERIAL TIME; SCANTRANS TIME; MERGETRANS TIME; CUSPARSE1 TIME; CUSPARSE2 TIME" >> $(TARGET_CSV)
+	@./$(EXE) $(MAT_DIR)test1.mtx    	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)ASIC_680k.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)memchip.mtx 	>> $(TARGET_CSV) 
+	#@./$(EXE) $(MAT_DIR)FullChip.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)cage14.mtx 	>> $(TARGET_CSV) 
+	#@./$(EXE) $(MAT_DIR)cant.mtx 		>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)circuit5M.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)para-4.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)rajat21.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)rajat29.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)sme3Dc.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)stomach.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)torso1.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)venkat01.mtx 	>> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)web-Google.mtx >> $(TARGET_CSV)
+	#@./$(EXE) $(MAT_DIR)webbase-1M.mtx >> $(TARGET_CSV)  
 
 test:
 	@./$(EXE_TEST)

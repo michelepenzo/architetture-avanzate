@@ -13,15 +13,15 @@ static const int THREADS_PER_BLOCK = 512;
 
 static const int ELEMENTS_PER_BLOCK = THREADS_PER_BLOCK * 2;
 
-void scanSmallDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length);
+void scan_small(int * output, int INPUT_ARRAY input, int length);
 
-void scanLargeEvenDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length);
+void scan_even(int * output, int INPUT_ARRAY input, int length);
 
 __global__ void prescan_arbitrary_unoptimized(int *output, int *input, int n, int powerOfTwo);
 
 __global__ void prescan_large_unoptimized(int *output, int *input, int n, int *sums);
 
-__global__ void add(int *output, int length, int *n);
+void add_multiple_offset(int * output, int BLOCKS, int INPUT_ARRAY incr);
 
 void add_single_offset(int * output, int length, int INPUT_ARRAY n1, int INPUT_ARRAY n2);
 
@@ -30,21 +30,21 @@ void procedures::cuda::scan(int INPUT_ARRAY d_in, int * d_out, int length) {
 
 	if (length <= ELEMENTS_PER_BLOCK) {
 
-		scanSmallDeviceArray(d_out, d_in, length);
+		scan_small(d_out, d_in, length);
 	}
 	else if(length % ELEMENTS_PER_BLOCK == 0) {
 
-		scanLargeEvenDeviceArray(d_out, d_in, length);
+		scan_even(d_out, d_in, length);
 	} else {
 
 		// perform a large scan on a compatible multiple of elements
 		int remainder = length % ELEMENTS_PER_BLOCK;
 		int lengthMultiple = length - remainder;
-		scanLargeEvenDeviceArray(d_out, d_in, lengthMultiple);
+		scan_even(d_out, d_in, lengthMultiple);
 
 		// scan the remaining elements and add the (inclusive) last element of the large scan to this
 		int *startOfOutputArray = &(d_out[lengthMultiple]);
-		scanSmallDeviceArray(startOfOutputArray, &(d_in[lengthMultiple]), remainder);
+		scan_small(startOfOutputArray, &(d_in[lengthMultiple]), remainder);
 
 		add_single_offset(startOfOutputArray, remainder, &(d_in[lengthMultiple - 1]), &(d_out[lengthMultiple - 1]));
 	}
@@ -52,26 +52,34 @@ void procedures::cuda::scan(int INPUT_ARRAY d_in, int * d_out, int length) {
 	return;
 }
 
-void scanSmallDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length) {
-	int powerOfTwo = utils::next_two_pow(length);
-    prescan_arbitrary_unoptimized<<<1, DIV_THEN_CEIL(length, 2), 2 * powerOfTwo * sizeof(int)>>>(
-		d_out, d_in, length, powerOfTwo);
+void scan_small(int * output, int INPUT_ARRAY input, int length) {
+	// non alloco tutta la memoria massima ma solo quella che mi serve
+	int LENGHT_TWO_POW = utils::next_two_pow(length);
+
+	// chiamo il kernel che non necessita di somme
+    prescan_arbitrary_unoptimized<<<1, DIV_THEN_CEIL(length, 2), 2 * LENGHT_TWO_POW * sizeof(int)>>>(
+		output, input, length, LENGHT_TWO_POW);
 }
 
-void scanLargeEvenDeviceArray(int *d_out, int INPUT_ARRAY d_in, int length) {
+void scan_even(int * output, int INPUT_ARRAY input, int length) {
+
+	// quanti blocchi? la lunghezza è multipla di ELEMENTS_PER_BLOCK
 	const int BLOCKS = length / ELEMENTS_PER_BLOCK;
 	const int SM_SIZE = 2 * ELEMENTS_PER_BLOCK * sizeof(int);
 
+	// alloco array ausiliari degli offset
 	int * sums = utils::cuda::allocate<int>(BLOCKS);
 	int * incr = utils::cuda::allocate<int>(BLOCKS);
 
+	// chiamo il kernel (mantengo gli offset parziali in sums)
 	prescan_large_unoptimized<<<BLOCKS, THREADS_PER_BLOCK, SM_SIZE>>>(
-		d_out, d_in, ELEMENTS_PER_BLOCK, sums);
+		output, input, ELEMENTS_PER_BLOCK, sums);
 
+	// applico prefix-scan sugli offset parziali
 	procedures::cuda::scan(sums, incr, BLOCKS);
 
-	//add<<<BLOCKS, ELEMENTS_PER_BLOCK>>>(d_out, ELEMENTS_PER_BLOCK, incr);
-	
+	// sommo gli offset ad output
+	add_multiple_offset(output, BLOCKS, incr);
 
 	utils::cuda::deallocate(sums);
 	utils::cuda::deallocate(incr);
@@ -176,14 +184,9 @@ __global__ void prescan_large_unoptimized(int *output, int *input, int n, int *s
 	output[blockOffset + (2 * threadID) + 1] = temp[2 * threadID + 1];
 }
 
-
-__global__ void add(int *output, int length, int *n) {
-	int blockID = blockIdx.x;
-	int threadID = threadIdx.x;
-	int blockOffset = blockID * length;
-
-	output[blockOffset + threadID] += n[blockID];
-}
+// ==========================================================================
+// ADD UTILITY ==============================================================
+//==========================================================================
 
 __global__ 
 void add(int *output, int INPUT_ARRAY n1, int INPUT_ARRAY n2) {
@@ -191,6 +194,17 @@ void add(int *output, int INPUT_ARRAY n1, int INPUT_ARRAY n2) {
 	output[i] += n1[0] + n2[0];
 }
 
+__global__ 
+void add(int * output, int * incr) {
+	int j = blockIdx.x;
+	int i = threadIdx.x;
+	output[j*ELEMENTS_PER_BLOCK + i] += incr[j];
+}
+
 void add_single_offset(int * output, int length, int INPUT_ARRAY n1, int INPUT_ARRAY n2) {
 	add<<<1, length>>>(output, n1, n2);
+}
+
+void add_multiple_offset(int * output, int BLOCKS, int INPUT_ARRAY incr) {
+	add<<<BLOCKS, ELEMENTS_PER_BLOCK>>>(output, incr);
 }

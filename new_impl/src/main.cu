@@ -3,6 +3,7 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include <string>
 #include "matrix.hh"
 #include "procedures.hh"
 #include "Timer.cuh"
@@ -15,21 +16,28 @@ int main(int argc, char **argv) {
     matrix::SparseMatrix * sm;
     std::string filename;
 
-    // inizializzazione della matrice
-    if(argc > 1) {
+    if(argc == 1) {
+        // matrice generata casualmente con dimensione fissa
+        filename = "random";
+        sm = new matrix::SparseMatrix(100'000, 100'000, 10'000'000);
 
-        // leggo file mtx esterno
+    } else if(argc == 2) {
+        // matrice importata da file MTX
         filename = std::string(argv[1]);
-        //std::cout << "Reading filename " << filename << "\n";
         std::ifstream file(filename);
+        if(!file.good()) {
+            throw std::invalid_argument("Cannot open given file " + filename);
+        }
         sm = new matrix::SparseMatrix(file);
         file.close();
-    } else {
 
-        // matrice generata casualmente
-        filename = "random";
-        //std::cout << "Reading random\n";
-        sm = new matrix::SparseMatrix(100'000, 100'000, 10'000'000);
+    } else if(argc == 4) {
+        filename = "random_from_specs";
+        int m = std::stoi(argv[1]), n = std::stoi(argv[2]), nnz = std::stoi(argv[3]);
+        sm = new matrix::SparseMatrix(m, n, nnz);
+
+    } else {
+        throw std::invalid_argument("Invalid number of arguments: " + std::to_string(argc-1) + ", must be 0 or 1 or 3");
     }
 
     // stampa dei dati della matrice
