@@ -71,7 +71,7 @@ run:
 	@./$(EXE) $(MAT_DIR)web-Google.mtx >> out.csv
 	@./$(EXE) $(MAT_DIR)stomach.mtx >> out.csv
 	@./$(EXE) $(MAT_DIR)ASIC_680k.mtx >> out.csv
-	@./$(EXE) $(MAT_DIR)rajat29.mtx >> out.csv	
+	@./$(EXE) $(MAT_DIR)rajat29.mtx >> out.csv
 	@./$(EXE) $(MAT_DIR)memchip.mtx >> out.csv
 	@./$(EXE) $(MAT_DIR)FullChip.mtx >> out.csv
 	#@./$(EXE) $(MAT_DIR)circuit5M.mtx >> out.csv
