@@ -70,7 +70,6 @@ namespace matrix {
 
         // dimensioni e specifiche della matrice
         mtx_file >> m >> n >> nnz;
-
         // check dimensioni
         long long max_nnz = ((long long) m) *((long long) n);
         
@@ -93,8 +92,10 @@ namespace matrix {
         csrVal              = new float[nnz]();
 
         // leggo da file
+        double data;
         for(int i = 0; i < nnz; i++) {
-            mtx_file >> csrRowIdx[i] >> csrColIdx[i] >> csrVal[i];
+            mtx_file >> csrRowIdx[i] >> csrColIdx[i] >> data;
+            csrVal[i] = data;
         }
         // sistemo array puntatori
         procedures::reference::indexes_to_pointers(csrRowIdx, nnz, &inter, csrRowPtrTemp, m);
@@ -184,16 +185,16 @@ namespace matrix {
     { 
         long long max_nnz = ((long long) m) *((long long) n);
         if(m <= 0 ) {
-            throw std::invalid_argument("m");
+            throw std::invalid_argument("FullMatrix m negative");
         }
         else if(n <= 0 ){
-                throw std::invalid_argument("n");
+                throw std::invalid_argument("FullMatrix n negative");
             }
         else if(nnz <= 0){
-                throw std::invalid_argument("nnz");
+                throw std::invalid_argument("FullMatrix nnz negative");
                 }
         else if( nnz > max_nnz){
-            throw std::invalid_argument("per");
+            throw std::invalid_argument("FullMatrix multiplication");
         }
         matrix = new float[m*n]();
 

@@ -9,7 +9,7 @@
 #include "Timer.cuh"
 using namespace timer;
 
-const int ITERATION_NUMBER = 10;
+const int ITERATION_NUMBER = 5;
 
 int main(int argc, char **argv) {
 
@@ -52,8 +52,7 @@ int main(int argc, char **argv) {
 
         for(int i = matrix::SERIAL; i <= matrix::CUSPARSE2; i++) {
 
-            //std::cout << "Processing " << i << "\n" << std::flush;
-
+            //std::cout << "\nProcessing " << i << std::flush;
             // modalità nel quale sto trasponendo
             matrix::TranspositionMethod tm = (matrix::TranspositionMethod) i;
             
@@ -71,6 +70,8 @@ int main(int argc, char **argv) {
     for(int i = matrix::SERIAL; i <= matrix::CUSPARSE2; i++) {
         std::cout << timers[i].average() << "; ";
     }
+
+    std::cout << "\n";
 
     return 0;
 }
