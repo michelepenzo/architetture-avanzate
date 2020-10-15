@@ -1,47 +1,77 @@
 #include <iostream>
 #include <iomanip>
-#include "helper_cuda.h"
-#include "libfort/fort.hpp"
-#include "cuda_utils/prefix_scan.hh"
-#include "tester/Tester.hh"
-#include "transposers/ScanTransposer.hh"
-#include "transposers/MergeTransposer.hh"
-#include "transposers/CusparseTransposer.hh"
-#include <cuda_runtime.h>
+#include <fstream>
+#include <chrono>
+#include <thread>
+#include <string>
+#include "matrix.hh"
+#include "procedures.hh"
+#include "Timer.cuh"
+using namespace timer;
 
-#define REPETITION_NUMBER 20
+const int ITERATION_NUMBER = 5;
 
 int main(int argc, char **argv) {
 
-    findCudaDevice(argc, (const char **) argv);
-/*
-    CusparseTransposer cu;
-    ScanTransposer sc;
-    ScanTransposer sc2(256, 1024);
-    ScanTransposer sc3(256, 1536);
-    Tester tester;
-    tester.add_test(   10,    10,       20, REPETITION_NUMBER);
-    tester.add_test(  100,   100,     1000, REPETITION_NUMBER);
-    tester.add_test( 1000,  1000,    10000, REPETITION_NUMBER);
-    tester.add_test(10000, 10000,  1000000, REPETITION_NUMBER);
-    tester.add_test(10000, 10000,  2000000, REPETITION_NUMBER);
-    tester.add_processor(&cu, "CUSPARSE");
-    tester.add_processor(&sc, "SCAN256-256");
-    //tester.add_processor(&sc2, "SCAN256-1k");
-    //tester.add_processor(&sc3, "SCAN256-1.5k");
-    tester.run(false);
-    tester.print();
-*/
+    matrix::SparseMatrix * sm;
+    std::string filename;
 
-    MergeTransposer sc;
+    if(argc == 1) {
+        // matrice generata casualmente con dimensione fissa
+        filename = "random";
+        sm = new matrix::SparseMatrix(100'000, 100'000, 10'000'000);
 
-    SparseMatrix  *s = new SparseMatrix(5, 5, 10);
-    s->print();
+    } else if(argc == 2) {
+        // matrice importata da file MTX
+        filename = std::string(argv[1]);
+        std::ifstream file(filename);
+        if(!file.good()) {
+            throw std::invalid_argument("Cannot open given file " + filename);
+        }
+        sm = new matrix::SparseMatrix(file);
+        file.close();
 
-    SparseMatrix *st = sc.transpose(s);
-    st->print();
+    } else if(argc == 4) {
+        filename = "random_from_specs";
+        int m = std::stoi(argv[1]), n = std::stoi(argv[2]), nnz = std::stoi(argv[3]);
+        sm = new matrix::SparseMatrix(m, n, nnz);
 
-    delete s, st;
+    } else {
+        throw std::invalid_argument("Invalid number of arguments: " + std::to_string(argc-1) + ", must be 0 or 1 or 3");
+    }
+
+    // stampa dei dati della matrice
+    std::cout << filename << "; ";
+    std::cout << sm->m << "; ";
+    std::cout << sm->n << "; ";
+    std::cout << sm->nnz << "; ";
+
+    // esecuzione della trasposta
+    Timer<HOST> timers[5];
+    for(int j = 0; j < ITERATION_NUMBER; j++) {
+
+        for(int i = matrix::SERIAL; i <= matrix::CUSPARSE2; i++) {
+
+            //std::cout << "\nProcessing " << i << std::flush;
+            // modalità nel quale sto trasponendo
+            matrix::TranspositionMethod tm = (matrix::TranspositionMethod) i;
+            
+            // traspongo (timer)
+            timers[i].start();
+            matrix::SparseMatrix * smt = sm->transpose(tm);
+            timers[i].stop();
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+    }
+
+    // salvo in output il tempo impiegato
+    for(int i = matrix::SERIAL; i <= matrix::CUSPARSE2; i++) {
+        std::cout << timers[i].average() << "; ";
+    }
+
+    std::cout << "\n";
 
     return 0;
 }
