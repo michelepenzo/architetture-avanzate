@@ -71,7 +71,7 @@
 	\subsection{Struttura delle directory}
 	La struttura delle direcotry è rispecchiata nel seguente schema:
 	\dirtree{%
-		.1 repository.
+		.1 root.
 			.2 doc.
 				.3 {report\_aa.$ * $}.				
 			.2 code.
@@ -113,6 +113,7 @@
 	La singola componente del programma viene quindi eseguita sia con la sua implementazione seriale, sia con quella in parallelo. Cosi facendo è stato più semplice testare le singole componenti e successivamente, dopo aver effettuato dei test complessi ed averli superati a parte, è risultato più semplice unire il tutto per ottenere l'implementazione finale.
 	
 	\subsection{Applicativo finale}
+	\label{applicativo-finale}
 	% più matrici testate assieme
 	Tramite il comando \textit{make run} viene eseguito l'applicativo finale. Questo esegue per un numero di iterazioni le metodologie implementate. All'interno del tag \texttt{run} nel \textit{Makefile} viene eseguito varie volte l'eseguibile, ogni volta con valori diversi.\newline
 	Il file eseguibile può essere eseguito passando:
@@ -135,10 +136,9 @@
 	\subsection{Nvidia cuSPARSE}
 	Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per le operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici, ed inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.\newline	
 	Il codice è stato sviluppato basandosi su due versioni di cuSPARSE a causa delle Gpu utilizzate. In fase di compilazione viene quindi controllata la versione usata: $ 9 $ o $ 10 $.\newline
-	Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, viene effettuata l'allocazione dello spazio necessario e del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.\newline
-	Infine viene chiamata la procedura che effettua il calcolo della trasposta. \newline
-	Le procedure chiamate sono diverse in base alla funzione. Nel primo caso viene chiamata \textbf{cusparseScsr2csc}, mentre nel secondo caso \textbf{cusparseCsr2cscEx2}. Quest'ultima richiede come parametro anche l'algoritmo che viene utilizzato all'interno della procedura.\newline
-	Dopo essere state eseguite entrambe ritornano i valori ottenuti tramite un'altro formato, \textit{csc}, che ne esprime la rappresentazione tramite valori come csrColIdx, cscVal, cscColPtr, cscRowIdx. Infine viene controllata la correttezza e i tempi rispetto alle altre implementazioni.
+	Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, come l'allocazione dello spazio necessario oltre all'allocazione del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.\newline
+	Infine viene chiamata la procedura che effettua il calcolo della trasposta. Nel caso in cui la versione di cuSPARSE sia la $ 10 $ viene richiesto come ulteriore parametro l'algoritmo da utilizzare.\newline
+	Dopo essere state eseguite entrambe ritornano i valori ottenuti in formato \textit{csc}.
 
 	\subsection{ScanTrans}
 	
@@ -164,22 +164,26 @@
 
 		\subsubsection{Merge small}	
 		
+	\subsection{Scan}
+	
 	\subsection{Sort}
 	\label{sort}
 	
 
 \section{Benchmark}
 \label{benchmark}
-	\subsection{Matrici piene}
+	% che gpu?
+	Per la fase di test dell'implementazione sono state utilizzate principalmente due tipologie di matrici.
 	
 	\subsection{Matrici sparse casuali}
-
+	A partire da dei valori fissi di \textit{m, n, nnz} è stata creata una matrice in formato Csr utilizzando come elementi dei valori generati in modo casuale compresi tra un minimo e un massimo a scelta. Come per i valori casuali, è possibile cambiare le dimensioni della matrice e passare dei nuovi valori all'eseguibile come descritto in sezione~\ref{applicativo-finale}.
+	
 	\subsection{Dataset utilizzato}
-	% dataset? matrici come sono state implementate?
+	In \cite{parallelTrans} è stato utilizzato un dataset di matrici sparse rappresentate in diversi formati. È stato fatto lo stesso anche nel nostro progetto, sono stati scaricati alcuni esempi presi da \cite{dataset}, e su questi sono stati eseguiti gli algoritmi implementati. Gli esempi tratti hanno varie dimensioni e il valore relativo all'elemento \textit{nnz} è solitamente un numero decimale. In sezione \ref{risultati} vegono mostrati gli esempi utilizzati e i rispettivi valori.
 	
-	
+
 \section{Risultati}
-\label{risultati}
+	\label{risultati}
 	% file csv
 	% tabellone 
 
@@ -190,6 +194,7 @@
 
 \bibliographystyle{IEEEtran}
 \bibliography{biblio}
+
 
 %\appendix
 %Se non avete abbastanza spazio, potete inserire le figure delle EFSM in una  pagina extra, appendice. Un esempio di come potete fare solo le Figure~\ref{fig:grande}, \ref{fig:piccola1}, \ref{fig:piccola2}.
