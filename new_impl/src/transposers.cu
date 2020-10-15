@@ -52,7 +52,7 @@ void transposers::cuda_wrapper(
     int * csrColIdx_cuda = utils::cuda::allocate_send<int>(csrColIdx, nnz);
     float * csrVal_cuda  = utils::cuda::allocate_send<float>(csrVal, nnz);
 
-    int * cscColPtr_cuda = utils::cuda::allocate_zero<int>(n+1);
+    int * cscColPtr_cudatex = utils::cuda::allocate_zero<int>(n+1);
     int * cscRowIdx_cuda = utils::cuda::allocate_zero<int>(nnz);
     float * cscVal_cuda  = utils::cuda::allocate_zero<float>(nnz);
 

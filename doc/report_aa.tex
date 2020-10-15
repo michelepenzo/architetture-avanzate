@@ -6,6 +6,9 @@
 \usepackage{graphicx}
 \usepackage[export]{adjustbox}
 \usepackage[italian]{babel}
+\usepackage{dirtree}
+\usepackage{hyperref}
+
 
 \begin{document}
 \maketitle
@@ -46,26 +49,51 @@
  	
 	\subsection{Da Csr a Csc}
 	\label{csr-to-csc}
- 	Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Ogni algoritmo effettuta la trasposta utilizzando sei array:
+ 	Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Infatti, ogni algoritmo  descritto in sezione~\ref{metodologie}, necessita di sei array per effettuare il calcolo della trasposta e ritornare l'output in modo corretto. Abbiamo quindi:
  	\begin{itemize}
- 		\item tre per formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
- 		\item tre per formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
- 	\end{itemize} 
-	Per questo, ogni algoritmo in sezione~\ref{metodologie}, necessita in input array in formato \textit{csr} e restituisce come output array in formato \textit{csc}.\newline
+ 		\item in input il formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
+ 		\item in output il formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
+ 	\end{itemize}
  	In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.\newline
 	
 	% TODO disegnino fatto meglio
 	\begin{figure}[h!]
 		\includegraphics[scale=0.25]{figures/csr-to-csc.jpg}
-		\caption{Esempio da formato Csr a Csc.}
+		\caption{Esempio di trasformazione da formato Csr a Csc.}
 	\end{figure}
 
 	
-	
 \section{Struttura dell'implementazione} 
 \label{struttura}
+	L'implementazione è stata sviluppata utilizzando come supporto il tool \textit{Git}. È stata creata una repository, descritta nella sezione successiva, per poter controllare in modo efficiente lo svilupparsi del progetto. Tutti i test sono stati effettutati sulle macchine locali e sul server Cuda01.
+	% TODO sisteamre newpage
+	\newpage
 	\subsection{Struttura delle directory}
+	La struttura delle direcotry è rispecchiata nel seguente schema:
+	\dirtree{%
+		.1 repository.
+			.2 doc.
+				.3 {report\_aa.$ * $}.				
+			.2 {matrices}.
+				.3 {$ *$.mtx }.
+			.2 {include}.
+				.3 {matrix.hh}.
+				.3 {procedures.hh}.
+				.3 {Timer.$ * $}.
+				.3 {transposer.hh}.
+				.3 {utilities.hh}.
+			.2 {src}.
+				.3 {all cuda\_procedures }.
+				.3 {transposer.cu}.
+				.3 {main.cu}.
+			.2 {test}.	
+				.3 {test\_main.cu}.
+			.2 Makefile.			
+			.2 README.md.
+	}
+
 	
+
 	\subsection{Test delle componenti}	
 	% singole componenti
 	
