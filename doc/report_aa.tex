@@ -80,11 +80,11 @@
 				.3 {include}.
 					.4 {matrix.hh}.
 					.4 {procedures.hh}.
-					.4 {Timer.$ * $}.
 					.4 {transposer.hh}.
+					.4 {Timer.$ * $}.
 					.4 {utilities.hh}.
 				.3 {src}.
-					.4 {all cuda\_procedures }.
+					.4 {all cuda procedures..}.
 					.4 {transposer.cu}.
 					.4 {main.cu}.
 				.3 {test}.	
@@ -92,14 +92,37 @@
 				.3 Makefile.			
 			.2 README.md.
 	}
+	\mbox{}
 
+	Il file \texttt{matrix.hh} è composto da due classi con i relativi campi e metodi che si occupa della:
+	\begin{enumerate}
+		\item costruzione della matrice sparsa in formato Csr: \textit{class~SparseMatrix},
+		\item costruzione della matrice densa: \textit{class FullMatrix}.
+	\end{enumerate}
+	Il file \texttt{procedures.hh} contiene tutte le procedure descritte in sezione~\ref{procedure} ed è diviso in due \texttt{namespace}. Essi riferiscono all'implementazione effettuta, ovvero \textit{cuda} o \textit{reference}(seriale).\newline
+	È presente inoltre il file \texttt{transposers.hh} che funge da ``wrapper'' per le implementazioni quattro descritte nella prossima sezione.\newline
+	Infine abbiamo il timer e un file che contiene tutte le funzioni utilizzate utili per debug, stampa, allocazione e deallocazione, generazione dei valori random, controllo errori e molto altro.\newline
 	
+	All'interno della direcotry \textit{src} abbiamo tutte le implementazioni delle procedure cuda utilizzate nel progetto, oltre che al file \texttt{transposers.cu} che contiene le implementazioni descritte in~\ref{metodologie}.\newline
+	Infine è presente il \texttt{main.cu}, che si occupa di eseguire tutte le metodologie implementate.\newline
 
+	È presente inoltre un'ultima directory con relativo file che si occupa della fase di test delle singole componenti.
+	
 	\subsection{Test delle componenti}	
-	% singole componenti
+	Per le singole componenti(scan, sort, index to pointers ...) è stato implementato un'altro eseguibile. Lanciando il comando \textit{make test} viene eseguito l'applicativo che effettuta il test prima per piccole istanze e poi per grandi istanze. Cosi facendo tutte le componenti vengono testate con diversi valori.\newline
+	La singola componente del programma viene quindi eseguita sia con la sua implementazione seriale, sia con quella in parallelo. Cosi facendo è stato più semplice testare le singole componenti e successivamente, dopo aver effettuato dei test complessi ed averli superati a parte, è risultato più semplice unire il tutto per ottenere l'implementazione finale.
 	
 	\subsection{Applicativo finale}
 	% più matrici testate assieme
+	Tramite il comando \textit{make run} viene eseguito l'applicativo finale. Questo esegue per un numero di iterazioni le metodologie implementate. All'interno del tag \texttt{run} nel \textit{Makefile} viene eseguito varie volte l'eseguibile, ogni volta con valori diversi.\newline
+	Il file eseguibile può essere eseguito passando:
+	\begin{itemize}
+		\item un valore (\textit{file.mtx}): esegue le metodolgie su una matrice sparsa caricata da file,
+		\item tre valori (\textit{m n nnz}): prende tre valori e genera casualmente la matrice sparsa,
+		\item nessun valore: matrice generate casualmente con valori fissi.
+	\end{itemize}
+	Alla fine le tempistiche vengono concatenate all'interno del file \textit{timing\_analysis.csv} per effettuarne una migliore lettura.
+
 
 \section{Metodologie analizzate}
 \label{metodologie}
