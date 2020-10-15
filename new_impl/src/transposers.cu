@@ -52,7 +52,7 @@ void transposers::cuda_wrapper(
     int * csrColIdx_cuda = utils::cuda::allocate_send<int>(csrColIdx, nnz);
     float * csrVal_cuda  = utils::cuda::allocate_send<float>(csrVal, nnz);
 
-    int * cscColPtr_cudatex = utils::cuda::allocate_zero<int>(n+1);
+    int * cscColPtr_cuda = utils::cuda::allocate_zero<int>(n+1);
     int * cscRowIdx_cuda = utils::cuda::allocate_zero<int>(nnz);
     float * cscVal_cuda  = utils::cuda::allocate_zero<float>(nnz);
 
@@ -236,13 +236,13 @@ void transposers::merge_csr2csc(
 
 const char* _cusparseGetErrorName(int status) {
     switch(status) {
-        case CUSPARSE_STATUS_SUCCESS	        : return "CUSPARSE_STATUS_SUCCESS: the operation completed successfully.";
-        case CUSPARSE_STATUS_NOT_INITIALIZED	: return "CUSPARSE_STATUS_NOT_INITIALIZED: the library was not initialized.";
-        case CUSPARSE_STATUS_ALLOC_FAILED	    : return "CUSPARSE_STATUS_ALLOC_FAILED: the reduction buffer could not be allocated.";
-        case CUSPARSE_STATUS_INVALID_VALUE	    : return "CUSPARSE_STATUS_INVALID_VALUE: the idxBase is neither CUSPARSE_INDEX_BASE_ZERO nor CUSPARSE_INDEX_BASE_ONE.";
-        case CUSPARSE_STATUS_ARCH_MISMATCH	    : return "CUSPARSE_STATUS_ARCH_MISMATCH: the device does not support double precision.";
-        case CUSPARSE_STATUS_EXECUTION_FAILED	: return "CUSPARSE_STATUS_EXECUTION_FAILED: the function failed to launch on the GPU.";
-        case CUSPARSE_STATUS_INTERNAL_ERROR	    : return "CUSPARSE_STATUS_INTERNAL_ERROR: an internal operation failed (check if you are compiling correctly wrt your GPU architecture).";
+        case CUSPARSE_STATUS_SUCCESS            : return "CUSPARSE_STATUS_SUCCESS: the operation completed successfully.";
+        case CUSPARSE_STATUS_NOT_INITIALIZED    : return "CUSPARSE_STATUS_NOT_INITIALIZED: the library was not initialized.";
+        case CUSPARSE_STATUS_ALLOC_FAILED       : return "CUSPARSE_STATUS_ALLOC_FAILED: the reduction buffer could not be allocated.";
+        case CUSPARSE_STATUS_INVALID_VALUE      : return "CUSPARSE_STATUS_INVALID_VALUE: the idxBase is neither CUSPARSE_INDEX_BASE_ZERO nor CUSPARSE_INDEX_BASE_ONE.";
+        case CUSPARSE_STATUS_ARCH_MISMATCH      : return "CUSPARSE_STATUS_ARCH_MISMATCH: the device does not support double precision.";
+        case CUSPARSE_STATUS_EXECUTION_FAILED   : return "CUSPARSE_STATUS_EXECUTION_FAILED: the function failed to launch on the GPU.";
+        case CUSPARSE_STATUS_INTERNAL_ERROR     : return "CUSPARSE_STATUS_INTERNAL_ERROR: an internal operation failed (check if you are compiling correctly wrt your GPU architecture).";
         default                                 : return "UNKNOWN ERROR";
     }
 }
