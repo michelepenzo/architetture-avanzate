@@ -7,12 +7,6 @@
 \usepackage[export]{adjustbox}
 \usepackage[italian]{babel}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% todo
-% spiegare come abbiamo fatto i test (che valori), e mostrare tabella con varie dimensioni delle matrici e nnz
-% kernel scan, scantrans, sort, index to pointers, pointer index
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \begin{document}
 \maketitle
 
@@ -25,14 +19,16 @@
 
 \section{Introduzione}
 \label{introduzione}
-	Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni che si possano applicare su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come nel nostro caso.\newline
-	Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per aumentarne l'efficienza. Verranno quindi mostrate le basi per la rappresentazione ed analizzati alcuni algoritmi per il calcolo su \textit{Gpu}.
+	% problema e motivazioni
+	Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni che si possano applicare su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come in questo caso.\newline
+	Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per aumentarne l'efficienza. Verranno quindi mostrate le basi per la rappresentazione, i problemi riscontrati durante lo sviluppo e analizzati alcuni algoritmi per il calcolo su \textit{Gpu}.\newline
 
 
 \section{Rappresentazione delle matrici}
 \label{rappresentazione}
-	Viene detta matrice sparsa una matrice in cui i valori sono quasi tutti uguali a zero. Per rappresentare in modo efficacie, senza troppi sprechi di memoria, sono stati introdotte varie forme di rappresentazione matriciale. La struttura dati classica utilizza una quantità di memoria minima di $ m $ x $ n $ elementi.\newline
-	Sono state quindi utilizzate delle rappresentazioni che permettono il salvataggio di dati utilizzando quantitativi di memoria inferiori.
+	Una matrice sparsa non è altro che una matrice i cui valori sono per la maggior parte uguali a zero. La matrice in formato classico necessita di una quantità di memoria minima di $ m $x$ n $ elementi, ma essendo l'obiettivo quello di lavorare su matrici sparse non è stato necessario e utile memorizzare la matrice in formato denso.\newline
+	Per rappresentare in modo efficace le matrici sparse senza troppo utilizzo di memoria sono state quindi introdotte ed utilizzate delle forme di rappresentazione matriciale che permettono il salvataggio di dati utilizzando quantitativi di memoria inferiori.\newline
+	Di seguito vengono spiegate le due metodologie da noi utilizzate.
 	
 	\subsection{Csr}
 	\label{csr}
@@ -40,17 +36,41 @@
 	\begin{enumerate}
 		\item \textit{V}: i valori \textit{nnz},
 		\item \textit{COL\_INDEX}: gli indici delle colonne dove si trovano gli elementi \textit{nnz},
-		\item \textit{ROW\_INDEX}: rappresenta l'indice in $ V $ dove la riga comincia
+		\item \textit{ROW\_INDEX}: ha un elemento per ogni riga della matrice e rappresenta l'indice in $ V $ dove comincia la riga data.
 	\end{enumerate}
-	I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ M $.
+	I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ m $.
 	
 	\subsection{Csc}
 	\label{csc}
- 	Questa metodologia per la rappresentazione è simile alla sopra citata \textit{Csr}, solo che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e i puntatori di colonna vengono memorizzati.
+ 	Questa metodologia per la rappresentazione è simile alla sopra citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e i puntatori di colonna vengono memorizzati.
  	
-\section{Struttura dell'implementazione} 
-% come è stato strutturato il pkg?
+	\subsection{Da Csr a Csc}
+	\label{csr-to-csc}
+ 	Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Ogni algoritmo effettuta la trasposta utilizzando sei array:
+ 	\begin{itemize}
+ 		\item tre per formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
+ 		\item tre per formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
+ 	\end{itemize} 
+	Per questo, ogni algoritmo in sezione~\ref{metodologie}, necessita in input array in formato \textit{csr} e restituisce come output array in formato \textit{csc}.\newline
+ 	In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.\newline
+	
+	% TODO disegnino fatto meglio
+	\begin{figure}[h!]
+		\includegraphics[scale=0.25]{figures/csr-to-csc.jpg}
+		\caption{Esempio da formato Csr a Csc.}
+	\end{figure}
 
+	
+	
+\section{Struttura dell'implementazione} 
+\label{struttura}
+	\subsection{Struttura delle directory}
+	
+	\subsection{Test delle componenti}	
+	% singole componenti
+	
+	\subsection{Applicativo finale}
+	% più matrici testate assieme
 
 \section{Metodologie analizzate}
 \label{metodologie}
@@ -74,17 +94,46 @@
 	\subsection{MergeTrans}
 	
 
-\section{Esperimenti}
-\label{esperimenti}
+\section{Procedure}
+\label{procedure}
+% tutte le versioni x2 e x3
+
+	\subsection{Index to pointers}
+	\label{idx-to-pnt}
+	
+	\subsection{Pointers to index}
+	\label{pnt-to-idx}
+	
+	\subsection{Merge}
+	\label{merge}
+		\subsubsection{Segmented Sort}	
+
+		\subsubsection{Merge big}	
+
+		\subsubsection{Merge small}	
+		
+	\subsection{Sort}
+	\label{sort}
+	
+
+\section{Benchmark}
+\label{benchmark}
+	\subsection{Matrici piene}
+	
+	\subsection{Matrici sparse casuali}
+
+	\subsection{Dataset utilizzato}
 	% dataset? matrici come sono state implementate?
+	
 	
 \section{Risultati}
 \label{risultati}
-
+	% file csv
+	% tabellone 
 
 \section{Conclusioni}
 \label{conclusioni}
-
+	% cosa migliorare?
 
 
 \bibliographystyle{IEEEtran}
