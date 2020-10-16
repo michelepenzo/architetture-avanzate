@@ -1,14 +1,21 @@
 \documentclass[]{IEEEtran}
 
-\title{Sparse Matrix Transposition for GPUs}
-\author{Massimiliano Incudini - VR433300\\Michele Penzo - VR439232}
-
-\usepackage{graphicx}
-\usepackage[export]{adjustbox}
 \usepackage[italian]{babel}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[export]{adjustbox}
 \usepackage{dirtree}
 \usepackage{hyperref}
+\usepackage{tikz}
 
+\graphicspath{{figures/}} 	
+
+
+\newcommand*\circled[1]{\tikz[baseline=(char.base)]{\node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
+
+
+\title{Sparse Matrix Transposition for GPUs}
+\author{Massimiliano Incudini - VR433300\\Michele Penzo - VR439232}
 
 \begin{document}
 \maketitle
@@ -33,7 +40,7 @@
 	Per rappresentare in modo efficace le matrici sparse senza troppo utilizzo di memoria sono state quindi introdotte ed utilizzate delle forme di rappresentazione matriciale che permettono il salvataggio di dati utilizzando quantitativi di memoria inferiori.\newline
 	Di seguito vengono spiegate le due metodologie da noi utilizzate.
 	
-	\subsection{Csr}
+	\subsection{Formato Csr}
 	\label{csr}
 	Il \textit{compressed sparse row} è una rappresentazione di una matrice $ M $ basata su tre array monodimensionali, che rispettivamente contengono:
 	\begin{enumerate}
@@ -43,7 +50,7 @@
 	\end{enumerate}
 	I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ m $.
 	
-	\subsection{Csc}
+	\subsection{Formato Csc}
 	\label{csc}
  	Questa metodologia per la rappresentazione è simile alla sopra citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e i puntatori di colonna vengono memorizzati.
  	
@@ -57,8 +64,8 @@
  	In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.\newline
 	
 	% TODO disegnino fatto meglio
-	\begin{figure}[h!]
-		\includegraphics[scale=0.25]{figures/csr-to-csc.jpg}
+	\begin{figure}[H]
+		\includegraphics[scale=0.25]{csr-to-csc.jpg}
 		\caption{Esempio di trasformazione da formato Csr a Csc.}
 	\end{figure}
 
@@ -141,23 +148,76 @@
 	Dopo essere state eseguite entrambe ritornano i valori ottenuti in formato \textit{csc}.
 
 	\subsection{ScanTrans}
+	L'algoritmo considerato prevede di effettuare la trasposta di matrici basandosi sul concetto di scan. Partendo sempre dal presupposto di avere in input una matrice in formato \textit{Csr}, vengono costruiti due array ausiliari:
+	\begin{itemize}
+		\item inter: array bidimensionale di dimensione $ (nthreads+1) * n $,
+		\item intra: array monodimensionale di dimensione massima $ nnz $.
+	\end{itemize}
+	Ogni riga in \textit{inter} contiene il numero di indici della colonna presi dalla thread i-esima. Mentre ogni elemento in \textit{intra} viene utilizzato per salvare l'offeset relativo alla colonna corrispondente all'elemento nnz preso dalla thread. Dopo aver ottenuto gli istogrammi, viene applicato un \textit{vertical scan} su inter, e una \textit{prefix sum} solamente sull'ultima riga di inter. Infine l'algoritmo calcola l'offset assoluto relativo ad ogni elemento nnz e ritorna il tutto in formato \textit{csc}.\newline
+	Tutte le procedure utilizzate in \textit{Scan Trans} si trovano in sezione \ref{procedure}, e vengono eseguite nel seguente ordine:
+	\begin{enumerate}
+		\item pointers to index: \ref{pnt-to-idx},
+		\item index to pointers: \ref{idx-to-pnt-scan},
+		\item scan: \ref{scantrans},
+		\item reorder elements: \ref{reoder-elem}.
+	\end{enumerate}
 	
+	\begin{figure}[h!]
+		\includegraphics[scale=0.8]{scantrans.png}
+		\label{scantrans}
+		\caption{Scan Trans, esempio utilizzato in \cite{parallelTrans}.}
+	\end{figure}
 	
 	\subsection{MergeTrans}
-	
+%	\begin{figure}[H]
+%		\includegraphics[scale=0.8]{mergetrans.png}
+%		\label{mergetrans}
+%		\caption{Merge Trans, esempio utilizzato in \cite{parallelTrans}.}
+%	\end{figure}
+%	
 
 \section{Procedure}
 \label{procedure}
 % tutte le versioni x2 e x3
+	In questa sezione vengono descritte le procedure Cuda principali che sono state utilizzate nelle implementazioni di \textit{Scan Trans} e \textit{Merge Trans}.
 
-	\subsection{Index to pointers}
-	\label{idx-to-pnt}
-	
 	\subsection{Pointers to index}
 	\label{pnt-to-idx}
+	Questa procedura prende in input l'array dei puntatori alle righe, e come dice il nome, crea un'array degli indici di riga. Quindi ad ogni thread viene assegnato un valore di \textit{csrRowPtr} e per ognuno di questi calcola inizio e fine e crea il nuovo array.
+%	\begin{figure}[H]
+%		\includegraphics[scale=0.8]{pnt_to_idx.png}
+%		\caption{Esempio di pointers to index.}
+%	\end{figure}
+%
+	\subsection{Index to pointers - Scan Trans}
+	\label{idx-to-pnt-scan}
+	Lo scopo di questa procedura è quello di trasfore l'array \textit{csrColIdx} in \textit{colPtr}. Esegue quindi il passo \circled{1} e \circled{2} in figura~\ref{scantrans}:
+	\begin{enumerate}
+		\item \textit{parallel histogram}: una thread per blocco(dimensione fissa) si occupa della costruzione degli array multidimensionali \textit{inter} e \textit{intra}. Quindi ogni blocco di thread prende un valore, e data la posizione all'interno di \textit{csrColIdx} salva nella posizione corretta i nuovi valori all'interno di inter e intra.
+		\item \textit{vertical scan}: per ogni blocco verticale all'interno di \textit{inter} esegue una scan parallela e salva il risultato all'interno di una matrice chiamata \textit{colPtr}.
+	\end{enumerate}
+	
+%	\begin{figure}[H]
+%		\includegraphics[scale=0.8]{pnt_to_idx.png}
+%		\caption{Esempio di pointers to index.}
+%	\end{figure}
+%
+	\subsection{Scan}
+	% TODO
+	
+	\subsection{Reorder elements}
+	\label{reoder-elem}
+	Ogni thread si occupa di riordinare un blocco di elementi di dimensione fissa. Viene calcolato l'\textit{id} all'interno di \textit{csrColIdx}, dopodichè calcolata la posizione all'interno di \textit{csrColIdx}, \textit{inter} e \textit{intra} e viene posizionato il valore preso in \textit{cscRowIdx} e \textit{cscVal}. 
+	Questa è l'ultima procedura che viene utilizzata in \textit{Scan Trans}, infatti si può notare che restituisce due array in formato csc.
+
+
+	\subsection{Index to pointers - Merge Trans}
+	\label{idx-to-pnt-merge}
+
 	
 	\subsection{Merge}
 	\label{merge}
+	% TODO è stato cambiato??
 		\subsubsection{Segmented Sort}	
 
 		\subsubsection{Merge big}	
@@ -185,12 +245,16 @@
 \section{Risultati}
 	\label{risultati}
 	% file csv
-	% tabellone 
-
+	
 \section{Conclusioni}
 \label{conclusioni}
+	% tirare le somme di cosa abbiamo ottenuto
 	% cosa migliorare?
-
+	% come possiamo continuare il progetto se avessimo avuto più tempo?
+		% algo merge con merge buffer che è gia implementato
+		% testare l'efficienza delle componenti rispetto alla implementazione nvidia
+		% idx to pntrs (soffre race condition) --> un thread ha un blocco
+		
 
 \bibliographystyle{IEEEtran}
 \bibliography{biblio}
