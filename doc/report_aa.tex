@@ -10,9 +10,7 @@
 
 \graphicspath{{figures/}} 	
 
-
 \newcommand*\circled[1]{\tikz[baseline=(char.base)]{\node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
-
 
 \title{Sparse Matrix Transposition for GPUs}
 \author{Massimiliano Incudini - VR433300\\Michele Penzo - VR439232}
@@ -72,8 +70,8 @@
 	
 \section{Struttura dell'implementazione} 
 \label{struttura}
-	L'implementazione è stata sviluppata utilizzando come supporto il tool \textit{Git}. È stata creata una repository, descritta nella sezione successiva, per poter controllare in modo efficiente lo svilupparsi del progetto. Tutti i test sono stati effettutati sulle macchine locali e sul server Cuda01.
-	% TODO sisteamre newpage
+	L'implementazione è stata sviluppata utilizzando come supporto il tool \textit{Git}. È stata creata una repository, descritta nella sezione successiva, per poter controllare in modo efficiente lo svilupparsi del progetto. 
+	% TODO sistemare newpage
 	\newpage
 	\subsection{Struttura delle directory}
 	La struttura delle direcotry è rispecchiata nel seguente schema:
@@ -142,7 +140,7 @@
 	
 	\subsection{Nvidia cuSPARSE}
 	Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per le operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici, ed inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.\newline	
-	Il codice è stato sviluppato basandosi su due versioni di cuSPARSE a causa delle Gpu utilizzate. In fase di compilazione viene quindi controllata la versione usata: $ 9 $ o $ 10 $.\newline
+	Il codice è stato sviluppato partendo dalla guida \cite{cusparse} ed è diviso in due versioni di cuSPARSE a causa delle Gpu utilizzate. In fase di compilazione viene quindi controllata la versione usata: $ 9 $ o $ 10 $.\newline
 	Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, come l'allocazione dello spazio necessario oltre all'allocazione del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.\newline
 	Infine viene chiamata la procedura che effettua il calcolo della trasposta. Nel caso in cui la versione di cuSPARSE sia la $ 10 $ viene richiesto come ulteriore parametro l'algoritmo da utilizzare.\newline
 	Dopo essere state eseguite entrambe ritornano i valori ottenuti in formato \textit{csc}.
@@ -158,7 +156,7 @@
 	\begin{enumerate}
 		\item pointers to index: \ref{pnt-to-idx},
 		\item index to pointers: \ref{idx-to-pnt-scan},
-		\item scan: \ref{scantrans},
+		\item scan: \ref{scan},
 		\item reorder elements: \ref{reoder-elem}.
 	\end{enumerate}
 	
@@ -169,14 +167,25 @@
 	\end{figure}
 	
 	\subsection{MergeTrans}
-%	\begin{figure}[H]
-%		\includegraphics[scale=0.8]{mergetrans.png}
-%		\label{mergetrans}
-%		\caption{Merge Trans, esempio utilizzato in \cite{parallelTrans}.}
-%	\end{figure}
-%	
+	L'algoritmo considerato prevede due passi importanti: \textit{sort} e \textit{merge}.
+	Inizialmente sono stati creati gli indici di riga a partire dai puntatori delle colonne e su questi ultimi è stato fatto un sort su piccole porzioni di array, mantenendo quindi i vari blocchi disordinati tra di loro ma con gli elementi ordinati. Successivamente, utilizzando è stato il merge ricorsivo, partendo dai blocchi più piccoli, unendoli in blocchi sempre più grandi. Per funzionare questo processo necessita dell'utilizzo di due buffer di memoria che contengono gli elementi appena ordinati. Infine dai puntatori delle colonne vengono estretti gli indici e viene fatta la scan che ritorna il risultato in formato \textit{csc}. \newline
+	Anche in questo caso le procedure utilizzate si trovano in sezione \ref{procedure}, e sono ordinatamente eseguite come segue:
+	\begin{enumerate}
+		\item pointers to index: \ref{pnt-to-idx},
+		\item segmented sort: \ref{seg-sort},
+		\item segmented merge: \ref{seg-merge},
+		\item index to pointers: \ref{idx-to-pnt-merge},
+		\item scan: \ref{scan}.
+	\end{enumerate}
+	
+	\begin{figure}[H]
+		\includegraphics[scale=0.8]{mergetrans.png}
+		\label{mergetrans}
+		\caption{Merge Trans, esempio utilizzato in \cite{parallelTrans}.}
+	\end{figure}
+	
 
-\section{Procedure}
+\section{Procedure Cuda}
 \label{procedure}
 % tutte le versioni x2 e x3
 	In questa sezione vengono descritte le procedure Cuda principali che sono state utilizzate nelle implementazioni di \textit{Scan Trans} e \textit{Merge Trans}.
@@ -184,11 +193,7 @@
 	\subsection{Pointers to index}
 	\label{pnt-to-idx}
 	Questa procedura prende in input l'array dei puntatori alle righe, e come dice il nome, crea un'array degli indici di riga. Quindi ad ogni thread viene assegnato un valore di \textit{csrRowPtr} e per ognuno di questi calcola inizio e fine e crea il nuovo array.
-%	\begin{figure}[H]
-%		\includegraphics[scale=0.8]{pnt_to_idx.png}
-%		\caption{Esempio di pointers to index.}
-%	\end{figure}
-%
+	
 	\subsection{Index to pointers - Scan Trans}
 	\label{idx-to-pnt-scan}
 	Lo scopo di questa procedura è quello di trasfore l'array \textit{csrColIdx} in \textit{colPtr}. Esegue quindi il passo \circled{1} e \circled{2} in figura~\ref{scantrans}:
@@ -196,43 +201,45 @@
 		\item \textit{parallel histogram}: una thread per blocco(dimensione fissa) si occupa della costruzione degli array multidimensionali \textit{inter} e \textit{intra}. Quindi ogni blocco di thread prende un valore, e data la posizione all'interno di \textit{csrColIdx} salva nella posizione corretta i nuovi valori all'interno di inter e intra.
 		\item \textit{vertical scan}: per ogni blocco verticale all'interno di \textit{inter} esegue una scan parallela e salva il risultato all'interno di una matrice chiamata \textit{colPtr}.
 	\end{enumerate}
-	
-%	\begin{figure}[H]
-%		\includegraphics[scale=0.8]{pnt_to_idx.png}
-%		\caption{Esempio di pointers to index.}
-%	\end{figure}
-%
-	\subsection{Scan}
-	% TODO
-	
+
 	\subsection{Reorder elements}
 	\label{reoder-elem}
 	Ogni thread si occupa di riordinare un blocco di elementi di dimensione fissa. Viene calcolato l'\textit{id} all'interno di \textit{csrColIdx}, dopodichè calcolata la posizione all'interno di \textit{csrColIdx}, \textit{inter} e \textit{intra} e viene posizionato il valore preso in \textit{cscRowIdx} e \textit{cscVal}. 
 	Questa è l'ultima procedura che viene utilizzata in \textit{Scan Trans}, infatti si può notare che restituisce due array in formato csc.
 
+	\subsection{Segmented sort}
+	\label{seg-sort}
+	Questa procedura, che chiama il relativo kernel, funziona passando come parametri un numero definito a priori (e.g. 128) che opera su blocchi di dimensione fissa anch'essi di $ len/n\_threads $, dove \textit{len} sta per nnz ovvero la dimensione di \textit{colIdx}.\newline
+	Anche se il concetto è lo stesso la procedura viene divisa in due per semplificare il procedimento:
+	\begin{itemize}
+		\item \textit{segsort}: opera solamente su un array in input. Il kernel è stato sviluppato per funzionare con la \textit{shared memory}, quindi abbiamo un array temporaneo condiviso tra le thread. Ogni thread lavora su un elemento del blocco, priva vengono caricati i valori nella shared memory, poi viene trovata la posizione corretta all'interno dell'array non ordinato passato in input tenendo conto dei duplicati. Dopo aver trovato la posizione, il valore viene salvato nella posizione corretta all'interno della shared memory e infine salvato nel vettore di output-
+		\item \textit{segsort3}: il concetto è lo stesso ma opera su 3 array in input.
+	\end{itemize}
+	
+	\subsection{Segmented merge}
+	\label{seg-merge}
+	% TODO aspetta che cambia
 
 	\subsection{Index to pointers - Merge Trans}
 	\label{idx-to-pnt-merge}
-
+	A differenza di \textit{index to pointers} per lo Scan Trans questa procedura utilizza solamente \textit{inter}, ma è sempre diviso in due:
+	\begin{itemize}
+		\item \textit{parallel histogram}: in questo caso abbiamo un numero di thread superiore rispetto al precedente(1024) che opera su una griglia di dimensione fissa. Allineo \textit{inter} sulla porzione di array che sto utilizzando trovando una dimensione costante del blocco ($ len/dimBlock $) e ogni thread dopo aver trovato il valore corretto all'interno dell'indice esegue una \textit{add atomica} sul valore trovato.
+		\item \textit{vertical scan}: è lo stesso descritto in sezione \ref{idx-to-pnt-scan}\textit{-2}.
+	\end{itemize}
 	
-	\subsection{Merge}
-	\label{merge}
-	% TODO è stato cambiato??
-		\subsubsection{Segmented Sort}	
-
-		\subsubsection{Merge big}	
-
-		\subsubsection{Merge small}	
-		
 	\subsection{Scan}
-	
-	\subsection{Sort}
-	\label{sort}
+	\label{scan}
+	% TODO è roba nostra?
 	
 
 \section{Benchmark}
 \label{benchmark}
-	% che gpu?
+	Tutti i test sono stati effettuati sulle macchine locali e sul server Cuda01, quindi testati con diverse versioni di Cuda e come detto precedentemente anche di cuSPARSE. Le Gpu utilizzate sono:
+	\begin{itemize}
+		\item macchina locale:	% TODO che gpu?
+		\item server cuda01:
+	\end{itemize}
 	Per la fase di test dell'implementazione sono state utilizzate principalmente due tipologie di matrici.
 	
 	\subsection{Matrici sparse casuali}
@@ -245,6 +252,8 @@
 \section{Risultati}
 	\label{risultati}
 	% file csv
+	% tabellone con speedup
+	
 	
 \section{Conclusioni}
 \label{conclusioni}
