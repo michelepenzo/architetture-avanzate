@@ -24,7 +24,7 @@ $(EXE): $(LOCAL_BUILD)/main.o $(LOCAL_BUILD)/test_main.o $(OBJECT_LIST)
 	nvcc $(GENCODE_FLAGS) $(LOCAL_BUILD)/test_main.o $(OBJECT_LIST) -o $(EXE_TEST)
 
 $(LOCAL_BUILD)/test_main.o: $(LOCAL_TEST)/test_main.cu
-	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -I$(LOCAL_TEST) -c $< -o $@
 
 $(LOCAL_BUILD)/main.o: $(LOCAL_SRC)/main.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
@@ -54,6 +54,9 @@ $(LOCAL_BUILD)/scan.o: $(LOCAL_SRC)/scan.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 $(LOCAL_BUILD)/transposers.o: $(LOCAL_SRC)/transposers.cu
+	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
+
+$(LOCAL_BUILD)/merge_step.o: $(LOCAL_SRC)/merge_step.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 

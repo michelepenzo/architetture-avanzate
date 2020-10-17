@@ -6,6 +6,7 @@
 #include <string>
 #include "matrix.hh"
 #include "procedures.hh"
+#include "merge_step.hh"
 #include "Timer.cuh"
 using namespace timer;
 
@@ -15,6 +16,13 @@ int main(int argc, char **argv) {
 
     matrix::SparseMatrix * sm;
     std::string filename;
+
+    int * _ = NULL;
+    float * __ = NULL;
+    procedures::cuda::merge_step<int>(_, _, 30, 30);
+    procedures::cuda::merge_step<float>(__, __, 30, 30);
+    procedures::cuda::merge3_step<int, int, int>(_, _, _, _, _, _, 30, 30);
+    procedures::cuda::merge3_step<int, int, float>(_, _, _, _, __, __, 30, 30);
 
     if(argc == 1) {
         // matrice generata casualmente con dimensione fissa

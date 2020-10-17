@@ -6,38 +6,24 @@
 #include "procedures.hh"
 #include "transposers.hh"
 
-#include <unistd.h> // sleep
-#define TESTER_ALL_INSTANCES_MIN 10000
-#define TESTER_ALL_INSTANCES_MAX 20'000
-#define TESTER_BIG_INSTANCES -1
+#include "tester_fn.hh"
 
-class tester {
+int main(int argc, char **argv) {
 
-    virtual bool test_instance(int instance_number) = 0;
+    tester_merge tm;
+    tester_merge3 tm3;
+    
+    bool ok = true;
+    ok &= tm3.test_many_instances();
+    ok &= tm.test_many_instances();
 
-public:
+    std::cout << "ESITO: ";
+    std::cout << (ok ? "OK" : "NO") << std::endl;
 
-    bool test_many_instances() {
-        
-        sleep(0.03);
+    return 0;
+}
 
-        bool all_ok = true;
-        for(int m = TESTER_ALL_INSTANCES_MIN; m < TESTER_ALL_INSTANCES_MAX; m++) {
-            std::cout << "Testing with m=" << std::setw(10) << m << ": " << std::flush;
-            bool ok = test_instance(m);
-            std::cout << (ok ? "OK" : "NO") << std::endl << std::flush;
-            all_ok &= ok;
-        }
-        for(int m = 5'000'000; m < TESTER_BIG_INSTANCES; m *= 2) {
-            std::cout << "Testing with m=" << std::setw(10) << m << ": ";
-
-            bool ok = test_instance(m);
-            std::cout << (ok ? "OK" : "NO") << std::endl;
-            all_ok &= ok;
-        }
-        return all_ok;
-    }
-};
+/*
 
 typedef void (*fn)(int INPUT_ARRAY input, int * output, int len); 
 
@@ -533,14 +519,14 @@ public:
     }
 };
 
-int old_main(int argc, char **argv) {
+int main(int argc, char **argv) {
 
     bool ok;
 
     //fn_seg3_tester t3(procedures::reference::segmerge3_sm_step, procedures::cuda::segmerge3_sm_step);
     //ok = t3.test_many_instances();
     
-    fn3_tester t5(procedures::reference::sort3,  procedures::cuda::sort3);
+    fn_tester t5(procedures::reference::segmerge_step,  procedures::cuda::merge_step);
     ok = t5.test_many_instances();
 
     std::cout << "ESITO: ";
@@ -549,7 +535,7 @@ int old_main(int argc, char **argv) {
     return 0;
 }
 
-int main(int argc, char **argv) {
+int old_main(int argc, char **argv) {
 
     std::atexit(reinterpret_cast<void(*)()>(cudaDeviceReset));
 
@@ -580,3 +566,4 @@ int main(int argc, char **argv) {
     cudaDeviceReset();
     return 0;
 }
+*/

@@ -14,7 +14,12 @@
 #include <cuda_runtime.h>
 
 #define INPUT_ARRAY * const
-#define NUMERIC_TEMPLATE(T) template< typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type >
+#define NUMERIC_TEMPLATE(T) template< typename T>
+#define NUMERIC_TEMPLATE3(T1, T2, T3) template< \
+    typename T1, \
+    typename T2, \
+    typename T3 >
+
 #define DIV_THEN_CEIL(a,b) (a%b?((a/b)+1):(a/b))
 
 #define CUDA_CHECK_ERROR { utils::cuda::check_error(__FILE__, __LINE__, __func__); }
@@ -193,7 +198,7 @@ namespace utils {
 
         NUMERIC_TEMPLATE(T)
         __device__
-        void devcopy(T * output, T INPUT_ARRAY input, int len) {
+        inline void devcopy(T * output, T INPUT_ARRAY input, int len) {
             if(len > 0) {
                 for(int i = 0; i < len; i++) {
                     output[i] = input[i];
