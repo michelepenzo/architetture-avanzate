@@ -218,7 +218,15 @@
 	
 	\subsection{Segmented merge}
 	\label{seg-merge}
-	% TODO aspetta che cambia
+
+	Il merge qui spiegato è stato realizzato tenendo conto della dimensione dei blocchi da analizzare ed è stato realizzato usando i template. Nel caso in cui abbiamo blocchi di piccola dimensione, se questi stanno in memoria condivisa, allora viene chiamato \textit{merge small} e viene fatto il classico merge. Nel caso in cui questi fossero di dimensione maggiore e non si riesca ad allocare una quantità cosi alta di memoria condivisa vengono chiamate in sequenza le seguenti procedure:
+	\begin{enumerate}
+		\item \textit{generate splitter}: si occupa di cercare dei valori detti splitter. Quindi ogni \textit{splitter\_distance} repnde un elemento all'interno degli array A e B, dopodichè cerca gli indici corretti degli splitter tenendo conto dei duplicati e quindi delle posizioni corrette all'interno dell'array iniziale. Infine gli splitter e gli indici di posizione vengono salvati e dati in output.
+		\item \textit{merge3 step}: si occupa dell'ordinamento degli splitter e lo effettua ricorsivamente rieseguendo i passi descritti in questo elenco. Dopo aver ottenuti tutti i blocchi ordinati prosegue con il passo successivo.
+		\item \textit{fix indexes}: viene quindi sitemato l'indice finale di ogni blocco di splitter. Questo valore contiene la lunghezza del blocco, quindi ogni thread si occupa di sistemare una coppia di blocchi alla volta.
+		\item \textit{uniform merge}: viene effettuato il merge di porzioni di blocchi di dimensione uniforme. Viene recuperato il blocco sulla quale lavorare e anche gli estremi da processare. Gli elementi vengono caricati in memoria condivisa e viene effettuato il merge. Infine gli elementi vengono salvati in output
+		\item \textit{copy last block}: nel caso in cui restasse fuori un blocco spaiato questo viene copiato nell'array finale.
+	\end{enumerate} 
 
 %	\subsection{Index to pointers - Merge Trans}
 %	\label{idx-to-pnt-merge}
@@ -230,7 +238,12 @@
 	
 	\subsection{Scan}
 	\label{scan}
-	% TODO è roba nostra?
+	Questa procedura è stata divisa come per il merge in base al numero di blocchi sulla quale essa deve essere eseguita:
+	\begin{itemize}
+		\item \textit{scan small}: scan effettuata su blocchi di dimensione minore a quella prefissata,
+		\item \textit{scan even}: scan effettuata su blocchi di dimensione esattamente multipla a quella scelta,
+		\item \textit{scan large}: scan effettutata prima su blocchi di dimensione multilpa (scan even) ed infine scan sui restanti blocchi (scan small).
+	\end{itemize}
 	
 
 \section{Benchmark}
