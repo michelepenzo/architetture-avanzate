@@ -1,5 +1,6 @@
 #include "procedures.hh"
 
+/*
 __device__
 int find_position_in_sorted_array(int element_to_search, int INPUT_ARRAY input, int len) {
 
@@ -273,172 +274,20 @@ void uniform_merge3_kernel(int INPUT_ARRAY input, int * output, int INPUT_ARRAY 
     }
 }
 
+*/
+
 void procedures::cuda::segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
-    
-    DPRINT_MSG("\n\n\n##### Starting segmerge_sm_step")
-    DPRINT_ARR_CUDA(input, len)
 
-    // 1. lavoro su coppie di blocchi per estrarre gli splitter e gli indici necessari a lavorarci sopra
-    const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
-    const int COUPLE_OF_BLOCKS = BLOCK_NUMBER / 2;
-    const int SPLITTER_PER_BLOCKS = DIV_THEN_CEIL(BLOCK_SIZE, SEGMERGE_SM_SPLITTER_DISTANCE);
-    const int SPLITTER_PER_LAST_BLOCK = (len % BLOCK_SIZE == 0) ? SPLITTER_PER_BLOCKS : DIV_THEN_CEIL(len % BLOCK_SIZE, SEGMERGE_SM_SPLITTER_DISTANCE);
-    const int SPLITTER_NUMBER = 
-        (BLOCK_NUMBER%2==1)                      ? // il numero di blocchi da processare è dispari?
-        (2*COUPLE_OF_BLOCKS*SPLITTER_PER_BLOCKS) : // se si, tutti i blocchi sa processare hanno dimensione piena
-        (2*(COUPLE_OF_BLOCKS-1)*SPLITTER_PER_BLOCKS+SPLITTER_PER_BLOCKS+SPLITTER_PER_LAST_BLOCK); // se no, l'ultimo blocco da processare potrebbe avere lunghezza minore
-
-    //printf("SPLITTER_NUMBER=%d, SPLITTER_PER_BLOCK=%d, SPLITTER_PER_LAST_BLOCK=%d, BLOCK_NUMBER=%d, COUPLE_OF_BLOCKS=%d\n", 
-    //    SPLITTER_NUMBER, SPLITTER_PER_BLOCKS, SPLITTER_PER_LAST_BLOCK, BLOCK_NUMBER, COUPLE_OF_BLOCKS);
-
-    int * splitter     = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * indexA       = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * indexB       = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * splitter_out = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * indexA_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * indexB_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-
-    splitter_kernel<<<COUPLE_OF_BLOCKS, 1024>>>(input, splitter, indexA, indexB, len, BLOCK_SIZE);
-    CUDA_CHECK_ERROR
-    DPRINT_MSG("After splitter_kernel")
-    DPRINT_ARR_CUDA(splitter, SPLITTER_NUMBER)
-    DPRINT_ARR_CUDA(indexA, SPLITTER_NUMBER)
-    DPRINT_ARR_CUDA(indexB, SPLITTER_NUMBER)
-
-    // 2. riordino per blocchi l'array degli splitter e gli indici ad esso associati
-    segmerge3_step(splitter, splitter_out, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS, indexA, indexA_out, indexB, indexB_out);
-    DPRINT_MSG("After segmerge3_sm_step")
-    DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
-    DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
-    DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
-
-    // 3. sistemo gli indici di `indexA`, `indexB` per evitare merge vuoti
-    fix_indexes_kernel<<<COUPLE_OF_BLOCKS, 1>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
-    CUDA_CHECK_ERROR
-    DPRINT_MSG("After fix_indexes_kernel")
-    DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
-    DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
-    DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
-
-    // 4. eseguo il merge di porzioni di blocchi di dimensione uniforme
-    uniform_merge_kernel<<<SPLITTER_NUMBER, 1>>>(input, output, indexA_out, indexB_out, len, BLOCK_SIZE);
-    CUDA_CHECK_ERROR
-
-    // 5. eventualmente copio il risultato dell' ultimo blocco di array rimasto spaiato
-    if(BLOCK_NUMBER % 2 == 1) {
-        utils::cuda::copy<int>(
-            output + 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
-            input +  2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
-            len - 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE
-        );
-    }
-
-    DPRINT_MSG("After uniform_merge_kernel")
-    DPRINT_ARR_CUDA(input, len)
-    DPRINT_ARR_CUDA(output, len)
-
-    utils::cuda::deallocate(splitter);
-    utils::cuda::deallocate(indexA);
-    utils::cuda::deallocate(indexB);
-    utils::cuda::deallocate(splitter_out);
-    utils::cuda::deallocate(indexA_out);
-    utils::cuda::deallocate(indexB_out);
 }
 
 void procedures::cuda::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
-    
-    DPRINT_MSG("\n\n\n##### Starting segmerge3_sm_step")
-    DPRINT_ARR_CUDA(input, len)
-
-    CUDA_CHECK_ERROR
-
-    // 1. lavoro su coppie di blocchi per estrarre gli splitter e gli indici necessari a lavorarci sopra
-    const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
-    const int COUPLE_OF_BLOCKS = BLOCK_NUMBER / 2;
-    const int SPLITTER_PER_BLOCKS = DIV_THEN_CEIL(BLOCK_SIZE, SEGMERGE_SM_SPLITTER_DISTANCE);
-    const int SPLITTER_PER_LAST_BLOCK = (len % BLOCK_SIZE == 0) ? SPLITTER_PER_BLOCKS : DIV_THEN_CEIL(len % BLOCK_SIZE, SEGMERGE_SM_SPLITTER_DISTANCE);
-    const int SPLITTER_NUMBER = 
-        (BLOCK_NUMBER%2==1)                      ? // il numero di blocchi da processare è dispari?
-        (2*COUPLE_OF_BLOCKS*SPLITTER_PER_BLOCKS) : // se si, tutti i blocchi sa processare hanno dimensione piena
-        (2*(COUPLE_OF_BLOCKS-1)*SPLITTER_PER_BLOCKS+SPLITTER_PER_BLOCKS+SPLITTER_PER_LAST_BLOCK); // se no, l'ultimo blocco da processare potrebbe avere lunghezza minore
-
-    //printf("SPLITTER_NUMBER=%d, SPLITTER_PER_BLOCK=%d, SPLITTER_PER_LAST_BLOCK=%d, BLOCK_NUMBER=%d, COUPLE_OF_BLOCKS=%d\n", 
-    //    SPLITTER_NUMBER, SPLITTER_PER_BLOCKS, SPLITTER_PER_LAST_BLOCK, BLOCK_NUMBER, COUPLE_OF_BLOCKS);
-
-    int * splitter     = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * indexA       = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * indexB       = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * splitter_out = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * indexA_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-    int * indexB_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-
-    if(COUPLE_OF_BLOCKS > 0) {
-        
-        splitter_kernel<<<COUPLE_OF_BLOCKS, 1024>>>(input, splitter, indexA, indexB, len, BLOCK_SIZE);
-        CUDA_CHECK_ERROR
-        DPRINT_MSG("After splitter_kernel")
-        DPRINT_ARR_CUDA(splitter, SPLITTER_NUMBER)
-        DPRINT_ARR_CUDA(indexA, SPLITTER_NUMBER)
-        DPRINT_ARR_CUDA(indexB, SPLITTER_NUMBER)
-
-        // 2. riordino per blocchi l'array degli splitter e gli indici ad esso associati
-        segmerge3_step(splitter, splitter_out, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS, indexA, indexA_out, indexB, indexB_out);
-        DPRINT_MSG("After segmerge3_sm_step")
-        DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
-        DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
-        DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
-
-        // 3. sistemo gli indici di `indexA`, `indexB` per evitare merge vuoti
-        fix_indexes_kernel<<<COUPLE_OF_BLOCKS, 1>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
-        CUDA_CHECK_ERROR
-        DPRINT_MSG("After fix_indexes_kernel")
-        DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
-        DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
-        DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
-        DPRINT_ARR_CUDA(a_in, len)
-        DPRINT_ARR_CUDA(b_in, len)
-
-        // 4. eseguo il merge di porzioni di blocchi di dimensione uniforme
-        uniform_merge3_kernel<<<SPLITTER_NUMBER, 1>>>(input, output, indexA_out, indexB_out, a_in, a_out, b_in, b_out, len, BLOCK_SIZE);
-        CUDA_CHECK_ERROR
-    }
-
-    // 5. eventualmente copio il risultato dell' ultimo blocco di array rimasto spaiato
-    if(BLOCK_NUMBER % 2 == 1) {
-        utils::cuda::copy<int>(
-            output + 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
-            input +  2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
-            len - 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE
-        );
-        utils::cuda::copy<int>(
-            a_out + 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
-            a_in +  2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
-            len - 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE
-        );
-        utils::cuda::copy<float>(
-            b_out + 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
-            b_in +  2 * COUPLE_OF_BLOCKS * BLOCK_SIZE, 
-            len - 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE
-        );
-    }
-
-    DPRINT_MSG("After uniform_merge_kernel")
-    DPRINT_ARR_CUDA(input, len)
-    DPRINT_ARR_CUDA(output, len)
-
-    utils::cuda::deallocate(splitter);
-    utils::cuda::deallocate(indexA);
-    utils::cuda::deallocate(indexB);
-    utils::cuda::deallocate(splitter_out);
-    utils::cuda::deallocate(indexA_out);
-    utils::cuda::deallocate(indexB_out);
 
 }
 
 void procedures::reference::segmerge_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE) {
-    segmerge_step(input, output, len, BLOCK_SIZE);
+
 }
 
 void procedures::reference::segmerge3_sm_step(int INPUT_ARRAY input, int * output, int len, int BLOCK_SIZE, int INPUT_ARRAY a_in, int * a_out, float INPUT_ARRAY b_in, float * b_out) {
-    segmerge3_step(input, output, len, BLOCK_SIZE, a_in, a_out, b_in, b_out);
+
 }

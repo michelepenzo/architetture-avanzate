@@ -188,13 +188,14 @@ void transposers::merge_csr2csc(
     DPRINT_MSG("3 ---- merging")
     int full = 1;
     int CURRENT_BLOCK_SIZE = SEGSORT_ELEMENTS_PER_BLOCK;
+    int TARGET_BLOCK_SIZE = DIV_THEN_CEIL(nnz, HISTOGRAM_BLOCKS);
 
     DPRINT_MSG("INIT Block Size %d", CURRENT_BLOCK_SIZE)
     DPRINT_ARR_CUDA(buffer[full].colIdx,  nnz);
     DPRINT_ARR_CUDA(buffer[full].rowIdx, nnz);
     DPRINT_ARR_CUDA(buffer[full].val,    nnz);
 
-    while(CURRENT_BLOCK_SIZE < (nnz-1)*2) {
+    while(CURRENT_BLOCK_SIZE < TARGET_BLOCK_SIZE) {
     
         procedures::cuda::segmerge3_sm_step(
             buffer[full].colIdx, buffer[1-full].colIdx, 
