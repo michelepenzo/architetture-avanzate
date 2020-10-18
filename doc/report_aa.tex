@@ -155,7 +155,7 @@
 	Tutte le procedure utilizzate in \textit{Scan Trans} si trovano in sezione \ref{procedure}, e vengono eseguite nel seguente ordine:
 	\begin{enumerate}
 		\item pointers to index: \ref{pnt-to-idx},
-		\item index to pointers: \ref{idx-to-pnt-scan},
+		\item index to pointers: \ref{idx-to-pnt},
 		\item scan: \ref{scan},
 		\item reorder elements: \ref{reoder-elem}.
 	\end{enumerate}
@@ -174,7 +174,7 @@
 		\item pointers to index: \ref{pnt-to-idx},
 		\item segmented sort: \ref{seg-sort},
 		\item segmented merge: \ref{seg-merge},
-		\item index to pointers: \ref{idx-to-pnt-merge},
+		\item index to pointers: \ref{idx-to-pnt},
 		\item scan: \ref{scan}.
 	\end{enumerate}
 	
@@ -194,8 +194,8 @@
 	\label{pnt-to-idx}
 	Questa procedura prende in input l'array dei puntatori alle righe, e come dice il nome, crea un'array degli indici di riga. Quindi ad ogni thread viene assegnato un valore di \textit{csrRowPtr} e per ognuno di questi calcola inizio e fine e crea il nuovo array.
 	
-	\subsection{Index to pointers - Scan Trans}
-	\label{idx-to-pnt-scan}
+	\subsection{Index to pointers}
+	\label{idx-to-pnt}
 	Lo scopo di questa procedura è quello di trasfore l'array \textit{csrColIdx} in \textit{colPtr}. Esegue quindi il passo \circled{1} e \circled{2} in figura~\ref{scantrans}:
 	\begin{enumerate}
 		\item \textit{parallel histogram}: una thread per blocco(dimensione fissa) si occupa della costruzione degli array multidimensionali \textit{inter} e \textit{intra}. Quindi ogni blocco di thread prende un valore, e data la posizione all'interno di \textit{csrColIdx} salva nella posizione corretta i nuovi valori all'interno di inter e intra.
@@ -218,19 +218,32 @@
 	
 	\subsection{Segmented merge}
 	\label{seg-merge}
-	% TODO aspetta che cambia
 
-	\subsection{Index to pointers - Merge Trans}
-	\label{idx-to-pnt-merge}
-	A differenza di \textit{index to pointers} per lo Scan Trans questa procedura utilizza solamente \textit{inter}, ma è sempre diviso in due:
-	\begin{itemize}
-		\item \textit{parallel histogram}: in questo caso abbiamo un numero di thread superiore rispetto al precedente(1024) che opera su una griglia di dimensione fissa. Allineo \textit{inter} sulla porzione di array che sto utilizzando trovando una dimensione costante del blocco ($ len/dimBlock $) e ogni thread dopo aver trovato il valore corretto all'interno dell'indice esegue una \textit{add atomica} sul valore trovato.
-		\item \textit{vertical scan}: è lo stesso descritto in sezione \ref{idx-to-pnt-scan}\textit{-2}.
-	\end{itemize}
+	Il merge qui spiegato è stato realizzato tenendo conto della dimensione dei blocchi da analizzare ed è stato realizzato usando i template. Nel caso in cui abbiamo blocchi di piccola dimensione, se questi stanno in memoria condivisa, allora viene chiamato \textit{merge small} e viene fatto il classico merge. Nel caso in cui questi fossero di dimensione maggiore e non si riesca ad allocare una quantità cosi alta di memoria condivisa vengono chiamate in sequenza le seguenti procedure:
+	\begin{enumerate}
+		\item \textit{generate splitter}: si occupa di cercare dei valori detti splitter. Quindi ogni \textit{splitter\_distance} repnde un elemento all'interno degli array A e B, dopodichè cerca gli indici corretti degli splitter tenendo conto dei duplicati e quindi delle posizioni corrette all'interno dell'array iniziale. Infine gli splitter e gli indici di posizione vengono salvati e dati in output.
+		\item \textit{merge3 step}: si occupa dell'ordinamento degli splitter e lo effettua ricorsivamente rieseguendo i passi descritti in questo elenco. Dopo aver ottenuti tutti i blocchi ordinati prosegue con il passo successivo.
+		\item \textit{fix indexes}: viene quindi sitemato l'indice finale di ogni blocco di splitter. Questo valore contiene la lunghezza del blocco, quindi ogni thread si occupa di sistemare una coppia di blocchi alla volta.
+		\item \textit{uniform merge}: viene effettuato il merge di porzioni di blocchi di dimensione uniforme. Viene recuperato il blocco sulla quale lavorare e anche gli estremi da processare. Gli elementi vengono caricati in memoria condivisa e viene effettuato il merge. Infine gli elementi vengono salvati in output
+		\item \textit{copy last block}: nel caso in cui restasse fuori un blocco spaiato questo viene copiato nell'array finale.
+	\end{enumerate} 
+
+%	\subsection{Index to pointers - Merge Trans}
+%	\label{idx-to-pnt-merge}
+%	A differenza di \textit{index to pointers} per lo Scan Trans questa procedura utilizza solamente \textit{inter}, ma è sempre diviso in due:
+%	\begin{itemize}
+%		\item \textit{parallel histogram}: in questo caso abbiamo un numero di thread superiore rispetto al precedente(1024) che opera su una griglia di dimensione fissa. Allineo \textit{inter} sulla porzione di array che sto utilizzando trovando una dimensione costante del blocco ($ len/dimBlock $) e ogni thread dopo aver trovato il valore corretto all'interno dell'indice esegue una \textit{add atomica} sul valore trovato.
+%		\item \textit{vertical scan}: è lo stesso descritto in sezione \ref{idx-to-pnt-scan}\textit{-2}.
+%	\end{itemize}
 	
 	\subsection{Scan}
 	\label{scan}
-	% TODO è roba nostra?
+	Questa procedura è stata divisa come per il merge in base al numero di blocchi sulla quale essa deve essere eseguita:
+	\begin{itemize}
+		\item \textit{scan small}: scan effettuata su blocchi di dimensione minore a quella prefissata,
+		\item \textit{scan even}: scan effettuata su blocchi di dimensione esattamente multipla a quella scelta,
+		\item \textit{scan large}: scan effettutata prima su blocchi di dimensione multilpa (scan even) ed infine scan sui restanti blocchi (scan small).
+	\end{itemize}
 	
 
 \section{Benchmark}
