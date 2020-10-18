@@ -22,13 +22,15 @@ void parallel_histogram_kernel(int INPUT_ARRAY idx, int idx_len, int * inter, in
 }
 
 __global__ 
-void parallel_histogram2_kernel(int INPUT_ARRAY idx, int idx_len, int * inter, int HISTO_ROW_LEN) {
+void parallel_histogram2_kernel(int INPUT_ARRAY idx, int idx_len, int * inter, int HISTO_ROW_LEN, int BLOCK_SIZE = 0) {
     
     int j = blockIdx.x;
     int t = threadIdx.x;
     
     // allineo inter sulla porzione di array che sto usando
-    const int BLOCK_SIZE = DIV_THEN_CEIL(idx_len, HISTOGRAM_BLOCKS);
+    if(BLOCK_SIZE == 0) {
+        BLOCK_SIZE = DIV_THEN_CEIL(idx_len, HISTOGRAM_BLOCKS);
+    }
     const int START = BLOCK_SIZE * j;
     const int END = min(BLOCK_SIZE * (j+1), idx_len);
 
@@ -88,8 +90,39 @@ void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int
     CUDA_CHECK_ERROR
 }
 
+void procedures::cuda::pre_indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int ptr_len, int BLOCK_SIZE) {
+    
+    *inter = utils::cuda::allocate_zero<int>((HISTOGRAM_BLOCKS+1) * (ptr_len+1));
+
+    parallel_histogram2_kernel<<<HISTOGRAM_BLOCKS, 1024>>>(idx, idx_len, *inter, ptr_len+1, BLOCK_SIZE);
+    CUDA_CHECK_ERROR
+}
+
 void procedures::reference::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * ptr, int ptr_len) {
     indexes_to_pointers(idx, idx_len, inter, NULL, ptr, ptr_len);
+}
+
+void procedures::reference::pre_indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** _inter, int ptr_len, int BLOCK_SIZE) {
+
+    int * inter = new int[(HISTOGRAM_BLOCKS+1) * (ptr_len+1)]();
+    *_inter = inter;
+
+    //const int BLOCK_SIZE = DIV_THEN_CEIL(idx_len, HISTOGRAM_BLOCKS);
+    const int HISTO_ROW_LEN = ptr_len;
+
+    // parallel histogram
+    for(int tid = 0; tid < HISTOGRAM_BLOCKS; tid++) {
+
+        const int START_INTER = (tid + 1) * HISTO_ROW_LEN;
+
+        const int OFFSET = tid * BLOCK_SIZE;
+
+        for(int i = 0; i < BLOCK_SIZE && OFFSET + i < idx_len; i++) {
+            int index = START_INTER + idx[OFFSET + i];
+            inter[index]++;
+        }
+    }
+
 }
 
 void procedures::reference::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** _inter, int * intra, int * ptr, int ptr_len) {

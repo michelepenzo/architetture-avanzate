@@ -6,17 +6,22 @@
 #include "utilities.hh"
 #include "matrix.hh"
 
-#define HISTOGRAM_BLOCKS 64
+#ifdef SMALL_CONSTS
 
-#define SCAN_THREAD_PER_BLOCK 512
-#define SCAN_ELEMENTS_PER_BLOCK (2*SCAN_THREAD_PER_BLOCK)
-
-#define SEGSORT_ELEMENTS_PER_BLOCK 128
-
-#define SEGMERGE_SM_SPLITTER_DISTANCE 128
-#define SEGMERGE_SM_MANY_THREADS 128
-
-#define MERGETRANS_BLOCKS 128
+    #define HISTOGRAM_BLOCKS 4
+    #define SCAN_THREAD_PER_BLOCK 512
+    #define SCAN_ELEMENTS_PER_BLOCK (2*SCAN_THREAD_PER_BLOCK)
+    #define SEGSORT_ELEMENTS_PER_BLOCK 2
+    #define SEGMERGE_SM_SPLITTER_DISTANCE 2
+    #define SEGMERGE_SM_MANY_THREADS 2
+#else
+    #define HISTOGRAM_BLOCKS 64
+    #define SCAN_THREAD_PER_BLOCK 512
+    #define SCAN_ELEMENTS_PER_BLOCK (2*SCAN_THREAD_PER_BLOCK)
+    #define SEGSORT_ELEMENTS_PER_BLOCK 128
+    #define SEGMERGE_SM_SPLITTER_DISTANCE 128
+    #define SEGMERGE_SM_MANY_THREADS 128
+#endif
 
 namespace procedures {
 
@@ -25,6 +30,8 @@ namespace procedures {
         void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * intra, int * ptr, int ptr_len);
 
         void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * ptr, int ptr_len);
+
+        void pre_indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int ptr_len, int BLOCK_SIZE);
 
         void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);
     
@@ -54,6 +61,8 @@ namespace procedures {
         void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * intra, int * ptr, int ptr_len);
 
         void indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * ptr, int ptr_len);
+
+        void pre_indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int ptr_len, int BLOCK_SIZE);
 
         void pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len);
 

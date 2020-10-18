@@ -7,15 +7,18 @@
 #include "transposers.hh"
 
 #include "tester_fn.hh"
+#include "tester_matrix.hh"
 
 int main(int argc, char **argv) {
 
+    tester_matrix tx;
     tester_merge tm;
     tester_merge3 tm3;
     
     bool ok = true;
-    ok &= tm3.test_many_instances();
-    ok &= tm.test_many_instances();
+    ok &= tx.test_many_instances();
+    //ok &= tm3.test_many_instances();
+    //ok &= tm.test_many_instances();
 
     std::cout << "ESITO: ";
     std::cout << (ok ? "OK" : "NO") << std::endl;

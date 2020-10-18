@@ -150,6 +150,49 @@ void transposers::scan_csr2csc(
     utils::cuda::deallocate(colPtr);
 }
 
+__global__ 
+void copy_histo_kernel(
+    int * colPtrIn,  int * rowIdxIn,  float * valIn,
+    int * colPtrOut, int * rowIdxOut, float * valOut,
+    int n, int nnz, int BLOCK_SIZE
+) {
+    int i = blockIdx.x;
+
+    int * colPtrA = colPtrIn + 2*i*(n+1);
+    int * colPtrB = colPtrIn + (2*i+1)*(n+1);
+    int * colPtrC = colPtrOut + 2*i*(n+1);
+
+    // sistema i puntatori al blocco di uscita
+    for(int i = 0; i < n+1; i++) {
+        colPtrC[i] = colPtrA[i] + colPtrB[i];
+    }
+
+    int * rowIdxA = rowIdxIn + 2*i*BLOCK_SIZE;
+    int * rowIdxB = rowIdxIn + (2*i+1)*BLOCK_SIZE;
+    int * rowIdxC = rowIdxOut + 2*i*BLOCK_SIZE;
+
+    float * valA = valIn + 2*i*BLOCK_SIZE;
+    float * valB = valIn + (2*i+1)*BLOCK_SIZE;
+    float * valC = valOut + 2*i*BLOCK_SIZE;
+
+    // copia in output i valori corretti di rowIdx e val
+    for(int i = 0; i < n; i++) {
+
+        int sa = colPtrA[i], la = colPtrA[i+1] - sa;
+        int sb = colPtrB[i], lb = colPtrB[i+1] - sb;
+        int sc = colPtrC[i], lc = colPtrC[i+1] - sc;
+
+        //DPRINT_MSG("Col=%d, sa=%d, sb=%d, sc=%d, la=%d, lb=%d, lc=%d", i, sa, sb, sc, la, lb, lc)
+
+        utils::cuda::devcopy<int>(rowIdxC+sc, rowIdxA+sa, la);
+        utils::cuda::devcopy<float>( valC+sc,    valA+sa, la);
+
+        sc = sc + la;
+        utils::cuda::devcopy<int>(rowIdxC+sc, rowIdxB+sb, lb);
+        utils::cuda::devcopy<float>( valC+sc,    valB+sb, lb);
+    }
+}
+
 void transposers::merge_csr2csc(
     int m, int n, int nnz, 
     int* csrRowPtr, int* csrColIdx, float* csrVal, 
@@ -184,12 +227,15 @@ void transposers::merge_csr2csc(
     DPRINT_ARR_CUDA(buffer[1].rowIdx, nnz);
     DPRINT_ARR_CUDA(buffer[1].val,    nnz);
 
-    // 3. merging
+    // 3. i blocchi devono raggiungere dimensione TARGET_BLOCK_SIZE
     DPRINT_MSG("3 ---- merging")
     int full = 1;
     int CURRENT_BLOCK_SIZE = SEGSORT_ELEMENTS_PER_BLOCK;
+#ifdef ALTERNATIVE_MERGETRANS
     int TARGET_BLOCK_SIZE = DIV_THEN_CEIL(nnz, HISTOGRAM_BLOCKS);
-
+#else
+    int TARGET_BLOCK_SIZE = (nnz-1)*2;
+#endif
     DPRINT_MSG("INIT Block Size %d", CURRENT_BLOCK_SIZE)
     DPRINT_ARR_CUDA(buffer[full].colIdx,  nnz);
     DPRINT_ARR_CUDA(buffer[full].rowIdx, nnz);
@@ -212,12 +258,66 @@ void transposers::merge_csr2csc(
         DPRINT_ARR_CUDA(buffer[full].val,    nnz);
     }
 
-    // 4. index to pointers
-    DPRINT_MSG("4 ---- colIdx -> colPtr")
+#ifdef ALTERNATIVE_MERGETRANS
+    // 4. applico index_to_pointers parallelo
+    DPRINT_MSG("Applying index_to_pointers with BLOCK_SIZE=%d", CURRENT_BLOCK_SIZE)
     int * inter;
-    procedures::cuda::indexes_to_pointers(buffer[full].colIdx, nnz, &inter, colPtr, n);
-    procedures::cuda::scan(colPtr, cscColPtr, n+1);
+    procedures::cuda::pre_indexes_to_pointers(buffer[full].colIdx, nnz, &inter, n, CURRENT_BLOCK_SIZE);
+    // debug prints...
+    for(int i = 0; i <= HISTOGRAM_BLOCKS; i++) {
+        DPRINT_ARR_CUDA(inter+i*(n+1), n+1);
+    }
 
+    DPRINT_MSG("Applying scan with BLOCK_SIZE=%d", CURRENT_BLOCK_SIZE)
+    int * inter_out = utils::cuda::allocate_zero<int>((HISTOGRAM_BLOCKS+1) * (n+1));
+    for(int i = 1; i <= HISTOGRAM_BLOCKS; i++) {
+        const int OFFSET = i * (n+1);
+        procedures::cuda::scan(inter + OFFSET, inter_out + OFFSET, n+2);
+    }
+    // debug prints...
+    for(int i = 0; i <= HISTOGRAM_BLOCKS; i++) {
+        DPRINT_ARR_CUDA(inter_out+i*(n+1), n+1);
+    }
+
+    // 5. merging blocks
+    int * interBuffer[2];
+    interBuffer[full] = inter_out;
+    interBuffer[1-full] = inter;
+
+    DPRINT_MSG("Starting with blocks %d of size %d", HISTOGRAM_BLOCKS, CURRENT_BLOCK_SIZE)
+    for(int i = 0; i <= HISTOGRAM_BLOCKS; i++) {
+        DPRINT_ARR_CUDA(interBuffer[full]+i*(n+1), n+1);
+    }
+    DPRINT_ARR_CUDA(buffer[full].rowIdx, nnz)
+    DPRINT_ARR_CUDA(buffer[full].val, nnz)
+
+    for(int blocks = HISTOGRAM_BLOCKS; blocks > 1; blocks /= 2) {
+
+        copy_histo_kernel<<<blocks/2, 1>>>(
+            interBuffer[full],   buffer[full].rowIdx,   buffer[full].val,
+            interBuffer[1-full], buffer[1-full].rowIdx, buffer[1-full].val,
+            n, nnz, CURRENT_BLOCK_SIZE
+        );
+
+        // blocks è sempre multiplo di due tranne quando termino
+
+        full = 1 - full;
+        CURRENT_BLOCK_SIZE *= 2;
+
+        DPRINT_MSG("After 'copy_histo_kernel' blocks are %d of size %d", blocks, CURRENT_BLOCK_SIZE)
+        for(int i = 0; i <= HISTOGRAM_BLOCKS; i++) {
+            DPRINT_ARR_CUDA(interBuffer[full]+i*(n+1), n+1);
+        }
+        DPRINT_ARR_CUDA(buffer[full].rowIdx, nnz)
+        DPRINT_ARR_CUDA(buffer[full].val, nnz)
+    }
+
+    // 6. copia indietro i risultati
+    utils::cuda::copy<int>(interBuffer[full], cscColPtr, n);
+
+    utils::cuda::deallocate(inter);
+    utils::cuda::deallocate(inter_out);
+#endif
     if(full != 1) {
         utils::cuda::copy<int>(cscRowIdx, buffer[full].rowIdx, nnz);
         utils::cuda::copy<float>(cscVal, buffer[full].val, nnz);
@@ -227,7 +327,6 @@ void transposers::merge_csr2csc(
     DPRINT_ARR_CUDA(cscRowIdx, nnz);
     DPRINT_ARR_CUDA(cscVal,    nnz);
 
-    utils::cuda::deallocate(inter);
     utils::cuda::deallocate(colPtr);
     utils::cuda::deallocate(buffer[0].colIdx);
     utils::cuda::deallocate(buffer[1].colIdx);
