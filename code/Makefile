@@ -6,7 +6,7 @@ LOCAL_TEST		= ./test
 MAT_DIR			= /matrices/
 TARGET_CSV      = timing_analysis.csv
 LOCAL_BUILD 	= build
-OBJECT_LIST     = $(LOCAL_BUILD)/transposers.o $(LOCAL_BUILD)/matrix.o $(LOCAL_BUILD)/indexes_to_pointers.o $(LOCAL_BUILD)/pointers_to_indexes.o $(LOCAL_BUILD)/scan.o $(LOCAL_BUILD)/sort.o $(LOCAL_BUILD)/segsort.o $(LOCAL_BUILD)/segmerge_step.o $(LOCAL_BUILD)/segmerge_sm_step.o
+OBJECT_LIST     = $(LOCAL_BUILD)/transposers.o $(LOCAL_BUILD)/matrix.o $(LOCAL_BUILD)/indexes_to_pointers.o $(LOCAL_BUILD)/pointers_to_indexes.o $(LOCAL_BUILD)/scan.o $(LOCAL_BUILD)/sort.o $(LOCAL_BUILD)/segsort.o 
 
 # personalize code considering CUDA version 9 or 11
 NVCC_VERSION    = ${shell nvcc -V | grep -oh "release [0-9]*\." | grep -oh "[0-9]*"}
@@ -41,12 +41,6 @@ $(LOCAL_BUILD)/pointers_to_indexes.o: $(LOCAL_SRC)/pointers_to_indexes.cu
 $(LOCAL_BUILD)/segsort.o: $(LOCAL_SRC)/segsort.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
-$(LOCAL_BUILD)/segmerge_step.o: $(LOCAL_SRC)/segmerge_step.cu
-	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
-
-$(LOCAL_BUILD)/segmerge_sm_step.o: $(LOCAL_SRC)/segmerge_sm_step.cu
-	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
-
 $(LOCAL_BUILD)/sort.o: $(LOCAL_SRC)/sort.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
@@ -54,9 +48,6 @@ $(LOCAL_BUILD)/scan.o: $(LOCAL_SRC)/scan.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 $(LOCAL_BUILD)/transposers.o: $(LOCAL_SRC)/transposers.cu
-	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
-
-$(LOCAL_BUILD)/merge_step.o: $(LOCAL_SRC)/merge_step.cu
 	nvcc $(GENCODE_FLAGS) -I$(LOCAL_INCLUDE) -c $< -o $@
 
 

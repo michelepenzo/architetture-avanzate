@@ -12,7 +12,7 @@ void procedures::cuda::sort(int INPUT_ARRAY input, int * output, int len) {
     // applico merge
     for(int BLOCK_SIZE = SEGSORT_ELEMENTS_PER_BLOCK; BLOCK_SIZE < len; BLOCK_SIZE *= 2) {
         
-        segmerge_sm_step(output_buffer[full], output_buffer[1-full], len, BLOCK_SIZE);
+        merge_step(output_buffer[full], output_buffer[1-full], len, BLOCK_SIZE);
         full = 1 - full;
     }
 
@@ -40,7 +40,12 @@ void procedures::cuda::sort3(int INPUT_ARRAY input, int * output, int len, int I
     // applico merge
     for(int BLOCK_SIZE = SEGSORT_ELEMENTS_PER_BLOCK; BLOCK_SIZE < len; BLOCK_SIZE *= 2) {
         
-        segmerge3_sm_step(output_buffer[full], output_buffer[1-full], len, BLOCK_SIZE, a_buffer[full], a_buffer[1-full], b_buffer[full], b_buffer[1-full]);
+        merge3_step(
+            output_buffer[full], output_buffer[1-full], 
+            a_buffer[full], a_buffer[1-full], 
+            b_buffer[full], b_buffer[1-full],
+            len, BLOCK_SIZE
+        );
         full = 1 - full;
     }
 

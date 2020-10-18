@@ -6,7 +6,6 @@
 #include <string>
 #include "matrix.hh"
 #include "procedures.hh"
-#include "merge_step.hh"
 #include "Timer.cuh"
 using namespace timer;
 

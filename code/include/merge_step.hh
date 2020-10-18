@@ -13,7 +13,7 @@ namespace procedures {
     namespace cuda {
 
         NUMERIC_TEMPLATE(T)
-        __device__ int find_position_in_sorted_array(T element_to_search, T INPUT_ARRAY input, int len) {
+        __device__ inline int find_position_in_sorted_array(T element_to_search, T INPUT_ARRAY input, int len) {
 
             if(len <= 0) {
                 return 0;
@@ -35,7 +35,7 @@ namespace procedures {
         }
 
         NUMERIC_TEMPLATE(T)
-        __device__ int find_last_position_in_sorted_array(T element_to_search, T INPUT_ARRAY input, int len) {
+        __device__ inline int find_last_position_in_sorted_array(T element_to_search, T INPUT_ARRAY input, int len) {
 
             int index = find_position_in_sorted_array(element_to_search, input, len);
             while(input[index] == element_to_search && index < len) {
@@ -45,7 +45,7 @@ namespace procedures {
             return index;
         }
 
-        int calculate_splitter_number(int len, int BLOCK_SIZE) {
+        inline int calculate_splitter_number(int len, int BLOCK_SIZE) {
 
             int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
             int COUPLE_OF_BLOCKS = BLOCK_NUMBER / 2;
@@ -214,7 +214,7 @@ namespace procedures {
         // =================================================================
 
         NUMERIC_TEMPLATE(T)
-        __global__ void generate_splitter_kernel(T INPUT_ARRAY input, T * splitter, int * indexA, int * indexB, int len, int BLOCK_SIZE) {
+        __global__ inline void generate_splitter_kernel(T INPUT_ARRAY input, T * splitter, int * indexA, int * indexB, int len, int BLOCK_SIZE) {
 
             const int couple_block_id = blockIdx.x;
             const int thid = threadIdx.x;
@@ -250,7 +250,7 @@ namespace procedures {
             }
         }
 
-        __global__ void fix_indexes_kernel(int * indexA, int * indexB, int len, int BLOCK_SIZE, int SPLITTER_NUMBER, int SPLITTER_PER_BLOCK) {
+        __global__ inline void fix_indexes_kernel(int * indexA, int * indexB, int len, int BLOCK_SIZE, int SPLITTER_NUMBER, int SPLITTER_PER_BLOCK) {
 
             int couple_block_id = blockIdx.x;
 
@@ -278,7 +278,7 @@ namespace procedures {
         }
 
         NUMERIC_TEMPLATE(T)
-        __global__ void uniform_merge_kernel(T INPUT_ARRAY input, T * output, int INPUT_ARRAY indexA, int INPUT_ARRAY indexB, int len, int BLOCK_SIZE) {
+        __global__ inline void uniform_merge_kernel(T INPUT_ARRAY input, T * output, int INPUT_ARRAY indexA, int INPUT_ARRAY indexB, int len, int BLOCK_SIZE) {
 
             __shared__ T temp_in[2 * MERGE_BIG_SPLITTER_DISTANCE];
             __shared__ T temp_out[2 * MERGE_BIG_SPLITTER_DISTANCE];
@@ -336,7 +336,7 @@ namespace procedures {
         }
 
         NUMERIC_TEMPLATE3(T, T2, T3)
-        __global__ void uniform_merge3_kernel(T INPUT_ARRAY input, T * output, int INPUT_ARRAY indexA, int INPUT_ARRAY indexB, T2 INPUT_ARRAY a_in, T2 * a_out, T3 INPUT_ARRAY b_in, T3 * b_out, int len, int BLOCK_SIZE) {
+        __global__ inline void uniform_merge3_kernel(T INPUT_ARRAY input, T * output, int INPUT_ARRAY indexA, int INPUT_ARRAY indexB, T2 INPUT_ARRAY a_in, T2 * a_out, T3 INPUT_ARRAY b_in, T3 * b_out, int len, int BLOCK_SIZE) {
 
             __shared__ T temp_in[2 * MERGE_BIG_SPLITTER_DISTANCE];
             __shared__ T temp_out[2 * MERGE_BIG_SPLITTER_DISTANCE];
@@ -474,7 +474,7 @@ namespace procedures {
         // =================================================================
 
         NUMERIC_TEMPLATE3(T, T2, T3)
-        void merge3_step(T INPUT_ARRAY input, T * output, T2 INPUT_ARRAY val1_input, T2 * val1_output, T3 INPUT_ARRAY val2_input, T3 * val2_output, int len, int BLOCK_SIZE) {
+        inline void merge3_step(T INPUT_ARRAY input, T * output, T2 INPUT_ARRAY val1_input, T2 * val1_output, T3 INPUT_ARRAY val2_input, T3 * val2_output, int len, int BLOCK_SIZE) {
             
             const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
 
@@ -488,39 +488,48 @@ namespace procedures {
                 const int SPLITTER_PER_BLOCKS = DIV_THEN_CEIL(BLOCK_SIZE, MERGE_BIG_SPLITTER_DISTANCE);
                 const int SPLITTER_NUMBER = calculate_splitter_number(len, BLOCK_SIZE);
 
-                // 1. genera splitter
-                T * splitter = utils::cuda::allocate<T>(SPLITTER_NUMBER);
-                int * indexA = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-                int * indexB = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-                generate_splitter_kernel<T><<<COUPLE_OF_BLOCKS, 1024>>>(input, splitter, indexA, indexB, len, BLOCK_SIZE);
-                CUDA_CHECK_ERROR
-                DPRINT_ARR_CUDA(splitter, SPLITTER_NUMBER)
-                DPRINT_ARR_CUDA(indexA, SPLITTER_NUMBER)
-                DPRINT_ARR_CUDA(indexB, SPLITTER_NUMBER)
+                if(COUPLE_OF_BLOCKS > 0) {
+                    // 1. genera splitter
+                    T * splitter = utils::cuda::allocate<T>(SPLITTER_NUMBER);
+                    int * indexA = utils::cuda::allocate<int>(SPLITTER_NUMBER);
+                    int * indexB = utils::cuda::allocate<int>(SPLITTER_NUMBER);
+                    generate_splitter_kernel<T><<<COUPLE_OF_BLOCKS, 1024>>>(input, splitter, indexA, indexB, len, BLOCK_SIZE);
+                    CUDA_CHECK_ERROR
+                    DPRINT_ARR_CUDA(splitter, SPLITTER_NUMBER)
+                    DPRINT_ARR_CUDA(indexA, SPLITTER_NUMBER)
+                    DPRINT_ARR_CUDA(indexB, SPLITTER_NUMBER)
 
-                // 2. ordina splitters
-                T * splitter_out = utils::cuda::allocate<T>(SPLITTER_NUMBER);
-                int * indexA_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-                int * indexB_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
-                merge3_step<T, int, int>(splitter, splitter_out, 
-                    indexA, indexA_out, 
-                    indexB, indexB_out, 
-                    SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
-                DPRINT_MSG("Splitter per block: %2d", SPLITTER_PER_BLOCKS)
-                DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
-                DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
-                DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
+                    // 2. ordina splitters
+                    T * splitter_out = utils::cuda::allocate<T>(SPLITTER_NUMBER);
+                    int * indexA_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
+                    int * indexB_out   = utils::cuda::allocate<int>(SPLITTER_NUMBER);
+                    merge3_step<T, int, int>(splitter, splitter_out, 
+                        indexA, indexA_out, 
+                        indexB, indexB_out, 
+                        SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
+                    DPRINT_MSG("Splitter per block: %2d", SPLITTER_PER_BLOCKS)
+                    DPRINT_ARR_CUDA(splitter_out, SPLITTER_NUMBER)
+                    DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
+                    DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
 
-                // 3. sistema l'indice finale di ogni blocco di splitter - l'ultimo contiene la lunghezza del blocco
-                fix_indexes_kernel<<<COUPLE_OF_BLOCKS, 1>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
-                CUDA_CHECK_ERROR
-                DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
-                DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
+                    // 3. sistema l'indice finale di ogni blocco di splitter - l'ultimo contiene la lunghezza del blocco
+                    fix_indexes_kernel<<<COUPLE_OF_BLOCKS, 1>>>(indexA_out, indexB_out, len, BLOCK_SIZE, SPLITTER_NUMBER, SPLITTER_PER_BLOCKS);
+                    CUDA_CHECK_ERROR
+                    DPRINT_ARR_CUDA(indexA_out, SPLITTER_NUMBER)
+                    DPRINT_ARR_CUDA(indexB_out, SPLITTER_NUMBER)
 
-                // 4. eseguo il merge di porzioni di blocchi di dimensione uniforme
-                uniform_merge3_kernel<T, T2, T3><<<SPLITTER_NUMBER, 1>>>(input, output, indexA_out, indexB_out, val1_input, val1_output, val2_input, val2_output, len, BLOCK_SIZE);
-                CUDA_CHECK_ERROR
+                    // 4. eseguo il merge di porzioni di blocchi di dimensione uniforme
+                    uniform_merge3_kernel<T, T2, T3><<<SPLITTER_NUMBER, 1>>>(input, output, indexA_out, indexB_out, val1_input, val1_output, val2_input, val2_output, len, BLOCK_SIZE);
+                    CUDA_CHECK_ERROR
 
+                    utils::cuda::deallocate(splitter);
+                    utils::cuda::deallocate(indexA);
+                    utils::cuda::deallocate(indexB);
+                    utils::cuda::deallocate(splitter_out);
+                    utils::cuda::deallocate(indexA_out);
+                    utils::cuda::deallocate(indexB_out);
+                }
+                
                 // 5. eventualmente copio il risultato dell' ultimo blocco di array rimasto spaiato
                 if(BLOCK_NUMBER % 2 == 1) {
                     const int LAST_BLOCK_START = 2 * COUPLE_OF_BLOCKS * BLOCK_SIZE;
@@ -528,18 +537,11 @@ namespace procedures {
                     utils::cuda::copy<T2>(val1_output + LAST_BLOCK_START, val1_input + LAST_BLOCK_START, len - LAST_BLOCK_START);
                     utils::cuda::copy<T3>(val2_output + LAST_BLOCK_START, val2_input + LAST_BLOCK_START, len - LAST_BLOCK_START);
                 }
-
-                utils::cuda::deallocate(splitter);
-                utils::cuda::deallocate(indexA);
-                utils::cuda::deallocate(indexB);
-                utils::cuda::deallocate(splitter_out);
-                utils::cuda::deallocate(indexA_out);
-                utils::cuda::deallocate(indexB_out);
             }
         }
 
         NUMERIC_TEMPLATE(T)
-        void merge_step(T INPUT_ARRAY input, T * output, int len, int BLOCK_SIZE) {
+        inline void merge_step(T INPUT_ARRAY input, T * output, int len, int BLOCK_SIZE) {
 
             const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
 
@@ -602,6 +604,65 @@ namespace procedures {
                 utils::cuda::deallocate(indexB_out);
             }
         }
+    }
+
+    namespace reference {
+
+        NUMERIC_TEMPLATE3(T, T2, T3)
+        inline void merge3_step(T INPUT_ARRAY input, T * output, T2 INPUT_ARRAY a_in, T2 * a_out, T3 INPUT_ARRAY b_in, T3 * b_out, int len, int BLOCK_SIZE) {
+            
+            bool all_three = a_in != NULL && a_out != NULL && b_in != NULL && b_out != NULL;
+            const int BLOCK_NUMBER = DIV_THEN_CEIL(len, BLOCK_SIZE);
+
+            for(int couple_block_id = 0; couple_block_id < DIV_THEN_CEIL(BLOCK_NUMBER, 2); couple_block_id++) {
+
+                DPRINT_MSG("Processing couple_block_id %d\n", couple_block_id)
+
+                int start_1 = 2 * couple_block_id * BLOCK_SIZE;
+                int start_2 = min((2 * couple_block_id + 1) * BLOCK_SIZE, len);
+                int end_1 = min((2 * couple_block_id + 1) * BLOCK_SIZE, len);
+                int end_2 = min((2 * couple_block_id + 2) * BLOCK_SIZE, len);
+
+                DPRINT_MSG("A[%d:%d] B[%d:%d]\n", start_1, end_1, start_2, end_2)
+
+                int current_1 = start_1;
+                int current_2 = start_2;
+                int current_output = start_1;
+                
+                // merge
+                while(current_1 < end_1 && current_2 < end_2) {
+                    if(input[current_1] <= input[current_2]) {
+                        output[current_output] = input[current_1];
+                        if(all_three) a_out[current_output]  = a_in[current_1];
+                        if(all_three) b_out[current_output]  = b_in[current_1];
+                        current_1++;
+                    } else {
+                        output[current_output] = input[current_2];
+                        if(all_three) a_out[current_output]  = a_in[current_2];
+                        if(all_three) b_out[current_output]  = b_in[current_2];
+                        current_2++;
+                    }
+                    current_output++;
+                }
+
+                // finisco le rimanenze del primo blocco
+                utils::copy_array<T>(output + current_output, input + current_1, end_1 - current_1);
+                if(all_three) utils::copy_array<T2>(a_out + current_output, a_in + current_1, end_1 - current_1);
+                if(all_three) utils::copy_array<T3>(b_out + current_output, b_in + current_1, end_1 - current_1);
+
+                // finisco le rimanenze del secondo blocco
+                utils::copy_array<T>(output + current_output, input + current_2, end_2 - current_2);
+                if(all_three) utils::copy_array<T2>(a_out + current_output, a_in + current_2, end_2 - current_2);
+                if(all_three) utils::copy_array<T3>(b_out + current_output, b_in + current_2, end_2 - current_2);
+            }
+        }
+
+        NUMERIC_TEMPLATE(T)
+        inline void merge_step(T INPUT_ARRAY input, T * output, int len, int BLOCK_SIZE) {
+            int * _ = NULL;
+            merge3_step<T, int, int>(input, output, _, _, _, _, len, BLOCK_SIZE); 
+        }
+    
     }
 }
 

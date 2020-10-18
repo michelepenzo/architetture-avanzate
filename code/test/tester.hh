@@ -4,10 +4,10 @@
 #include <chrono>
 #include <thread>
 #include <string>
-#define TESTER_SMALL_INSTANCES_MIN 16
-#define TESTER_SMALL_INSTANCES_MAX 17
-#define TESTER_BIG_INSTANCES_MIN 20'000
-#define TESTER_BIG_INSTANCES_MAX -1
+#define TESTER_SMALL_INSTANCES_MIN 1
+#define TESTER_SMALL_INSTANCES_MAX 20'000
+#define TESTER_BIG_INSTANCES_MIN 0
+#define TESTER_BIG_INSTANCES_MAX 0
 
 class tester {
 

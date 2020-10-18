@@ -180,7 +180,7 @@ void copy_histo_kernel(
 
         int sa = colPtrA[i], la = colPtrA[i+1] - sa;
         int sb = colPtrB[i], lb = colPtrB[i+1] - sb;
-        int sc = colPtrC[i], lc = colPtrC[i+1] - sc;
+        int sc = colPtrC[i];//, lc = colPtrC[i+1] - sc;
 
         //DPRINT_MSG("Col=%d, sa=%d, sb=%d, sc=%d, la=%d, lb=%d, lc=%d", i, sa, sb, sc, la, lb, lc)
 
@@ -197,6 +197,10 @@ void transposers::merge_csr2csc(
     int m, int n, int nnz, 
     int* csrRowPtr, int* csrColIdx, float* csrVal, 
     int* cscColPtr, int* cscRowIdx, float* cscVal) {
+
+    DPRINT_ARR_CUDA(csrRowPtr, m+1);
+    DPRINT_ARR_CUDA(csrColIdx, nnz);
+    DPRINT_ARR_CUDA(csrVal,    nnz);
 
     // alloca lo spazio necessario per effettuare il sort
     struct merge_buffer {
@@ -231,7 +235,7 @@ void transposers::merge_csr2csc(
     DPRINT_MSG("3 ---- merging")
     int full = 1;
     int CURRENT_BLOCK_SIZE = SEGSORT_ELEMENTS_PER_BLOCK;
-    int TARGET_BLOCK_SIZE = DIV_THEN_CEIL(nnz, HISTOGRAM_BLOCKS);
+    int TARGET_BLOCK_SIZE = (nnz-1)*2;
 
     DPRINT_MSG("INIT Block Size %d", CURRENT_BLOCK_SIZE)
     DPRINT_ARR_CUDA(buffer[full].colIdx,  nnz);
@@ -240,11 +244,11 @@ void transposers::merge_csr2csc(
 
     while(CURRENT_BLOCK_SIZE < TARGET_BLOCK_SIZE) {
     
-        procedures::cuda::segmerge3_sm_step(
+        procedures::cuda::merge3_step<int, int, float>(
             buffer[full].colIdx, buffer[1-full].colIdx, 
-            nnz, CURRENT_BLOCK_SIZE, 
             buffer[full].rowIdx, buffer[1-full].rowIdx, 
-            buffer[full].val, buffer[1-full].val
+            buffer[full].val, buffer[1-full].val,
+            nnz, CURRENT_BLOCK_SIZE
         );
     
         full = 1 - full;

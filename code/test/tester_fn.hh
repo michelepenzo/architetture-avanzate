@@ -77,7 +77,7 @@ class tester_merge : public tester_fn<int> {
     }
 
     void call_reference(int * output, int * input, size_t len) {
-        procedures::reference::segmerge_step(input, output, len, BLOCK_SIZE);
+        procedures::reference::merge_step<int>(input, output, len, BLOCK_SIZE);
     }
 
     void call_cuda(int * output, int * input, size_t len) {
@@ -133,11 +133,11 @@ class tester_merge3 : public tester_fn<int> {
     }
 
     void call_reference(int * output, int * input, size_t len) {
-        procedures::reference::segmerge3_step(
+        procedures::reference::merge3_step(
             input, output, 
-            len, BLOCK_SIZE,
             val1_input, ref_val1_output,
-            val2_input, ref_val2_output
+            val2_input, ref_val2_output,
+            len, BLOCK_SIZE
         );
     }
 
