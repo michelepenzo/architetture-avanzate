@@ -95,17 +95,19 @@ void reorder_elements_kernel(
     const int end = min((j+1)*BLOCK_SIZE, nnz);
     const int len = end - start;
 
-    // printf("(%2d): START=%d, LEN=%d\n", j, start, len);
-
     // calcolo la posizione degli elementi
     for(int i = 0; i < len; i++) {
         int cid = csrColIdx[start + i];
         int loc = cscColPtr[cid] + inter[cid] + intra[start + i];
-        cscRowIdx[loc] = csrRowIdx[start + i];
-        cscVal[loc] = csrVal[start + i];
-
-        // printf("(%2d): i=%2d, start+i=%2d, { cid=%2d | colptr=%2d, inter=%d, intra=%2d }-> loc=%2d, csrVal[start+i]=%2.0f, cscVal[loc]=%2.0f\n",
-        //     j, i, start+i, cid, cscColPtr[cid], inter[cid], intra[i], loc, csrVal[start+i], cscVal[loc]);
+        if(loc > nnz) {
+            //printf("(%2d): START=%d, END=%d, LEN=%d\n", j, start, end, len);
+            //printf("start+i=%d\n", start+i);
+            //printf("ERROR loc=%d+%d+%d = %d > %d=NNZ\n", 
+            //cscColPtr[cid], inter[cid], intra[start + i], loc, nnz);
+        } else {
+            cscRowIdx[loc] = csrRowIdx[start + i];
+            cscVal[loc] = csrVal[start + i];
+        }
     }
 }
 
