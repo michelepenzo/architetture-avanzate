@@ -60,7 +60,9 @@ clean:
 run:
 	@rm -f $(TARGET_CSV)
 	@echo "NAME; M; N; NNZ; SERIAL TIME; SCANTRANS TIME; MERGETRANS TIME; CUSPARSE1 TIME; CUSPARSE2 TIME\n" >> $(TARGET_CSV)
-	@./$(EXE) $(MAT_DIR)test1.mtx    	>> $(TARGET_CSV)
+	
+	
+	#@./$(EXE) $(MAT_DIR)test1.mtx    	>> $(TARGET_CSV)
 	#@./$(EXE) $(MAT_DIR)ASIC_680k.mtx 	>> $(TARGET_CSV)
 	#@./$(EXE) $(MAT_DIR)memchip.mtx 	>> $(TARGET_CSV) 
 	#@./$(EXE) $(MAT_DIR)FullChip.mtx 	>> $(TARGET_CSV)
