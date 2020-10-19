@@ -15,9 +15,11 @@ void parallel_histogram_kernel(int INPUT_ARRAY idx, int idx_len, int * inter, in
         int index = idx[i];
         intra[i] = inter[HISTO_ROW_LEN * (j+1) + index];
         inter[HISTO_ROW_LEN * (j+1) + index]++;
-        //printf("(%2d): i=%2d, index=%2d, intra[i]=%2d, inter[index]=%2d\n",
-        //    j, i, index, intra[i], inter[HISTO_ROW_LEN * (j+1) + index]
-        //);
+        //if(END == idx_len && i > 3871769) {
+        //    printf("(%2d): i=%2d, index=%2d, intra[i]=%2d, inter[index]=%2d\n",
+        //        j, i, index, intra[i], inter[HISTO_ROW_LEN * (j+1) + index]
+        //    );
+        //}
     }
 }
 
@@ -71,7 +73,7 @@ void vertical_scan_kernel(int * inter, int * ptr, int HISTO_ROW_LEN) {
 void procedures::cuda::indexes_to_pointers(int INPUT_ARRAY idx, int idx_len, int ** inter, int * intra, int * ptr, int ptr_len) {
 
     *inter = utils::cuda::allocate_zero<int>((HISTOGRAM_BLOCKS+1) * ptr_len);
-
+    
     parallel_histogram_kernel<<<HISTOGRAM_BLOCKS, 1>>>(idx, idx_len, *inter, intra, ptr_len);
     CUDA_CHECK_ERROR
 

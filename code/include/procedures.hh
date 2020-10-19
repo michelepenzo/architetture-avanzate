@@ -6,7 +6,6 @@
 #include "utilities.hh"
 #include "matrix.hh"
 
-#define SMALL_CONSTS
 #ifdef SMALL_CONSTS
 
     #define HISTOGRAM_BLOCKS 4
