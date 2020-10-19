@@ -4,7 +4,7 @@
 #include <chrono>
 #include <thread>
 #include <string>
-#define TESTER_SMALL_INSTANCES_MIN 1
+#define TESTER_SMALL_INSTANCES_MIN 1'000
 #define TESTER_SMALL_INSTANCES_MAX 20'000
 #define TESTER_BIG_INSTANCES_MIN 0
 #define TESTER_BIG_INSTANCES_MAX 0

@@ -8,15 +8,18 @@
 
 #include "tester_fn.hh"
 #include "tester_matrix.hh"
+#include "tester_pti.hh"
 
 int main(int argc, char **argv) {
 
+    tester_pti tpti;
     tester_matrix tx;
     tester_merge tm;
     tester_merge3 tm3;
     
     bool ok = true;
-    ok &= tx.test_many_instances();
+    ok &= tpti.test_many_instances();
+    //ok &= tx.test_many_instances();
     //ok &= tm3.test_many_instances();
     //ok &= tm.test_many_instances();
 
