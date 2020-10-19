@@ -28,8 +28,8 @@
 \section{Introduzione}
 \label{introduzione}
 	% problema e motivazioni
-	Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni che si possano applicare su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come in questo caso.\newline
-	Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per aumentarne l'efficienza. Verranno quindi mostrate le basi per la rappresentazione, i problemi riscontrati durante lo sviluppo e analizzati alcuni algoritmi per il calcolo su \textit{Gpu}.\newline
+	Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni applicabili su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come in questo caso.\newline
+	Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per l'esecuzione in maniera più efficiente e veloce. Verranno quindi mostrate le basi per la rappresentazione, i problemi riscontrati durante lo sviluppo e analizzati alcuni algoritmi per il calcolo su \textit{Gpu}.\newline
 
 
 \section{Rappresentazione delle matrici}
@@ -42,7 +42,7 @@
 	\label{csr}
 	Il \textit{compressed sparse row} è una rappresentazione di una matrice $ M $ basata su tre array monodimensionali, che rispettivamente contengono:
 	\begin{enumerate}
-		\item \textit{V}: i valori \textit{nnz},
+		\item \textit{V}: i valori non zero (\textit{nnz}),
 		\item \textit{COL\_INDEX}: gli indici delle colonne dove si trovano gli elementi \textit{nnz},
 		\item \textit{ROW\_INDEX}: ha un elemento per ogni riga della matrice e rappresenta l'indice in $ V $ dove comincia la riga data.
 	\end{enumerate}
@@ -50,11 +50,11 @@
 	
 	\subsection{Formato Csc}
 	\label{csc}
- 	Questa metodologia per la rappresentazione è simile alla sopra citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e i puntatori di colonna vengono memorizzati.
+ 	Questa metodologia per la rappresentazione è simile alla precedente citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e lo stesso viene fatto per i puntatori di colonna .
  	
 	\subsection{Da Csr a Csc}
 	\label{csr-to-csc}
- 	Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Infatti, ogni algoritmo  descritto in sezione~\ref{metodologie}, necessita di sei array per effettuare il calcolo della trasposta e ritornare l'output in modo corretto. Abbiamo quindi:
+ 	Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Infatti, ogni algoritmo  descritto in sezione~\ref{metodologie}, necessita di sei array per effettuare il calcolo della trasposta e dare l'output nella tipologia corretta. Abbiamo quindi:
  	\begin{itemize}
  		\item in input il formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
  		\item in output il formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
@@ -70,11 +70,12 @@
 	
 \section{Struttura dell'implementazione} 
 \label{struttura}
-	L'implementazione è stata sviluppata utilizzando come supporto il tool \textit{Git}. È stata creata una repository, descritta nella sezione successiva, per poter controllare in modo efficiente lo svilupparsi del progetto. 
-	% TODO sistemare newpage
-	\newpage
+	L'implementazione è stata sviluppata utilizzando come supporto il tool \textit{Git}. È stata creata una repository, descritta nella sezione successiva, per poter controllare in modo efficiente lo svilupparsi del progetto. \newline
+	
+	\noindent Link repo: 	\href{https://github.com/michelepenzo/architetture-avanzate}{github.com/michelepenzo/architetture-avanzate}\newline
+	
 	\subsection{Struttura delle directory}
-	La struttura delle direcotry è rispecchiata nel seguente schema:
+	La struttura delle directory è rispecchiata nel seguente schema:
 	\dirtree{%
 		.1 root.
 			.2 doc.
@@ -84,8 +85,9 @@
 					.4 {$ *$.mtx }.
 				.3 {include}.
 					.4 {matrix.hh}.
+					.4 {merge\_step.hh}.
 					.4 {procedures.hh}.
-					.4 {transposer.hh}.
+					.4 {transposers.hh}.
 					.4 {Timer.$ * $}.
 					.4 {utilities.hh}.
 				.3 {src}.
@@ -95,6 +97,7 @@
 				.3 {test}.	
 					.4 {test\_main.cu}.
 				.3 Makefile.			
+				.3 {timing\_analysis.csv}.			
 			.2 README.md.
 	}
 	\mbox{}
@@ -105,8 +108,9 @@
 		\item costruzione della matrice densa: \textit{class FullMatrix}.
 	\end{enumerate}
 	Il file \texttt{procedures.hh} contiene tutte le procedure descritte in sezione~\ref{procedure} ed è diviso in due \texttt{namespace}. Essi riferiscono all'implementazione effettuta, ovvero \textit{cuda} o \textit{reference}(seriale).\newline
-	È presente inoltre il file \texttt{transposers.hh} che funge da ``wrapper'' per le implementazioni quattro descritte nella prossima sezione.\newline
-	Infine abbiamo il timer e un file che contiene tutte le funzioni utilizzate utili per debug, stampa, allocazione e deallocazione, generazione dei valori random, controllo errori e molto altro.\newline
+	È presente inoltre il file \texttt{transposers.hh} che funge da ``wrapper'' per le quattro implementazioni descritte nella prossima sezione.\newline
+	Un'altro file è il \texttt{merge\_step.hh} che contiene tutte le implementazioni del \textit{segmented merge descritto} in \ref{seg-merge}.\newline
+	Infine abbiamo il timer e un file che contiene tutte le funzioni utilizzate utili per debug, stampa, allocazione e deallocazione, generazione dei valori random, controllo errori e altro.\newline
 	
 	All'interno della direcotry \textit{src} abbiamo tutte le implementazioni delle procedure cuda utilizzate nel progetto, oltre che al file \texttt{transposers.cu} che contiene le implementazioni descritte in~\ref{metodologie}.\newline
 	Infine è presente il \texttt{main.cu}, che si occupa di eseguire tutte le metodologie implementate.\newline
@@ -115,7 +119,7 @@
 	
 	\subsection{Test delle componenti}	
 	Per le singole componenti(scan, sort, index to pointers ...) è stato implementato un'altro eseguibile. Lanciando il comando \textit{make test} viene eseguito l'applicativo che effettuta il test prima per piccole istanze e poi per grandi istanze. Cosi facendo tutte le componenti vengono testate con diversi valori.\newline
-	La singola componente del programma viene quindi eseguita sia con la sua implementazione seriale, sia con quella in parallelo. Cosi facendo è stato più semplice testare le singole componenti e successivamente, dopo aver effettuato dei test complessi ed averli superati a parte, è risultato più semplice unire il tutto per ottenere l'implementazione finale.
+	La singola componente del programma viene quindi eseguita sia con la sua implementazione seriale, sia con quella in parallelo. Tramite questa modalità stato più semplice testare le singole componenti e successivamente, dopo aver effettuato dei test complessi ed averli superati a parte, è risultato più semplice unire il tutto per ottenere l'implementazione finale.
 	
 	\subsection{Applicativo finale}
 	\label{applicativo-finale}
@@ -124,7 +128,7 @@
 	Il file eseguibile può essere eseguito passando:
 	\begin{itemize}
 		\item un valore (\textit{file.mtx}): esegue le metodolgie su una matrice sparsa caricata da file,
-		\item tre valori (\textit{m n nnz}): prende tre valori e genera casualmente la matrice sparsa,
+		\item tre valori (\textit{m n nnz}): prende i tre valori classici per la creazione della matrice e genera casualmente la matrice sparsa delle dimensioni richieste,
 		\item nessun valore: matrice generate casualmente con valori fissi.
 	\end{itemize}
 	Alla fine le tempistiche vengono concatenate all'interno del file \textit{timing\_analysis.csv} per effettuarne una migliore lettura.
@@ -135,13 +139,14 @@
 	In questa sezione vengono spiegate ed evidenziate le differenze tra le varie metodologie analizzate. 
 		
 	\subsection{Trasposta seriale}
-	La prima metodologia descritta è quella seriale. Sempre a partire dalla rappresentazione in formato \textit{csr} della matrice iniziale l'algoritmo crea un array di elementi, dove per ogni colonna della matrice analizzata conta quanti elementi \textbf{nnz} ci sono. Possiamo definire questo array come un istogramma delle frequenze degli elementi delle colonne. Viene quindi applicato un algoritmo seriale di \textit{prefix\_sum} su questo array, che conterrà ora i valori corretti di \textbf{cscColPtr}. Infine gli indici di riga e i valori nel nuovo formato \textit{csc} vengono sistemati.\newline
+%	La prima metodologia descritta è quella seriale. Sempre a partire dalla rappresentazione in formato \textit{csr} della matrice iniziale l'algoritmo crea un array di elementi, dove per ogni colonna della matrice analizzata conta quanti elementi \textbf{nnz} ci sono. Possiamo definire questo array come un istogramma delle frequenze degli elementi delle colonne. 
+	La prima metodologia descritta è quella seriale. Sempre a partire dalla rappresentazione in formato \textit{csr} della matrice iniziale l'algoritmo ottiene i puntatori alle colonne (formato csc) a partire dagli indici di colonna (formato csr). Viene quindi applicato un algoritmo seriale di \textit{prefix\_sum} su questo array, per ottenere i valori corretti di \textbf{cscColPtr}. Infine gli indici di riga e i valori nel nuovo formato \textit{csc} vengono sistemati.\newline
 	Questa implementazione servirà come base sulla quale verranno eseguiti i controlli degli algoritmi successivamente implementati.
 	
 	\subsection{Nvidia cuSPARSE}
-	Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per le operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici, ed inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.\newline	
+	Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici. Supporta inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.\newline	
 	Il codice è stato sviluppato partendo dalla guida \cite{cusparse} ed è diviso in due versioni di cuSPARSE a causa delle Gpu utilizzate. In fase di compilazione viene quindi controllata la versione usata: $ 9 $ o $ 10 $.\newline
-	Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, come l'allocazione dello spazio necessario oltre all'allocazione del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.\newline
+	Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, come l'allocazione dello spazio necessario per l'esecuzione di cuSparse oltre all'allocazione del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.\newline
 	Infine viene chiamata la procedura che effettua il calcolo della trasposta. Nel caso in cui la versione di cuSPARSE sia la $ 10 $ viene richiesto come ulteriore parametro l'algoritmo da utilizzare.\newline
 	Dopo essere state eseguite entrambe ritornano i valori ottenuti in formato \textit{csc}.
 
@@ -160,15 +165,15 @@
 		\item reorder elements: \ref{reoder-elem}.
 	\end{enumerate}
 	
-	\begin{figure}[h!]
-		\includegraphics[scale=0.8]{scantrans.png}
-		\label{scantrans}
+	\begin{figure}[H]
+		\includegraphics[scale=0.6]{scantrans.png}
 		\caption{Scan Trans, esempio utilizzato in \cite{parallelTrans}.}
+		\label{scantrans}
 	\end{figure}
 	
 	\subsection{MergeTrans}
 	L'algoritmo considerato prevede due passi importanti: \textit{sort} e \textit{merge}.
-	Inizialmente sono stati creati gli indici di riga a partire dai puntatori delle colonne e su questi ultimi è stato fatto un sort su piccole porzioni di array, mantenendo quindi i vari blocchi disordinati tra di loro ma con gli elementi ordinati. Successivamente, utilizzando è stato il merge ricorsivo, partendo dai blocchi più piccoli, unendoli in blocchi sempre più grandi. Per funzionare questo processo necessita dell'utilizzo di due buffer di memoria che contengono gli elementi appena ordinati. Infine dai puntatori delle colonne vengono estretti gli indici e viene fatta la scan che ritorna il risultato in formato \textit{csc}. \newline
+	Inizialmente sono stati creati gli indici di riga a partire dai puntatori delle colonne e su questi ultimi è stato fatto un sort su piccole porzioni di array, mantenendo quindi i vari blocchi disordinati tra di loro ma con gli elementi ordinati. Successivamente è stato utilizzato il merge ricorsivo partendo dai blocchi più piccoli e unendoli in blocchi sempre più grandi. Per funzionare questo processo necessita dell'utilizzo di due buffer di memoria che contengono gli elementi appena ordinati. Infine dai puntatori delle colonne vengono estraxtti gli indici e viene fatta la scan che ritorna il risultato in formato \textit{csc}. \newline
 	Anche in questo caso le procedure utilizzate si trovano in sezione \ref{procedure}, e sono ordinatamente eseguite come segue:
 	\begin{enumerate}
 		\item pointers to index: \ref{pnt-to-idx},
@@ -179,28 +184,39 @@
 	\end{enumerate}
 	
 	\begin{figure}[H]
-		\includegraphics[scale=0.8]{mergetrans.png}
-		\label{mergetrans}
+		\includegraphics[scale=0.6]{mergetrans.png}
 		\caption{Merge Trans, esempio utilizzato in \cite{parallelTrans}.}
+		\label{mergetrans}
 	\end{figure}
 	
 
 \section{Procedure Cuda}
 \label{procedure}
-% tutte le versioni x2 e x3
+
 	In questa sezione vengono descritte le procedure Cuda principali che sono state utilizzate nelle implementazioni di \textit{Scan Trans} e \textit{Merge Trans}.
 
 	\subsection{Pointers to index}
 	\label{pnt-to-idx}
-	Questa procedura prende in input l'array dei puntatori alle righe, e come dice il nome, crea un'array degli indici di riga. Quindi ad ogni thread viene assegnato un valore di \textit{csrRowPtr} e per ognuno di questi calcola inizio e fine e crea il nuovo array.
+	Questa procedura prende in input l'array dei puntatori alle righe e crea un'array degli indici di riga. Quindi ad ogni thread viene assegnato un valore di \textit{csrRowPtr} e per ognuno di questi calcola inizio e fine e crea il nuovo array.
+	
+%	\begin{figure}[H]
+%		\includegraphics[scale=0.3]{idx-to-pnt.png}
+%		\caption{Esempio di Pointers to Index.}
+%	\end{figure}
+	
 	
 	\subsection{Index to pointers}
 	\label{idx-to-pnt}
 	Lo scopo di questa procedura è quello di trasfore l'array \textit{csrColIdx} in \textit{colPtr}. Esegue quindi il passo \circled{1} e \circled{2} in figura~\ref{scantrans}:
 	\begin{enumerate}
-		\item \textit{parallel histogram}: una thread per blocco(dimensione fissa) si occupa della costruzione degli array multidimensionali \textit{inter} e \textit{intra}. Quindi ogni blocco di thread prende un valore, e data la posizione all'interno di \textit{csrColIdx} salva nella posizione corretta i nuovi valori all'interno di inter e intra.
+		\item \textit{parallel histogram}: una thread per blocco (dimensione fissa) si occupa della costruzione degli array multidimensionali \textit{inter} e \textit{intra}. Quindi ogni blocco di thread prende un valore e data la posizione all'interno di \textit{csrColIdx} salva nella posizione corretta i nuovi valori all'interno di inter e intra.
 		\item \textit{vertical scan}: per ogni blocco verticale all'interno di \textit{inter} esegue una scan parallela e salva il risultato all'interno di una matrice chiamata \textit{colPtr}.
 	\end{enumerate}
+
+%	\begin{figure}[H]
+%		\includegraphics[scale=0.3]{pnt-to-idx.png}
+%		\caption{Esempio di Index to Pointers.}
+%	\end{figure}
 
 	\subsection{Reorder elements}
 	\label{reoder-elem}
@@ -209,24 +225,35 @@
 
 	\subsection{Segmented sort}
 	\label{seg-sort}
-	Questa procedura, che chiama il relativo kernel, funziona passando come parametri un numero definito a priori (e.g. 128) che opera su blocchi di dimensione fissa anch'essi di $ len/n\_threads $, dove \textit{len} sta per nnz ovvero la dimensione di \textit{colIdx}.\newline
+	Questa procedura, che chiama il relativo kernel, funziona passando come parametri un numero definito a priori di thread che opera su blocchi di dimensione fissa anch'essi di $ len/n\_threads $, dove \textit{len} sta per nnz ovvero la dimensione di \textit{colIdx}.\newline
 	Anche se il concetto è lo stesso la procedura viene divisa in due per semplificare il procedimento:
 	\begin{itemize}
-		\item \textit{segsort}: opera solamente su un array in input. Il kernel è stato sviluppato per funzionare con la \textit{shared memory}, quindi abbiamo un array temporaneo condiviso tra le thread. Ogni thread lavora su un elemento del blocco, priva vengono caricati i valori nella shared memory, poi viene trovata la posizione corretta all'interno dell'array non ordinato passato in input tenendo conto dei duplicati. Dopo aver trovato la posizione, il valore viene salvato nella posizione corretta all'interno della shared memory e infine salvato nel vettore di output-
+		\item \textit{segsort}: opera solamente su un array in input. Il kernel è stato sviluppato per funzionare con la \textit{shared memory}, quindi abbiamo un array temporaneo condiviso tra le thread. Ogni thread lavora su un elemento del blocco, prima vengono caricati i valori nella shared memory, poi viene trovata la posizione corretta all'interno dell'array non ordinato passato in input tenendo conto dei duplicati. Dopo aver trovato la posizione, il valore viene salvato nella posizione corretta all'interno della shared memory e infine salvato nel vettore di output.
 		\item \textit{segsort3}: il concetto è lo stesso ma opera su 3 array in input.
 	\end{itemize}
+	
+%	\begin{figure}[H]
+%		\includegraphics[scale=0.3]{segsort.png}
+%		\caption{Esempio di Segmented sort.}
+%	\end{figure}
 	
 	\subsection{Segmented merge}
 	\label{seg-merge}
 
-	Il merge qui spiegato è stato realizzato tenendo conto della dimensione dei blocchi da analizzare ed è stato realizzato usando i template. Nel caso in cui abbiamo blocchi di piccola dimensione, se questi stanno in memoria condivisa, allora viene chiamato \textit{merge small} e viene fatto il classico merge. Nel caso in cui questi fossero di dimensione maggiore e non si riesca ad allocare una quantità cosi alta di memoria condivisa vengono chiamate in sequenza le seguenti procedure:
+	Il merge è stato realizzato tenendo conto della dimensione dei blocchi da analizzare ed è stato realizzato usando i template. Nel caso in cui abbiamo blocchi di piccola dimensione questi riescono ad essere allocati in memoria condivisa, allora viene chiamato \textit{merge small} e viene fatto il classico merge. Nel caso in cui questi fossero di dimensione maggiore e non si riesca ad allocare una quantità così alta di memoria condivisa vengono chiamate in sequenza le seguenti procedure sue due array \textit{A} e \textit{B}:
 	\begin{enumerate}
-		\item \textit{generate splitter}: si occupa di cercare dei valori detti splitter. Quindi ogni \textit{splitter\_distance} repnde un elemento all'interno degli array A e B, dopodichè cerca gli indici corretti degli splitter tenendo conto dei duplicati e quindi delle posizioni corrette all'interno dell'array iniziale. Infine gli splitter e gli indici di posizione vengono salvati e dati in output.
+		\item \textit{generate splitter}: si occupa di cercare dei valori detti splitter. Quindi ogni \textit{splitter\_distance} (costante decisa a priori) prende un elemento all'interno degli array A e B, dopodichè cerca gli indici corretti degli splitter tenendo conto dei duplicati e quindi delle posizioni corrette all'interno dell'array iniziale. Infine gli splitter e gli indici di posizione vengono salvati e dati in output.
 		\item \textit{merge3 step}: si occupa dell'ordinamento degli splitter e lo effettua ricorsivamente rieseguendo i passi descritti in questo elenco. Dopo aver ottenuti tutti i blocchi ordinati prosegue con il passo successivo.
 		\item \textit{fix indexes}: viene quindi sitemato l'indice finale di ogni blocco di splitter. Questo valore contiene la lunghezza del blocco, quindi ogni thread si occupa di sistemare una coppia di blocchi alla volta.
 		\item \textit{uniform merge}: viene effettuato il merge di porzioni di blocchi di dimensione uniforme. Viene recuperato il blocco sulla quale lavorare e anche gli estremi da processare. Gli elementi vengono caricati in memoria condivisa e viene effettuato il merge. Infine gli elementi vengono salvati in output
 		\item \textit{copy last block}: nel caso in cui restasse fuori un blocco spaiato questo viene copiato nell'array finale.
 	\end{enumerate} 
+
+%	\begin{figure}[H]
+%		\includegraphics[scale=0.3]{segmerge.png}
+%		\caption{Esempio di Segmented merge.}
+%	\end{figure}
+
 
 %	\subsection{Index to pointers - Merge Trans}
 %	\label{idx-to-pnt-merge}
@@ -244,13 +271,19 @@
 		\item \textit{scan even}: scan effettuata su blocchi di dimensione esattamente multipla a quella scelta,
 		\item \textit{scan large}: scan effettutata prima su blocchi di dimensione multilpa (scan even) ed infine scan sui restanti blocchi (scan small).
 	\end{itemize}
+	% algoritmo di blelloch
+	\begin{figure}[H]
+		\includegraphics[scale=0.3]{scan.png}
+		\caption{Parallel scan: algoritmo di Blelloch.}
+	\end{figure}
 	
 
 \section{Benchmark}
 \label{benchmark}
-	Tutti i test sono stati effettuati sulle macchine locali e sul server Cuda01, quindi testati con diverse versioni di Cuda e come detto precedentemente anche di cuSPARSE. Le Gpu utilizzate sono:
+	Tutti i test sono stati effettuati sulle macchine locali e sul server Cuda01, quindi testati con diverse versioni di Cuda e di cuSPARSE.\newline
+	Le Gpu utilizzate sono:
 	\begin{itemize}
-		\item macchina locale:	% TODO che gpu?
+		\item macchina locale:% TODO che gpu?
 		\item server cuda01:
 	\end{itemize}
 	Per la fase di test dell'implementazione sono state utilizzate principalmente due tipologie di matrici.
@@ -267,6 +300,13 @@
 	% file csv
 	% tabellone con speedup
 	
+%	\begin{table}[]
+%		\begin{tabular}{lllllllll}
+%			Name & M & N & NNZ & Serial & Scan Trans & Merge Trans & Cusparse 1 & Cusparse 2 \\
+%			&   &   &     &        &            &             &            &            \\
+%			&   &   &     &        &            &             &            &           
+%		\end{tabular}
+%	\end{table}
 	
 \section{Conclusioni}
 \label{conclusioni}
