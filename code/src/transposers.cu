@@ -5,7 +5,7 @@ void transposers::serial_csr2csc(
     int* csrRowPtr, int* csrColIdx, float* csrVal, 
     int* cscColPtr, int* cscRowIdx, float* cscVal) {
     
-    int* curr = new int[n](); // array inizializzato con tutti '0'
+    int* curr = new int[n+1](); // array inizializzato con tutti '0'
 
     DPRINT_MSG("Reference")
     DPRINT_ARR(csrRowPtr, m+1)
@@ -15,18 +15,23 @@ void transposers::serial_csr2csc(
     // 1. costruisco `cscColPtr` come istogramma delle frequenze degli elementi per ogni colonna
     for(int i = 0; i < m; i++) {
         for(int j = csrRowPtr[i]; j < csrRowPtr[i+1]; j++) {
-            cscColPtr[csrColIdx[j]+1]++;
+            int index = csrColIdx[j];
+            cscColPtr[index]++;
         }
     }
+
     // 2. applico prefix_sum per costruire corretto `cscColPtr` (ogni cella tiene conto dei precedenti)
-    for(int i = 1; i < n+1; i++) {
-        cscColPtr[i] += cscColPtr[i-1];
-    }
+    utils::prefix_sum(cscColPtr, n+1);
+
     // 3. sistemo indici di riga e valori
     for(int i = 0; i < m; i++) {
         for(int j = csrRowPtr[i]; j < csrRowPtr[i+1]; j++) {
             int col = csrColIdx[j];
             int loc = cscColPtr[col] + curr[col];
+            if(loc > nnz) {
+                printf("ERROR i=%d j=%d from %d to %d\n", i, j, csrRowPtr[i], csrRowPtr[i+1]);
+                printf("loc=%d+%d=%d>%d=NNZ\n", cscColPtr[col], curr[col], loc, nnz);
+            }
             curr[col]++;
             cscRowIdx[loc] = i;
             cscVal[loc] = csrVal[j];
