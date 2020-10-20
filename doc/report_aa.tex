@@ -1,12 +1,24 @@
 \documentclass[]{IEEEtran}
 
 \usepackage[italian]{babel}
+\usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage[export]{adjustbox}
 \usepackage{dirtree}
 \usepackage{hyperref}
 \usepackage{tikz}
+
+% tabella dei risultati
+\usepackage{array}
+\usepackage{siunitx}
+\usepackage{booktabs}
+
+\newcommand{\ScanTrans}{\textrm{ScanTrans} }
+\newcommand{\MergeTrans}{\textrm{MergeTrans} }
+\newcommand{\BlockSize}{\textrm{BLOCK\_SIZE} }
+\newcommand{\SplitterDistance}{\textrm{SP\_DIST} }
+
 
 \graphicspath{{figures/}} 	
 
@@ -189,94 +201,8 @@
 		\label{mergetrans}
 	\end{figure}
 	
-
-\section{Procedure Cuda}
-\label{procedure}
-
-	In questa sezione vengono descritte le procedure Cuda principali che sono state utilizzate nelle implementazioni di \textit{Scan Trans} e \textit{Merge Trans}.
-
-	\subsection{Pointers to index}
-	\label{pnt-to-idx}
-	Questa procedura prende in input l'array dei puntatori alle righe e crea un'array degli indici di riga. Quindi ad ogni thread viene assegnato un valore di \textit{csrRowPtr} e per ognuno di questi calcola inizio e fine e crea il nuovo array.
-	
-%	\begin{figure}[H]
-%		\includegraphics[scale=0.3]{idx-to-pnt.png}
-%		\caption{Esempio di Pointers to Index.}
-%	\end{figure}
-	
-	
-	\subsection{Index to pointers}
-	\label{idx-to-pnt}
-	Lo scopo di questa procedura è quello di trasfore l'array \textit{csrColIdx} in \textit{colPtr}. Esegue quindi il passo \circled{1} e \circled{2} in figura~\ref{scantrans}:
-	\begin{enumerate}
-		\item \textit{parallel histogram}: una thread per blocco (dimensione fissa) si occupa della costruzione degli array multidimensionali \textit{inter} e \textit{intra}. Quindi ogni blocco di thread prende un valore e data la posizione all'interno di \textit{csrColIdx} salva nella posizione corretta i nuovi valori all'interno di inter e intra.
-		\item \textit{vertical scan}: per ogni blocco verticale all'interno di \textit{inter} esegue una scan parallela e salva il risultato all'interno di una matrice chiamata \textit{colPtr}.
-	\end{enumerate}
-
-%	\begin{figure}[H]
-%		\includegraphics[scale=0.3]{pnt-to-idx.png}
-%		\caption{Esempio di Index to Pointers.}
-%	\end{figure}
-
-	\subsection{Reorder elements}
-	\label{reoder-elem}
-	Ogni thread si occupa di riordinare un blocco di elementi di dimensione fissa. Viene calcolato l'\textit{id} all'interno di \textit{csrColIdx}, dopodichè calcolata la posizione all'interno di \textit{csrColIdx}, \textit{inter} e \textit{intra} e viene posizionato il valore preso in \textit{cscRowIdx} e \textit{cscVal}. 
-	Questa è l'ultima procedura che viene utilizzata in \textit{Scan Trans}, infatti si può notare che restituisce due array in formato csc.
-
-	\subsection{Segmented sort}
-	\label{seg-sort}
-	Questa procedura, che chiama il relativo kernel, funziona passando come parametri un numero definito a priori di thread che opera su blocchi di dimensione fissa anch'essi di $ len/n\_threads $, dove \textit{len} sta per nnz ovvero la dimensione di \textit{colIdx}.\newline
-	Anche se il concetto è lo stesso la procedura viene divisa in due per semplificare il procedimento:
-	\begin{itemize}
-		\item \textit{segsort}: opera solamente su un array in input. Il kernel è stato sviluppato per funzionare con la \textit{shared memory}, quindi abbiamo un array temporaneo condiviso tra le thread. Ogni thread lavora su un elemento del blocco, prima vengono caricati i valori nella shared memory, poi viene trovata la posizione corretta all'interno dell'array non ordinato passato in input tenendo conto dei duplicati. Dopo aver trovato la posizione, il valore viene salvato nella posizione corretta all'interno della shared memory e infine salvato nel vettore di output.
-		\item \textit{segsort3}: il concetto è lo stesso ma opera su 3 array in input.
-	\end{itemize}
-	
-%	\begin{figure}[H]
-%		\includegraphics[scale=0.3]{segsort.png}
-%		\caption{Esempio di Segmented sort.}
-%	\end{figure}
-	
-	\subsection{Segmented merge}
-	\label{seg-merge}
-
-	Il merge è stato realizzato tenendo conto della dimensione dei blocchi da analizzare ed è stato realizzato usando i template. Nel caso in cui abbiamo blocchi di piccola dimensione questi riescono ad essere allocati in memoria condivisa, allora viene chiamato \textit{merge small} e viene fatto il classico merge. Nel caso in cui questi fossero di dimensione maggiore e non si riesca ad allocare una quantità così alta di memoria condivisa vengono chiamate in sequenza le seguenti procedure sue due array \textit{A} e \textit{B}:
-	\begin{enumerate}
-		\item \textit{generate splitter}: si occupa di cercare dei valori detti splitter. Quindi ogni \textit{splitter\_distance} (costante decisa a priori) prende un elemento all'interno degli array A e B, dopodichè cerca gli indici corretti degli splitter tenendo conto dei duplicati e quindi delle posizioni corrette all'interno dell'array iniziale. Infine gli splitter e gli indici di posizione vengono salvati e dati in output.
-		\item \textit{merge3 step}: si occupa dell'ordinamento degli splitter e lo effettua ricorsivamente rieseguendo i passi descritti in questo elenco. Dopo aver ottenuti tutti i blocchi ordinati prosegue con il passo successivo.
-		\item \textit{fix indexes}: viene quindi sitemato l'indice finale di ogni blocco di splitter. Questo valore contiene la lunghezza del blocco, quindi ogni thread si occupa di sistemare una coppia di blocchi alla volta.
-		\item \textit{uniform merge}: viene effettuato il merge di porzioni di blocchi di dimensione uniforme. Viene recuperato il blocco sulla quale lavorare e anche gli estremi da processare. Gli elementi vengono caricati in memoria condivisa e viene effettuato il merge. Infine gli elementi vengono salvati in output
-		\item \textit{copy last block}: nel caso in cui restasse fuori un blocco spaiato questo viene copiato nell'array finale.
-	\end{enumerate} 
-
-%	\begin{figure}[H]
-%		\includegraphics[scale=0.3]{segmerge.png}
-%		\caption{Esempio di Segmented merge.}
-%	\end{figure}
-
-
-%	\subsection{Index to pointers - Merge Trans}
-%	\label{idx-to-pnt-merge}
-%	A differenza di \textit{index to pointers} per lo Scan Trans questa procedura utilizza solamente \textit{inter}, ma è sempre diviso in due:
-%	\begin{itemize}
-%		\item \textit{parallel histogram}: in questo caso abbiamo un numero di thread superiore rispetto al precedente(1024) che opera su una griglia di dimensione fissa. Allineo \textit{inter} sulla porzione di array che sto utilizzando trovando una dimensione costante del blocco ($ len/dimBlock $) e ogni thread dopo aver trovato il valore corretto all'interno dell'indice esegue una \textit{add atomica} sul valore trovato.
-%		\item \textit{vertical scan}: è lo stesso descritto in sezione \ref{idx-to-pnt-scan}\textit{-2}.
-%	\end{itemize}
-	
-	\subsection{Scan}
-	\label{scan}
-	Questa procedura è stata divisa come per il merge in base al numero di blocchi sulla quale essa deve essere eseguita:
-	\begin{itemize}
-		\item \textit{scan small}: scan effettuata su blocchi di dimensione minore a quella prefissata,
-		\item \textit{scan even}: scan effettuata su blocchi di dimensione esattamente multipla a quella scelta,
-		\item \textit{scan large}: scan effettutata prima su blocchi di dimensione multilpa (scan even) ed infine scan sui restanti blocchi (scan small).
-	\end{itemize}
-	% algoritmo di blelloch
-	\begin{figure}[H]
-		\includegraphics[scale=0.3]{scan.png}
-		\caption{Parallel scan: algoritmo di Blelloch.}
-	\end{figure}
-	
+% Inserimento sezione delle procedure
+\input{procedure}
 
 \section{Benchmark}
 \label{benchmark}
