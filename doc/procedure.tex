@@ -1,4 +1,4 @@
-\clearpage
+
 \section{Procedure}
 
 I due algoritmi \ScanTrans e \MergeTrans vengono scomposti in diversi componenti, ognuno dei quali viene valutato nelle performance e testato separatamente. 
@@ -59,9 +59,16 @@ In questo caso una coppia di blocchi rientra completamente nella shared memory. 
 
 In questo caso la posizione dell'$i$-esimo elemento del blocco di sinistra è $i+j$ con $j$ posizione dell'elemento all'interno del blocco di destra, trovato attraverso una ricerca binaria in quanto i blocchi sono ordinati (differentemente da quanto avviene per il segmented sort). Analogamente lo stesso avviene per gli elementi del blocco di destra. 
 
-A parità di valore, gli elementi del blocco di destra dopo quelli di sinistra. 
+A parità di valore, gli elementi del blocco di sinistra hanno indice minore di quelli di destra. 
 
 \subsection{Merge big}
+
+\begin{figure}[t]
+    \centering
+	\includegraphics[scale=0.3]{merge_big.png}
+	\caption{Merge big}
+	\label{merge_big}
+\end{figure}
 
 Questo secondo algoritmo è illustrato in Figura~\ref{merge_big} ed originariamente preso da \cite{mergebig}. Applicando sempre \emph{merge small}, oltre che rinunciare alla shared memory, ogni thread del blocco dovrebbe lavorare su più di un elemento, aumentando la complessità della procedura. 
 
@@ -70,15 +77,8 @@ L'algoritmo proposto funziona nel seguente modo:
     \item recuperiamo dal vettore degli elementi segnaposto detti \emph{splitter} presi a distanza costante e pari ad $\SplitterDistance$; \\
     per ogni coppia di segmenti da mergiare ho una coppia di blocchi di splitter, trovo la posizione di ogni splitter all'interno del blocco di destra ($A$) e di sinistra ($B$);
     \item applico \emph{merge} ricorsivamente sugli array di splitter;
-    \item gli indici associati agli splitter dividono la coppia di blocchi in modo tale da poter effettuare tanti merge indipendenti quanti sono gli splitter. \emph{Ogni merge indipendenti considererà al massimo $2\SplitterDistance$ elementi} (numero costante che scegliamo tale che rientri nella shared memory).
+    \item gli indici associati agli splitter dividono la coppia di blocchi in modo tale da poter effettuare tanti merge indipendenti quanti sono gli splitter. \emph{Ogni merge indipendente considererà al massimo $2\SplitterDistance$ elementi} (numero costante che scegliamo tale che rientri nella shared memory).
 \end{enumerate}
-
-\begin{figure}[H]
-    \centering
-	\includegraphics[scale=0.3]{merge_big.png}
-	\caption{Merge big}
-	\label{merge_big}
-\end{figure}
 
 \subsection{Istogramma / Index to pointers}
 

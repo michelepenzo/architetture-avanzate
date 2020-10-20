@@ -1,0 +1,20 @@
+\input{tabella_risultati}
+
+\section{Risultati sperimentali}
+
+Confrontiamo ora le performance delle varie implementazioni che seguono:
+\begin{itemize}
+    \item seriale;
+    \item parallela \emph{scan trans};
+    \item parallela \emph{merge trans};
+    \item \cuSPARSE (2).
+\end{itemize}
+
+Le istanze su cui vengono eseguiti i vari algoritmi sono in parte generate in modo casuale (a partire dalle specifiche della matrice sparsa), in parte recuperate dal dataset "University  of Florida sparse  matrix collection`` \cite{dataset}. Tale dataset è stato usato per valutare le performance degli algoritmi in \cite{parallelTrans}.
+
+La macchina sul quale vengono eseguiti i vari algoritmi è equipaggiata con una scheda NVidia GeForce GTX 780 con Cuda Runtime 10.2.
+
+I risultati sono visibili in Tabella~\ref{results}. 
+
+\section{Considerazioni finali}
+

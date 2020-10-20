@@ -18,6 +18,7 @@
 \newcommand{\MergeTrans}{\textrm{MergeTrans} }
 \newcommand{\BlockSize}{\textrm{BLOCK\_SIZE} }
 \newcommand{\SplitterDistance}{\textrm{SP\_DIST} }
+\newcommand{\cuSPARSE}{\textrm{cuSPARSE} }
 
 
 \graphicspath{{figures/}} 	
@@ -204,35 +205,7 @@
 % Inserimento sezione delle procedure
 \input{procedure}
 
-\section{Benchmark}
-\label{benchmark}
-	Tutti i test sono stati effettuati sulle macchine locali e sul server Cuda01, quindi testati con diverse versioni di Cuda e di cuSPARSE.\newline
-	Le Gpu utilizzate sono:
-	\begin{itemize}
-		\item macchina locale:% TODO che gpu?
-		\item server cuda01:
-	\end{itemize}
-	Per la fase di test dell'implementazione sono state utilizzate principalmente due tipologie di matrici.
-	
-	\subsection{Matrici sparse casuali}
-	A partire da dei valori fissi di \textit{m, n, nnz} è stata creata una matrice in formato Csr utilizzando come elementi dei valori generati in modo casuale compresi tra un minimo e un massimo a scelta. Come per i valori casuali, è possibile cambiare le dimensioni della matrice e passare dei nuovi valori all'eseguibile come descritto in sezione~\ref{applicativo-finale}.
-	
-	\subsection{Dataset utilizzato}
-	In \cite{parallelTrans} è stato utilizzato un dataset di matrici sparse rappresentate in diversi formati. È stato fatto lo stesso anche nel nostro progetto, sono stati scaricati alcuni esempi presi da \cite{dataset}, e su questi sono stati eseguiti gli algoritmi implementati. Gli esempi tratti hanno varie dimensioni e il valore relativo all'elemento \textit{nnz} è solitamente un numero decimale. In sezione \ref{risultati} vegono mostrati gli esempi utilizzati e i rispettivi valori.
-	
-
-\section{Risultati}
-	\label{risultati}
-	% file csv
-	% tabellone con speedup
-	
-%	\begin{table}[]
-%		\begin{tabular}{lllllllll}
-%			Name & M & N & NNZ & Serial & Scan Trans & Merge Trans & Cusparse 1 & Cusparse 2 \\
-%			&   &   &     &        &            &             &            &            \\
-%			&   &   &     &        &            &             &            &           
-%		\end{tabular}
-%	\end{table}
+\input{risultati}
 	
 \section{Conclusioni}
 \label{conclusioni}
