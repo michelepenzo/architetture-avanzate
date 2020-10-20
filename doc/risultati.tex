@@ -17,9 +17,13 @@ La macchina sul quale vengono eseguiti i vari algoritmi è equipaggiata con una 
 I risultati sono visibili in Tabella~\ref{results}. 
 
 \section{Considerazioni finali}\label{conclusioni}
-	% tirare le somme di cosa abbiamo ottenuto
-	% cosa migliorare?
-	% come possiamo continuare il progetto se avessimo avuto più tempo?
-		% algo merge con merge buffer che è gia implementato
-		% testare l'efficienza delle componenti rispetto alla implementazione nvidia
-		% idx to pntrs (soffre race condition) --> un thread ha un blocco
+Possiamo notare come le implementazioni citate in \cite{parallelTrans} e da noi sviluppate non siano all'altezza delle versioni di \cuSPARSE.
+
+Contrariamente a quanto asserito in \cite{parallelTrans}, nel nostro caso \textit{Scan Trans} si comporta meglio di \textit{Merge Trans}. Questo potrebbe essere dovuto all'implementazione da noi usata nel merge spiegato in sezione \ref{merge} e dalle diverse ottimizzazioni utilizzate nell'implementazione del paper della quale non ne siamo a conoscenza.
+
+Abbiamo inoltre notato come \ScanTrans ottenga risultati migliori se eseguito su matrici ``random'' dove i valori, a differenza delle matrici in formato \texttt{.mtx}, sono interi e non decimali.
+
+Come possibili future implementazioni per migliorare l'efficienza del progetto abbiamo pensato come il package \textit{modern gpu} prenste su Github ci possa tornare utile. Esso mette a disposione implementazioni di alcuni componenti a noi utili per l'obiettivo finale. A partire da queste implementazioni avremmo potuto confrontare le componenti da noi sviluppate con quelle presenti per capire dove migliorare. 
+
+
+

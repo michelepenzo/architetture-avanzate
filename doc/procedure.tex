@@ -1,10 +1,10 @@
 
 \section{Procedure}
-
+\label{procedure}
 I due algoritmi \ScanTrans e \MergeTrans vengono scomposti in diversi componenti, ognuno dei quali viene valutato nelle performance e testato separatamente. 
 
 \subsection{Scan}
-
+\label{scan}
 Questa operazione prende in input un vettore $A = (a_0, a_1, ..., a_n)$ e ritorna un vettore $B=(I, a_0, a_0 \oplus a_1, ..., a_0 \oplus a_1 \cdots \oplus a_{n-1})$ con $\oplus$ è un'operazione binaria il cui elemento identità è $I$. Nel nostro caso l'operazione è la somma. 
 
 L'algoritmo apparentemente sembra difficile da parallelizzare in quanto il risultato di ogni elemento dipende da tutti i gli elementi precedenti. Diverse soluzioni sono state proposte tra cui l'\emph{algoritmo di Blelloch}. Il suo funzionamento in due fasi è illustrato in Figura~\ref{scan_blelloch} e dettagliatamente discusso in \cite{scan}.
@@ -20,7 +20,7 @@ L'implementazione prevede che se l'intero vettore riesce ad essere memorizzato a
 Nel caso questo non sia possibile, l'operazione di scan viene segmentata, applicata separatamente a blocchi di $N$ elementi. Successivamente si mantiene un vettore di somme (vettore degli ultimi elementi del blocco), si applica ricorsivamente \emph{scan} su esso e si sommano gli offset ottenuti all'intero vettore di partenza. 
 
 \subsection{Segmented sort}
-
+\label{seg-sort}
 Questa operazione prende in input un vettore di lunghezza $n$ ed un intero $\BlockSize$. Il vettore viene diviso in segmenti di lunghezza $\BlockSize$. Gli elementi di ogni segmento vengono permutati in modo che siano ordinati stabilmente. L'intero segmento deve rientrare nella shared memory.  
 
 \begin{figure}[H]
@@ -48,7 +48,7 @@ La dimensione ideale del blocco pari a $128$ elementi (caso interi a 32bit), ed 
 \end{figure}
 
 \subsection{Merge}
-
+\label{merge}
 L'operazione di \emph{merge} trasforma un vettore diviso in segmenti di dimensione $\BlockSize$ nel quale gli elementi ogni segmento sono ordinati, in un vettore diviso in segmenti ordinati di dimensione $2 \BlockSize$, ognuno dei quali è l'unione di una coppia di blocchi contigui. 
 
 Differenziamo il caso in cui il blocco di dimensione $\BlockSize$ rientri o meno nella shared memory. 
@@ -81,7 +81,7 @@ L'algoritmo proposto funziona nel seguente modo:
 \end{enumerate}
 
 \subsection{Istogramma / Index to pointers}
-
+\label{idx-to-pnt}
 Dato un vettore $A$ di $n$ elementi compresi tra $0$ ed $m-1$ riceviamo un vettore di $m$ elementi nel quale l'$i$-esima cella contiene la frequenza con cui il valore $i$ è presente in $A$. 
 
 L'algoritmo si sviluppa in due fasi:
@@ -105,7 +105,7 @@ L'algoritmo è illustrato in Figura~\ref{index_to_pointers}.
 \end{figure}
 
 \subsection{Pointers to index}
-
+\label{pnt-to-idx}
 Operazione inversa di \emph{index to pointers}. Il vettore risultante è ordinato. Può essere implementato assegnando ad ogni blocco di thread un elemento del vettore delle frequenze da espandere. 
 
 L'algoritmo è illustrato in Figura~\ref{pointers_to_index}. 
