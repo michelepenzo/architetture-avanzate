@@ -1,56 +1,60 @@
 
-\section{Struttura dell'implementazione} 
-\label{struttura}
-	L'implementazione è stata sviluppata utilizzando come supporto il tool \textit{Git}. È stata creata una repository, descritta nella sezione successiva, per poter controllare in modo efficiente lo svilupparsi del progetto. \newline
-	
-	\noindent Link repo: 	\href{https://github.com/michelepenzo/architetture-avanzate}{github.com/michelepenzo/architetture-avanzate}\newline
-	
-	\subsection{Struttura delle directory}
-	La struttura delle directory è rispecchiata nel seguente schema:
-	\dirtree{%
-		.1 root.
-			.2 doc.
-				.3 {report\_aa.$ * $}.				
-			.2 code.
-				.3 {matrices}.
-					.4 {$ *$.mtx }.
-				.3 {include}.
-					.4 {matrix.hh}.
-					.4 {merge\_step.hh}.
-					.4 {procedures.hh}.
-					.4 {transposers.hh}.
-					.4 {Timer.$ * $}.
-					.4 {utilities.hh}.
-				.3 {src}.
-					.4 {all cuda procedures..}.
-					.4 {transposer.cu}.
-					.4 {main.cu}.
-				.3 {test}.	
-					.4 {test\_main.cu}.
-				.3 Makefile.			
-				.3 {timing\_analysis.csv}.			
-			.2 README.md.
-	}
-	\mbox{}
+\section{Struttura dell'implementazione}\label{struttura}
 
-	Il file \texttt{matrix.hh} è composto da due classi con i relativi campi e metodi che si occupa della:
-	\begin{enumerate}
-		\item costruzione della matrice sparsa in formato Csr: \textit{class~SparseMatrix},
-		\item costruzione della matrice densa: \textit{class FullMatrix}.
-	\end{enumerate}
-	Il file \texttt{procedures.hh} contiene tutte le procedure descritte in sezione~\ref{procedure} ed è diviso in due \texttt{namespace}. Essi riferiscono all'implementazione effettuta, ovvero \textit{cuda} o \textit{reference}(seriale).\newline
-	È presente inoltre il file \texttt{transposers.hh} che funge da ``wrapper'' per le quattro implementazioni descritte nella prossima sezione.\newline
-	Un'altro file è il \texttt{merge\_step.hh} che contiene tutte le implementazioni del \textit{segmented merge descritto} in \ref{seg-merge}.\newline
-	Infine abbiamo il timer e un file che contiene tutte le funzioni utilizzate utili per debug, stampa, allocazione e deallocazione, generazione dei valori random, controllo errori e altro.\newline
-	
-	All'interno della direcotry \textit{src} abbiamo tutte le implementazioni delle procedure cuda utilizzate nel progetto, oltre che al file \texttt{transposers.cu} che contiene le implementazioni descritte in~\ref{metodologie}.\newline
-	Infine è presente il \texttt{main.cu}, che si occupa di eseguire tutte le metodologie implementate.\newline
+L'intera implementazione è scaricabile attraverso \emph{git} dalla repository \url{https://github.com/michelepenzo/architetture-avanzate}.
 
-	È presente inoltre un'ultima directory con relativo file che si occupa della fase di test delle singole componenti.
+La struttura delle directory del progetto è presente in Figura~\ref{fig:struct}. 
+
+La sottodirectory \emph{doc} contiene questo stesso documento in formato \emph{pdf} ed i rispettivi sorgenti \emph{tex}. 
+
+La sottodirectory \emph{code} contiene i sorgenti dell'applicativo principale e di quello secondario di test. 
+
+Lo scopo del primo è generare un file \emph{csv} contente le tempistiche e gli speedup di ogni algoritmo applicato sulle istanze di matrici in input generate casualmente oppure lette da file \emph{mtx} (\emph{market matrix}, una rappresentazione della matrice sparsa in formato COO attraverso file di testo). 
+
+Lo scopo del secondo applicativo è testare il corretto funzionamento di ogni componente del progetto. In particolare, sottopongo le stesse istanze di array o matrici (a seconda del componente che sto testando) sia alla funzione che ne implementa l'algoritmo parallelo, sia alla funzione che ne implementa l'algoritmo seriale. Mi aspetto che i risultati siano uguali per tutte le istanze.
+
+\begin{figure}
+    \dirtree{%
+	.1 root.		
+	    .2 README.md.
+		.2 doc.			
+		.2 code.
+			.3 {matrices}.
+			.3 {include}.
+				.4 {matrix.hh}.
+				.4 {merge\_step.hh}.
+				.4 {procedures.hh}.
+				.4 {transposers.hh}.
+				.4 {Timer.$ * $}.
+				.4 {utilities.hh}.
+			.3 {src}.
+				.4 {...}.
+				.4 {transposer.cu}.
+				.4 {main.cu}.
+			.3 {test}.	
+				.4 {...}.
+				.4 {tester.hh}.
+				.4 {test\_main.cu}.
+			.3 Makefile.			
+			.3 {timing\_analysis.csv}.	
+}
+    \caption{Struttura delle directory del progetto}
+    \label{fig:struct}
+\end{figure}
+
+In particolare:
+\begin{itemize}
+    \item il file \texttt{include/matrix.hh} contiene le classi \emph{FullMatrix} e \emph{SparseMatrix} che si occupano di allocare nella memoria host lo spazio necessario a contenere la matrice date le sue specifiche ($m$, $n$, $nnz$), sia come matrice estesa sia in formato \emph{csr}. Inoltre contiene i metodi per inizializzare la matrice in modo casuale e per passare da un formato all'altro;
+    \item il file \texttt{include/utils.hh} contiene i metodi di utilità quali le funzioni di stampa e di allocazione e deallocazione della memoria device;
+    \item i file \texttt{include/procedures.hh} e \texttt{merge\_step.hh} contengono le dichiarazioni delle procedure descritte nella Sezione~\ref{procedure}. La maggior parte delle definizioni sono presenti nella sottodirectory \texttt{src}, nel caso del metodo \emph{merge\_step} la definizione è scritta direttamente nell'header. Questa scelta è conveniente in quanto tale funzione è definita rispetto ad un tipo generico, se la definizione fosse stata riportata nei file cpp avremmo dovuto indicare esplicitamente i tipi concreti per il quale vogliamo rendere disponibile il nostro metodo (\cite{template});
+    \item il file \texttt{include/transposers.hh} e rispettivo sorgente \texttt{src/transposers.cu} contengono le dichiarazioni e definizioni dei metodi che effettuano la trasposta: seriale, parallela con \ScanTrans e \MergeTrans ed infine da libreria \cuSPARSE con entrambi i possibili algoritmi;
+    \item i file \texttt{Timer.*} contengono una classe di utilità \emph{timer} che permette di cronometrare il tempo che occorre per eseguire un dato pezzo di codice;
+    \item il file \texttt{src/main.cu} contiene l'applicativo principale che chiama i diversi metodi di trasposta sulla matrice fornita in input, ne cronometra le tempistiche e le stampa in output;
+    \item il file \texttt{test/tester.hh} contiene la classe astratta \emph{tester} che espone un metodo \emph{test\_many\_instances} che chiama un metodo astratto \emph{test} un numero arbitrario di volte, passandogli in input un intero che rappresenta il numero dell'istanza attuale che può essere usato per decidere la dimensione dell'istanza di test. Attualmente le istanze testate vanno da 1 a 20'000, poi da 20'000 a 20'000'000 con step $\times 1.5$; 
+    \item i file \texttt{test/tester_*.hh} si occupano di testare un singolo componente, contengono ciascuna uno o più classi concrete che estendono la classe astratta \emph{tester};
+    \item il file \texttt{test/test\_main.cu} contiene l'applicativo di test che istanzia oggetti delle varie classi tester, li avvia e ne stampa gli eventuali errori a video.
+\end{itemize}
 	
-	\subsection{Test delle componenti}	
-	Per le singole componenti(scan, sort, index to pointers ...) è stato implementato un'altro eseguibile. Lanciando il comando \textit{make test} viene eseguito l'applicativo che effettuta il test prima per piccole istanze e poi per grandi istanze. Cosi facendo tutte le componenti vengono testate con diversi valori.\newline
-	La singola componente del programma viene quindi eseguita sia con la sua implementazione seriale, sia con quella in parallelo. Tramite questa modalità stato più semplice testare le singole componenti e successivamente, dopo aver effettuato dei test complessi ed averli superati a parte, è risultato più semplice unire il tutto per ottenere l'implementazione finale.
 	
 	\subsection{Applicativo finale}
 	\label{applicativo-finale}

@@ -8,6 +8,8 @@
 \usepackage{dirtree}
 \usepackage{hyperref}
 \usepackage{tikz}
+\usepackage{url}
+\usepackage{inconsolata}
 
 % tabella dei risultati
 \usepackage{array}
@@ -26,7 +28,10 @@
 \newcommand*\circled[1]{\tikz[baseline=(char.base)]{\node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
 
 \title{Sparse Matrix Transposition for GPUs}
-\author{Massimiliano Incudini - VR433300\\Michele Penzo - VR439232}
+\author{\begin{tabular}{c c}
+    Massimiliano Incudini & VR433300\\
+    Michele Penzo & VR439232
+\end{tabular}}
 
 \begin{document}
 \maketitle
@@ -45,7 +50,7 @@ L'op
 	\label{first_fig}
 \end{figure*}
 
-\section{Introduzione}\label{introduzione}
+\section{Introduzione e motivazioni}\label{introduzione}
 
 	% problema e motivazioni
 	Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni applicabili su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come in questo caso.\newline
@@ -141,6 +146,8 @@ L'op
 
 \input{struttura}
 
+
+\input{tabella_risultati}
 \input{risultati}
 		
 % TODO
