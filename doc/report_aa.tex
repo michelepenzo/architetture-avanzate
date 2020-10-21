@@ -21,6 +21,7 @@
 \newcommand{\BlockSize}{\textrm{BLOCK\_SIZE}}
 \newcommand{\SplitterDistance}{\textrm{SP\_DIST}}
 \newcommand{\cuSPARSE}{\textrm{cuSPARSE}}
+\newcommand{\var}[1]{\texttt{#1}}
 
 
 \graphicspath{{figures/}} 	
@@ -86,11 +87,27 @@
  	\end{itemize}
  	In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.\newline
 
-\section{Metodologie analizzate}
-\label{metodologie}
-	In questa sezione vengono spiegate ed evidenziate le differenze tra le varie metodologie analizzate. 
+\section{Metodologie analizzate}\label{metodologie}
+
+Gli algoritmi paralleli che calcolano la trasposta di una matrice sparsa descritti in \cite{parallelTrans} vengono confrontati nelle tempistiche rispetto all'algoritmo seriale e rispetto alle funzioni di libreria \cuSPARSE fornite da NVidia come parte della loro piattaforma Cuda SDK. 
+
+Per convenzione la matrice è in formato \emph{csr}. I nomi delle componenti della matrice sono chiamati \var{csr\_row\_ptr} (lunghezza $\mathrm{m}+1$) per il vettore dei puntatori ad inizio riga, \var{csr\_col\_idx} (lunghezza $\mathrm{nnz}$) per il vettore degli indici di colonna e \var{csr\_val} (lunghezza $\mathrm{nnz}$) per il vettore dei valori. 
 		
-	\subsection{Trasposta seriale}
+\subsection{Trasposta seriale}
+
+L'algoritmo si sviluppa nel seguente modo:
+\begin{enumerate}
+    \item si applica la funzione \emph{istogramma} \var{csr\_col\_idx} che calcola le occorrenze di ogni colonna, applicando \emph{scan} si ottiene il vettore \var{csc\_col\_ptr} (lunghezza $\mathrm{n}+1$) che conterrà i puntatori agli elementi di inizio riga trasposta;
+    \item allochiamo il vettore \var{csc\_row\_idx} contente gli indici di riga (lunghezza $\mathrm{nnz}$);
+    \item allochiamo il vettore \var{csc\_val} contente gli elementi non nulli (lunghezza $\mathrm{nnz}$);
+    \item per ogni riga $i \in [0, m)$ processiamo gli elementi corrispondenti all'$i$-esima riga, legati alle posizioni $j \in [\var{csr\_row\_ptr}[i], \var{csr\_row\_ptr}[i+1])$
+    \begin{itemize}
+        \item la locazione $\mathrm{loc}$ del $j$-esimo elemento ordinata per righe è $\var{csr\_col\_ptr}[j] + \mathrm{offset}[j]$ dove $\mathrm{offset}[j]$ è un contatore incrementato ogni volta che aggiungiamo un elemento della colonna $\var{csr\_col\_ptr}[j]$;
+        \item l'indice di riga dell'elemento $\mathrm{loc}$-esimo è $i$;
+        \item il valore dell'elemento  $\mathrm{loc}$-esimo è $\var{csr\_val}[j]$.
+    \end{itemize}
+\end{enumerate}
+
 %	La prima metodologia descritta è quella seriale. Sempre a partire dalla rappresentazione in formato \textit{csr} della matrice iniziale l'algoritmo crea un array di elementi, dove per ogni colonna della matrice analizzata conta quanti elementi \textbf{nnz} ci sono. Possiamo definire questo array come un istogramma delle frequenze degli elementi delle colonne. 
 	La prima metodologia descritta è quella seriale. Sempre a partire dalla rappresentazione in formato \textit{csr} della matrice iniziale l'algoritmo ottiene i puntatori alle colonne (formato csc) a partire dagli indici di colonna (formato csr). Viene quindi applicato un algoritmo seriale di \textit{prefix\_sum} su questo array, per ottenere i valori corretti di \textbf{cscColPtr}. Infine gli indici di riga e i valori nel nuovo formato \textit{csc} vengono sistemati.\newline
 	Questa implementazione servirà come base sulla quale verranno eseguiti i controlli degli algoritmi successivamente implementati.
