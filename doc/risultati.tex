@@ -14,9 +14,18 @@ Le istanze su cui vengono eseguiti i vari algoritmi sono in parte generate in mo
 
 La macchina sul quale vengono eseguiti i vari algoritmi è equipaggiata con una scheda NVidia GeForce GTX 780 con Cuda Runtime 10.2.
 
-I risultati sono visibili in Tabella~\ref{results}. 
+I risultati sono visibili in Tabella~\ref{results} (tempistiche) e in Tabella~\ref{results_speedup} (speedup).
+
+Analizzando i risultati notiamo che per istanze di dimensioni notevoli l'implementazione \ScanTrans{} raggiunge speedup fino a $\times 2.5$ rispetto all'algoritmo seriale, mentre le due implementazioni fornite da \cuSPARSE{} raggiungono $\times 6.0$ e $\times 9.8$ di speedup. 
+
+L'implementazione \MergeTrans{} risulta sempre meno efficiente della versione seriale dell'algoritmo. I possibili problemi relativi a questa implementazione sono discussi in Sezione~\ref{conclusioni}.
+
+
+
+
 
 \section{Considerazioni finali}\label{conclusioni}
+
 Possiamo notare come le implementazioni citate in \cite{parallelTrans} e da noi sviluppate non siano all'altezza delle versioni di \cuSPARSE.
 
 Contrariamente a quanto asserito in \cite{parallelTrans}, nel nostro caso \textit{Scan Trans} si comporta meglio di \textit{Merge Trans}. Questo potrebbe essere dovuto all'implementazione da noi usata nel merge spiegato in sezione \ref{merge} e dalle diverse ottimizzazioni utilizzate nell'implementazione del paper della quale non ne siamo a conoscenza.

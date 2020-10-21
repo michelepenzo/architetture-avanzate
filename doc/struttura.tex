@@ -51,19 +51,19 @@ In particolare:
     \item i file \texttt{Timer.*} contengono una classe di utilità \emph{timer} che permette di cronometrare il tempo che occorre per eseguire un dato pezzo di codice;
     \item il file \texttt{src/main.cu} contiene l'applicativo principale che chiama i diversi metodi di trasposta sulla matrice fornita in input, ne cronometra le tempistiche e le stampa in output;
     \item il file \texttt{test/tester.hh} contiene la classe astratta \emph{tester} che espone un metodo \emph{test\_many\_instances} che chiama un metodo astratto \emph{test} un numero arbitrario di volte, passandogli in input un intero che rappresenta il numero dell'istanza attuale che può essere usato per decidere la dimensione dell'istanza di test. Attualmente le istanze testate vanno da 1 a 20'000, poi da 20'000 a 20'000'000 con step $\times 1.5$; 
-    \item i file \texttt{test/tester_*.hh} si occupano di testare un singolo componente, contengono ciascuna uno o più classi concrete che estendono la classe astratta \emph{tester};
-    \item il file \texttt{test/test\_main.cu} contiene l'applicativo di test che istanzia oggetti delle varie classi tester, li avvia e ne stampa gli eventuali errori a video.
+    \item i file \texttt{test/tester\_*.hh} si occupano di testare un singolo componente, contengono ciascuna uno o più classi concrete che estendono la classe astratta \emph{tester};
+    \item il file \texttt{test/test\_main.cu} contiene l'applicativo di test che alloca oggetti delle varie classi tester, li avvia e ne stampa gli eventuali errori a video.
 \end{itemize}
 	
-	
-	\subsection{Applicativo finale}
-	\label{applicativo-finale}
-	% più matrici testate assieme
-	Tramite il comando \textit{make run} viene eseguito l'applicativo finale. Questo esegue per un numero di iterazioni le metodologie implementate. All'interno del tag \texttt{run} nel \textit{Makefile} viene eseguito varie volte l'eseguibile, ogni volta con valori diversi.\newline
-	Il file eseguibile può essere eseguito passando:
-	\begin{itemize}
-		\item un valore (\textit{file.mtx}): esegue le metodolgie su una matrice sparsa caricata da file,
-		\item tre valori (\textit{m n nnz}): prende i tre valori classici per la creazione della matrice e genera casualmente la matrice sparsa delle dimensioni richieste,
-		\item nessun valore: matrice generate casualmente con valori fissi.
-	\end{itemize}
-	Alla fine le tempistiche vengono concatenate all'interno del file \textit{timing\_analysis.csv} per effettuarne una migliore lettura.
+\section{Avvio degli applicativi}
+
+L'applicativo principale può essere avviato con tre modalità diverse:
+\begin{itemize}
+    \item senza parametri, genera una matrice $500'000\times 500'000$ con $10'000'000$ elementi non nulli, ne valuta le tempistiche con i diversi algoritmi ritornando la media su un numero arbitrario di esecuzioni;
+    \item con tre parametri interi $\mathrm{m}$, $\mathrm{n}$, $\mathrm{nnz}$, genera una matrice avente le dimensioni ricevute in input e procede alla valutazione delle tempistiche come sopra;
+    \item con un parametro stringa \texttt{filename}, legge da file una matrice che deve essere nel formato \emph{mtx market matrix}.
+\end{itemize}
+
+Avviando l'applicativo principale attraverso il Makefile con \emph{make run} viene avviato molteplici volte l'applicativo principale, ogni volta con un'istanza di matrice diversa in input, con lo scopo di popolare un documento \emph{timing\_analysis.csv} contenente le tempistiche medie su diversi input. 
+
+L'applicativo di test di avvia con una sola modalità equivalentemente avviando il nome dell'applicativo senza parametro oppure attraverso il Makefile con \emph{make test}. Su \emph{stdout} viene stampato ``no" se almeno un test ha mostrato anomalie, ``ok" altrimenti. 
