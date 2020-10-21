@@ -26,13 +26,10 @@ L'implementazione \MergeTrans{} risulta sempre meno efficiente della versione se
 
 \section{Considerazioni finali}\label{conclusioni}
 
-Possiamo notare come le implementazioni citate in \cite{parallelTrans} e da noi sviluppate non siano all'altezza delle versioni di \cuSPARSE.
-
-Contrariamente a quanto asserito in \cite{parallelTrans}, nel nostro caso \ScanTrans si comporta meglio di \MergeTrans. Questo potrebbe essere dovuto all'implementazione da noi usata nel merge spiegato in sezione \ref{merge} e dalle diverse ottimizzazioni utilizzate nell'implementazione del paper della quale non ne siamo a conoscenza.
-
-Abbiamo inoltre notato come \ScanTrans ottenga risultati migliori se eseguito su matrici ``random'' dove i valori, a differenza delle matrici in formato \texttt{.mtx}, sono interi e non decimali.
-
-Come possibili future implementazioni per migliorare l'efficienza del progetto abbiamo pensato come il package \textit{modern gpu} prenste su Github ci possa tornare utile. Esso mette a disposione implementazioni di alcuni componenti a noi utili per l'obiettivo finale. A partire da queste implementazioni avremmo potuto confrontare le componenti da noi sviluppate con quelle presenti per capire dove migliorare. 
-
-
+Contrariamente a quanto asserito in \cite{parallelTrans}, nel nostro caso \ScanTrans{} si comporta meglio di \MergeTrans{}. Proponiamo alcune idee per migliorare il risultato:
+\begin{itemize}
+	\item utilizzare un algoritmo più efficiente per realizzare il merge: \textit{Merge Path} citato in \cite{merge},
+	\item provare a sostituire da noi descritte con quelle fornite nella libreria \textit{modern gpu} presente su Github,
+	\item inoltre seguendo la descrizione delle implementazioni presenti in \cite{moderngpu} ci avrebbe aiutato nella fase di ingegnerizzazione.
+\end{itemize}
 

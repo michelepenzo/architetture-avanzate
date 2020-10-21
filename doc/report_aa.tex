@@ -16,8 +16,8 @@
 \usepackage{siunitx}
 \usepackage{booktabs}
 
-\newcommand{\ScanTrans}{\textrm{ScanTrans} }
-\newcommand{\MergeTrans}{\textrm{MergeTrans} }
+\newcommand{\ScanTrans}{\textrm{ScanTrans}}
+\newcommand{\MergeTrans}{\textrm{MergeTrans}}
 \newcommand{\BlockSize}{\textrm{BLOCK\_SIZE}}
 \newcommand{\SplitterDistance}{\textrm{SP\_DIST}}
 \newcommand{\cuSPARSE}{\textrm{cuSPARSE}}
@@ -53,10 +53,9 @@
 
 \section{Introduzione e motivazioni}\label{introduzione}
 
-	% problema e motivazioni
 	Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni applicabili su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come in questo caso.\newline
 	Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per l'esecuzione in maniera più efficiente e veloce. Verranno quindi mostrate le basi per la rappresentazione, i problemi riscontrati durante lo sviluppo e analizzati alcuni algoritmi per il calcolo su \textit{Gpu}.\newline
-
+	
 
 \section{Rappresentazione delle matrici}
 \label{rappresentazione}
@@ -89,7 +88,7 @@
 
 \section{Metodologie analizzate}\label{metodologie}
 
-Gli algoritmi paralleli che calcolano la trasposta di una matrice sparsa descritti in \cite{parallelTrans} vengono confrontati nelle tempistiche rispetto all'algoritmo seriale e rispetto alle funzioni di libreria \cuSPARSE fornite da NVidia come parte della loro piattaforma Cuda SDK. 
+Gli algoritmi paralleli che calcolano la trasposta di una matrice sparsa descritti in \cite{parallelTrans} vengono confrontati nelle tempistiche rispetto all'algoritmo seriale e rispetto alle funzioni di libreria \cuSPARSE{} fornite da NVidia come parte della loro piattaforma Cuda SDK. 
 
 Per convenzione la matrice è in formato \emph{csr}. I nomi delle componenti della matrice sono chiamati \var{csr\_row\_ptr} (lunghezza $\mathrm{m}+1$) per il vettore dei puntatori ad inizio riga, \var{csr\_col\_idx} (lunghezza $\mathrm{nnz}$) per il vettore degli indici di colonna e \var{csr\_val} (lunghezza $\mathrm{nnz}$) per il vettore dei valori. 
 		
