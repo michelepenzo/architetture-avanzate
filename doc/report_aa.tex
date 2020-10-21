@@ -95,6 +95,13 @@ Per convenzione la matrice è in formato \emph{csr}. I nomi delle componenti del
 		
 \subsection{Trasposta seriale}
 
+\begin{figure}[htbp]
+    \centering
+	\includegraphics[scale=0.5]{transpose_algo_serial.PNG}
+	\caption{Algoritmo seriale}
+	\label{transpose_algo_serial}
+\end{figure}
+
 L'algoritmo si sviluppa nel seguente modo:
 \begin{enumerate}
     \item si applica la funzione \emph{istogramma} \var{csr\_col\_idx} che calcola le occorrenze di ogni colonna, applicando \emph{scan} si ottiene il vettore \var{csc\_col\_ptr} (lunghezza $\mathrm{n}+1$) che conterrà i puntatori agli elementi di inizio riga trasposta;
@@ -108,9 +115,8 @@ L'algoritmo si sviluppa nel seguente modo:
     \end{itemize}
 \end{enumerate}
 
-%	La prima metodologia descritta è quella seriale. Sempre a partire dalla rappresentazione in formato \textit{csr} della matrice iniziale l'algoritmo crea un array di elementi, dove per ogni colonna della matrice analizzata conta quanti elementi \textbf{nnz} ci sono. Possiamo definire questo array come un istogramma delle frequenze degli elementi delle colonne. 
-	La prima metodologia descritta è quella seriale. Sempre a partire dalla rappresentazione in formato \textit{csr} della matrice iniziale l'algoritmo ottiene i puntatori alle colonne (formato csc) a partire dagli indici di colonna (formato csr). Viene quindi applicato un algoritmo seriale di \textit{prefix\_sum} su questo array, per ottenere i valori corretti di \textbf{cscColPtr}. Infine gli indici di riga e i valori nel nuovo formato \textit{csc} vengono sistemati.\newline
-	Questa implementazione servirà come base sulla quale verranno eseguiti i controlli degli algoritmi successivamente implementati.
+L'esecuzione dell'algoritmo seriale è illustrato in Figura\ref{transpose_algo_serial}.
+
 	
 	\subsection{Nvidia cuSPARSE}
 	Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici. Supporta inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.\newline	
