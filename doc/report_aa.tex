@@ -51,117 +51,43 @@
 	\label{first_fig}
 \end{figure*}
 
+
 \section{Introduzione e motivazioni}\label{introduzione}
 
-	Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni applicabili su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come in questo caso.\newline
-	Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per l'esecuzione in maniera più efficiente e veloce. Verranno quindi mostrate le basi per la rappresentazione, i problemi riscontrati durante lo sviluppo e analizzati alcuni algoritmi per il calcolo su \textit{Gpu}.\newline
-	
+% problema e motivazioni
+Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni applicabili su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come in questo caso.
 
-\section{Rappresentazione delle matrici}
-\label{rappresentazione}
-	Una matrice sparsa non è altro che una matrice i cui valori sono per la maggior parte uguali a zero. La matrice in formato classico necessita di una quantità di memoria minima di $ m $x$ n $ elementi, ma essendo l'obiettivo quello di lavorare su matrici sparse non è stato necessario e utile memorizzare la matrice in formato denso.\newline
-	Per rappresentare in modo efficace le matrici sparse senza troppo utilizzo di memoria sono state quindi introdotte ed utilizzate delle forme di rappresentazione matriciale che permettono il salvataggio di dati utilizzando quantitativi di memoria inferiori.\newline
-	Di seguito vengono spiegate le due metodologie da noi utilizzate.
-	
-	\subsection{Formato Csr}
-	\label{csr}
-	Il \textit{compressed sparse row} è una rappresentazione di una matrice $ M $ basata su tre array monodimensionali, che rispettivamente contengono:
-	\begin{enumerate}
-		\item \textit{V}: i valori non zero (\textit{nnz}),
-		\item \textit{COL\_INDEX}: gli indici delle colonne dove si trovano gli elementi \textit{nnz},
-		\item \textit{ROW\_INDEX}: ha un elemento per ogni riga della matrice e rappresenta l'indice in $ V $ dove comincia la riga data.
-	\end{enumerate}
-	I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ m $.
-	
-	\subsection{Formato Csc}
-	\label{csc}
- 	Questa metodologia per la rappresentazione è simile alla precedente citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e lo stesso viene fatto per i puntatori di colonna .
- 	
-	\subsection{Da Csr a Csc}
-	\label{csr-to-csc}
- 	Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Infatti, ogni algoritmo  descritto in sezione~\ref{metodologie}, necessita di sei array per effettuare il calcolo della trasposta e dare l'output nella tipologia corretta. Abbiamo quindi:
- 	\begin{itemize}
- 		\item in input il formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
- 		\item in output il formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
- 	\end{itemize}
- 	In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.\newline
+Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per l'esecuzione in maniera più efficiente e veloce. Verranno quindi mostrate le basi per la rappresentazione, i problemi riscontrati durante lo sviluppo e analizzati alcuni algoritmi per il calcolo su GPU.
 
-\section{Metodologie analizzate}\label{metodologie}
+\section{Rappresentazione delle matrici}\label{rappresentazione}
+Una matrice sparsa non è altro che una matrice i cui valori sono per la maggior parte uguali a zero. La matrice in formato classico necessita di una quantità di memoria minima di $ m $x$ n $ elementi, ma essendo l'obiettivo quello di lavorare su matrici sparse non è stato necessario e utile memorizzare la matrice in formato denso.\newline
+Per rappresentare in modo efficace le matrici sparse senza troppo utilizzo di memoria sono state quindi introdotte ed utilizzate delle forme di rappresentazione matriciale che permettono il salvataggio di dati utilizzando quantitativi di memoria inferiori.\newline
+Di seguito vengono spiegate le due metodologie da noi utilizzate.
 
-Gli algoritmi paralleli che calcolano la trasposta di una matrice sparsa descritti in \cite{parallelTrans} vengono confrontati nelle tempistiche rispetto all'algoritmo seriale e rispetto alle funzioni di libreria \cuSPARSE{} fornite da NVidia come parte della loro piattaforma Cuda SDK. 
-
-Per convenzione la matrice è in formato \emph{csr}. I nomi delle componenti della matrice sono chiamati \var{csr\_row\_ptr} (lunghezza $\mathrm{m}+1$) per il vettore dei puntatori ad inizio riga, \var{csr\_col\_idx} (lunghezza $\mathrm{nnz}$) per il vettore degli indici di colonna e \var{csr\_val} (lunghezza $\mathrm{nnz}$) per il vettore dei valori. 
-		
-\subsection{Trasposta seriale}
-
-\begin{figure}[htbp]
-    \centering
-	\includegraphics[scale=0.5]{transpose_algo_serial.PNG}
-	\caption{Algoritmo seriale}
-	\label{transpose_algo_serial}
-\end{figure}
-
-L'algoritmo si sviluppa nel seguente modo:
+\subsection{Formato Csr}
+\label{csr}
+Il \textit{compressed sparse row} è una rappresentazione di una matrice $ M $ basata su tre array monodimensionali, che rispettivamente contengono:
 \begin{enumerate}
-    \item si applica la funzione \emph{istogramma} \var{csr\_col\_idx} che calcola le occorrenze di ogni colonna, applicando \emph{scan} si ottiene il vettore \var{csc\_col\_ptr} (lunghezza $\mathrm{n}+1$) che conterrà i puntatori agli elementi di inizio riga trasposta;
-    \item allochiamo il vettore \var{csc\_row\_idx} contente gli indici di riga (lunghezza $\mathrm{nnz}$);
-    \item allochiamo il vettore \var{csc\_val} contente gli elementi non nulli (lunghezza $\mathrm{nnz}$);
-    \item per ogni riga $i \in [0, m)$ processiamo gli elementi corrispondenti all'$i$-esima riga, legati alle posizioni $j \in [\var{csr\_row\_ptr}[i], \var{csr\_row\_ptr}[i+1])$
-    \begin{itemize}
-        \item la locazione $\mathrm{loc}$ del $j$-esimo elemento ordinata per righe è $\var{csr\_col\_ptr}[j] + \mathrm{offset}[j]$ dove $\mathrm{offset}[j]$ è un contatore incrementato ogni volta che aggiungiamo un elemento della colonna $\var{csr\_col\_ptr}[j]$;
-        \item l'indice di riga dell'elemento $\mathrm{loc}$-esimo è $i$;
-        \item il valore dell'elemento  $\mathrm{loc}$-esimo è $\var{csr\_val}[j]$.
-    \end{itemize}
+\item \textit{V}: i valori non zero (\textit{nnz}),
+\item \textit{COL\_INDEX}: gli indici delle colonne dove si trovano gli elementi \textit{nnz},
+\item \textit{ROW\_INDEX}: ha un elemento per ogni riga della matrice e rappresenta l'indice in $ V $ dove comincia la riga data.
 \end{enumerate}
+I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ m $.
 
-L'esecuzione dell'algoritmo seriale è illustrato in Figura\ref{transpose_algo_serial}.
+\subsection{Formato Csc}
+\label{csc}
+Questa metodologia per la rappresentazione è simile alla precedente citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e lo stesso viene fatto per i puntatori di colonna .
 
-	
-	\subsection{Nvidia cuSPARSE}
-	Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici. Supporta inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.\newline	
-	Il codice è stato sviluppato partendo dalla guida \cite{cusparse} ed è diviso in due versioni di cuSPARSE a causa delle Gpu utilizzate. In fase di compilazione viene quindi controllata la versione usata: $ 9 $ o $ 10 $.\newline
-	Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, come l'allocazione dello spazio necessario per l'esecuzione di cuSparse oltre all'allocazione del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.\newline
-	Infine viene chiamata la procedura che effettua il calcolo della trasposta. Nel caso in cui la versione di cuSPARSE sia la $ 10 $ viene richiesto come ulteriore parametro l'algoritmo da utilizzare.\newline
-	Dopo essere state eseguite entrambe ritornano i valori ottenuti in formato \textit{csc}.
+\subsection{Da Csr a Csc}
+\label{csr-to-csc}
+Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Infatti, ogni algoritmo  descritto in sezione~\ref{metodologie}, necessita di sei array per effettuare il calcolo della trasposta e dare l'output nella tipologia corretta. Abbiamo quindi:
+\begin{itemize}
+ \item in input il formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
+ \item in output il formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
+\end{itemize}
+In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.\newline
 
-	\subsection{ScanTrans}
-	L'algoritmo considerato prevede di effettuare la trasposta di matrici basandosi sul concetto di scan. Partendo sempre dal presupposto di avere in input una matrice in formato \textit{Csr}, vengono costruiti due array ausiliari:
-	\begin{itemize}
-		\item inter: array bidimensionale di dimensione $ (nthreads+1) * n $,
-		\item intra: array monodimensionale di dimensione massima $ nnz $.
-	\end{itemize}
-	Ogni riga in \textit{inter} contiene il numero di indici della colonna presi dalla thread i-esima. Mentre ogni elemento in \textit{intra} viene utilizzato per salvare l'offeset relativo alla colonna corrispondente all'elemento nnz preso dalla thread. Dopo aver ottenuto gli istogrammi, viene applicato un \textit{vertical scan} su inter, e una \textit{prefix sum} solamente sull'ultima riga di inter. Infine l'algoritmo calcola l'offset assoluto relativo ad ogni elemento nnz e ritorna il tutto in formato \textit{csc}.\newline
-	Tutte le procedure utilizzate in \textit{Scan Trans} si trovano in sezione \ref{procedure}, e vengono eseguite nel seguente ordine:
-	\begin{enumerate}
-		\item pointers to index: \ref{pnt-to-idx},
-		\item index to pointers: \ref{idx-to-pnt},
-		\item scan: \ref{scan},
-		\item reorder elements.
-	\end{enumerate}
-	
-	\begin{figure}[H]
-		\includegraphics[scale=0.6]{scantrans.png}
-		\caption{Scan Trans, esempio utilizzato in \cite{parallelTrans}.}
-		\label{scantrans}
-	\end{figure}
-	
-	\subsection{MergeTrans}
-	L'algoritmo considerato prevede due passi importanti: \textit{sort} e \textit{merge}.
-	Inizialmente sono stati creati gli indici di riga a partire dai puntatori delle colonne e su questi ultimi è stato fatto un sort su piccole porzioni di array, mantenendo quindi i vari blocchi disordinati tra di loro ma con gli elementi ordinati. Successivamente è stato utilizzato il merge ricorsivo partendo dai blocchi più piccoli e unendoli in blocchi sempre più grandi. Per funzionare questo processo necessita dell'utilizzo di due buffer di memoria che contengono gli elementi appena ordinati. Infine dai puntatori delle colonne vengono estraxtti gli indici e viene fatta la scan che ritorna il risultato in formato \textit{csc}. \newline
-	Anche in questo caso le procedure utilizzate si trovano in sezione \ref{procedure}, e sono ordinatamente eseguite come segue:
-	\begin{enumerate}
-		\item pointers to index: \ref{pnt-to-idx},
-		\item segmented sort: \ref{seg-sort},
-		\item segmented merge: \ref{merge},
-		\item index to pointers: \ref{idx-to-pnt},
-		\item scan: \ref{scan}.
-	\end{enumerate}
-	
-	\begin{figure}[H]
-		\includegraphics[scale=0.6]{mergetrans.png}
-		\caption{Merge Trans, esempio utilizzato in \cite{parallelTrans}.}
-		\label{mergetrans}
-	\end{figure}
+\input{algoritmi}
 	
 \input{procedure}
 
@@ -173,6 +99,5 @@ L'esecuzione dell'algoritmo seriale è illustrato in Figura\ref{transpose_algo_s
 		
 \bibliographystyle{IEEEtran}
 \bibliography{biblio}
-\newpage
-\mbox{}
+
 \end{document}
