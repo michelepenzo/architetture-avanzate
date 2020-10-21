@@ -36,15 +36,15 @@ L'ordinamento deve essere stabile quindi la posizione dell'$i$-esimo elemento di
 
 La dimensione ideale del blocco pari a $128$ elementi (caso interi a 32bit), ed è stata trovata empiricamente:
 \begin{figure}[H]
-    \centering
-    \begin{tabular}{SS}
-    \toprule
-    \textbf{Thread per blocco} & \textbf{Performance (\si{\milli\second})} \\ \midrule
-    64 & 9999.0 \\
-    128 & 999.5 \\
-    256 & 99.0 \\ \bottomrule
-    \end{tabular}
-    \caption{Performance su array di $2\cdot 10^7$ elementi}
+	\centering
+	\begin{tabular}{SS}
+		\toprule
+		\textbf{Thread per blocco} & \textbf{Performance (\si{\milli\second})} \\ \midrule
+		128  & 2135.58 \\
+		256  & 2139.62 \\
+		512  & 2156.61  \\ \bottomrule
+	\end{tabular}
+	\caption{Performance su array di $2\cdot 10^7$ elementi}
 \end{figure}
 
 \subsection{Merge}
@@ -80,6 +80,20 @@ L'algoritmo proposto funziona nel seguente modo:
     \item gli indici associati agli splitter dividono la coppia di blocchi in modo tale da poter effettuare tanti merge indipendenti quanti sono gli splitter. \emph{Ogni merge indipendente considererà al massimo $2\SplitterDistance$ elementi} (numero costante che scegliamo tale che rientri nella shared memory).
 \end{enumerate}
 
+La dimensione ideale del blocco pari a $256$ elementi (caso interi a 32bit), ed è stata trovata empiricamente:
+\begin{figure}[H]
+	\centering
+	\begin{tabular}{SS}
+		\toprule
+		\textbf{Thread per blocco} & \textbf{Performance (\si{\milli\second})} \\ \midrule
+		128  & 708.87  \\	
+		256  & 701.54 \\
+		512  & 715.71 \\ \bottomrule
+	\end{tabular}
+	\caption{Performance su array di $2\cdot 10^7$ elementi}
+\end{figure}
+Mentre il valore migliore per la distanza degli splitter (\SplitterDistance) è di $ 128 $.
+
 \subsection{Istogramma / Index to pointers}
 \label{idx-to-pnt}
 Dato un vettore $A$ di $n$ elementi compresi tra $0$ ed $m-1$ riceviamo un vettore di $m$ elementi nel quale l'$i$-esima cella contiene la frequenza con cui il valore $i$ è presente in $A$. 
@@ -104,6 +118,21 @@ L'algoritmo è illustrato in Figura~\ref{index_to_pointers}.
 	\label{index_to_pointers}
 \end{figure}
 
+
+La dimensione ideale del blocco pari a $32$ elementi (caso interi a 32bit), ed è stata trovata empiricamente:
+\begin{figure}[H]
+	\centering
+	\begin{tabular}{SS}
+		\toprule
+		\textbf{Thread per blocco} & \textbf{Performance (\si{\milli\second})} \\ \midrule
+		1 & 1016.87 \\
+		32 & 1013.65 \\
+		64 & 1024.7 \\
+		256 & 986.834 \\ \bottomrule
+	\end{tabular}
+	\caption{Performance su array di $1\cdot 10^6$ elementi} % da 999'999 a 1'000'000
+\end{figure}
+
 \subsection{Pointers to index}
 \label{pnt-to-idx}
 Operazione inversa di \emph{index to pointers}. Il vettore risultante è ordinato. Può essere implementato assegnando ad ogni blocco di thread un elemento del vettore delle frequenze da espandere. 
@@ -117,4 +146,16 @@ L'algoritmo è illustrato in Figura~\ref{pointers_to_index}.
 	\label{pointers_to_index}
 \end{figure}
 
-Sperimentalmente si nota che il numero ottimale di thread per blocco è $1$.
+La dimensione ideale del blocco pari a $32$ elementi (caso interi a 32bit), ed è stata trovata empiricamente:
+\begin{figure}[H]
+	\centering
+	\begin{tabular}{SS}
+		\toprule
+		\textbf{Thread per blocco} & \textbf{Performance (\si{\milli\second})} \\ \midrule
+		1 & 2328.88 \\
+		16 & 2375.74 \\
+		32 & 2322.75 \\
+		1024 & 3326.13 \\ \bottomrule
+	\end{tabular}
+	\caption{Performance su array di $2\cdot 10^7$ elementi} 
+\end{figure}
