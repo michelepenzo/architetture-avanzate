@@ -14,7 +14,7 @@ void pointers_to_indexes_kernel(int INPUT_ARRAY ptr, int ptr_len, int * idx, int
 }
 
 void procedures::cuda::pointers_to_indexes(int INPUT_ARRAY ptr, int ptr_len, int * idx, int idx_len) {
-    pointers_to_indexes_kernel<<<ptr_len, 1024>>>(ptr, ptr_len, idx, idx_len);
+    pointers_to_indexes_kernel<<<ptr_len, 1>>>(ptr, ptr_len, idx, idx_len);
     CUDA_CHECK_ERROR
 }
 
