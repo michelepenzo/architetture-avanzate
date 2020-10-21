@@ -28,7 +28,7 @@ L'implementazione \MergeTrans{} risulta sempre meno efficiente della versione se
 
 Possiamo notare come le implementazioni citate in \cite{parallelTrans} e da noi sviluppate non siano all'altezza delle versioni di \cuSPARSE.
 
-Contrariamente a quanto asserito in \cite{parallelTrans}, nel nostro caso \textit{Scan Trans} si comporta meglio di \textit{Merge Trans}. Questo potrebbe essere dovuto all'implementazione da noi usata nel merge spiegato in sezione \ref{merge} e dalle diverse ottimizzazioni utilizzate nell'implementazione del paper della quale non ne siamo a conoscenza.
+Contrariamente a quanto asserito in \cite{parallelTrans}, nel nostro caso \ScanTrans si comporta meglio di \MergeTrans. Questo potrebbe essere dovuto all'implementazione da noi usata nel merge spiegato in sezione \ref{merge} e dalle diverse ottimizzazioni utilizzate nell'implementazione del paper della quale non ne siamo a conoscenza.
 
 Abbiamo inoltre notato come \ScanTrans ottenga risultati migliori se eseguito su matrici ``random'' dove i valori, a differenza delle matrici in formato \texttt{.mtx}, sono interi e non decimali.
 

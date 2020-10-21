@@ -49,7 +49,7 @@ La dimensione ideale del blocco pari a $128$ elementi (caso interi a 32bit), ed 
 
 \subsection{Merge}
 \label{merge}
-L'operazione di \emph{merge} trasforma un vettore diviso in segmenti di dimensione $\BlockSize$ nel quale gli elementi ogni segmento sono ordinati, in un vettore diviso in segmenti ordinati di dimensione $2 \BlockSize$, ognuno dei quali è l'unione di una coppia di blocchi contigui. 
+L'operazione di \emph{merge} trasforma un vettore diviso in segmenti di dimensione $\BlockSize$ nel quale gli elementi di ogni segmento sono ordinati, in un vettore diviso in segmenti ordinati di dimensione $2 * \BlockSize$, ognuno dei quali è l'unione di una coppia di blocchi contigui. 
 
 Differenziamo il caso in cui il blocco di dimensione $\BlockSize$ rientri o meno nella shared memory. 
 
@@ -75,9 +75,9 @@ Questo secondo algoritmo è illustrato in Figura~\ref{merge_big} ed originariame
 L'algoritmo proposto funziona nel seguente modo:
 \begin{enumerate}
     \item recuperiamo dal vettore degli elementi segnaposto detti \emph{splitter} presi a distanza costante e pari ad $\SplitterDistance$; \\
-    per ogni coppia di segmenti da mergiare ho una coppia di blocchi di splitter, trovo la posizione di ogni splitter all'interno del blocco di destra ($A$) e di sinistra ($B$);
+    per ogni coppia di segmenti da unire ho una coppia di blocchi di splitter, trovo quindi la posizione di ogni splitter all'interno del blocco di destra ($A$) e di sinistra ($B$);
     \item applico \emph{merge} ricorsivamente sugli array di splitter;
-    \item gli indici associati agli splitter dividono la coppia di blocchi in modo tale da poter effettuare tanti merge indipendenti quanti sono gli splitter. \emph{Ogni merge indipendente considererà al massimo $2\SplitterDistance$ elementi} (numero costante che scegliamo tale che rientri nella shared memory).
+    \item gli indici associati agli splitter dividono la coppia di blocchi in modo tale da poter effettuare tanti merge indipendenti da quanti sono gli splitter. \emph{Ogni merge indipendente considererà al massimo $2* \SplitterDistance$ elementi} (numero costante che scegliamo tale che rientri nella shared memory).
 \end{enumerate}
 
 La dimensione ideale del blocco pari a $256$ elementi (caso interi a 32bit), ed è stata trovata empiricamente:
@@ -101,7 +101,7 @@ Dato un vettore $A$ di $n$ elementi compresi tra $0$ ed $m-1$ riceviamo un vetto
 L'algoritmo si sviluppa in due fasi:
 \begin{enumerate}
     \item il vettore $A$ viene diviso in $N$ segmenti di lunghezza omogenea, ogni segmento viene processato da un blocco di thread che mantiene l'istogramma parziale;
-    \item gli istogrammi parziali vengono poi uniti attraverso un'operazione di prefix scan che si "sviluppa in verticale``. Tale operazione può essere ottenuta:
+    \item gli istogrammi parziali vengono poi uniti attraverso un'operazione di prefix scan che si effettua ``in verticale''. Tale operazione può essere ottenuta:
     \begin{itemize}
         \item trasponendo la matrice degli istogrammi parziali ed applicando $N$ volte \emph{prefix sum}; oppure
         \item attraverso $N$ blocchi di thread che attraversano sequenzialmente il vettore colonna degli istogrammi parziali.
@@ -127,10 +127,10 @@ La dimensione ideale del blocco pari a $32$ elementi (caso interi a 32bit), ed �
 		\textbf{Thread per blocco} & \textbf{Performance (\si{\milli\second})} \\ \midrule
 		1 & 1016.87 \\
 		32 & 1013.65 \\
-		64 & 1024.7 \\
-		256 & 986.834 \\ \bottomrule
+		64 & 1024.70 \\
+		256 & 986.84 \\ \bottomrule
 	\end{tabular}
-	\caption{Performance su array di $1\cdot 10^6$ elementi} % da 999'999 a 1'000'000
+	\caption{Performance su array di $10^6$ elementi} % da 999'999 a 1'000'000
 \end{figure}
 
 \subsection{Pointers to index}

@@ -16,8 +16,8 @@
 \usepackage{siunitx}
 \usepackage{booktabs}
 
-\newcommand{\ScanTrans}{\textrm{ScanTrans}}
-\newcommand{\MergeTrans}{\textrm{MergeTrans}}
+\newcommand{\ScanTrans}{\textrm{ScanTrans} }
+\newcommand{\MergeTrans}{\textrm{MergeTrans} }
 \newcommand{\BlockSize}{\textrm{BLOCK\_SIZE}}
 \newcommand{\SplitterDistance}{\textrm{SP\_DIST}}
 \newcommand{\cuSPARSE}{\textrm{cuSPARSE}}
@@ -141,22 +141,16 @@
 		\label{mergetrans}
 	\end{figure}
 	
-% Inserimento sezione delle procedure
 \input{procedure}
 
 \input{struttura}
 
-
 \input{tabella_risultati}
+
 \input{risultati}
 		
-% TODO
-\newpage
 \bibliographystyle{IEEEtran}
 \bibliography{biblio}
-
-
-%\appendix
-%Se non avete abbastanza spazio, potete inserire le figure delle EFSM in una  pagina extra, appendice. Un esempio di come potete fare solo le Figure~\ref{fig:grande}, \ref{fig:piccola1}, \ref{fig:piccola2}.
-
+\newpage
+\mbox{}
 \end{document}
