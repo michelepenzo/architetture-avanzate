@@ -50,7 +50,7 @@ L'algoritmo si sviluppa nel seguente modo:
     la nuova posizione dell'elemento $i$-esimo viene calcolata nel seguente modo:
     \begin{itemize}
         \item $b = i / \mathrm{nnz}$;
-        \item $c = \var{csc\_col\_idx}[i]$;
+        \item $c = \var{csr\_col\_idx}[i]$;
         \item $l = \var{csc\_col\_ptr}[c] + \var{inter}[b n + c] + \var{inter}[c]$;
         \item $\var{csc\_val}[l] \leftarrow \var{csr\_val}[j]$;
         \item $\var{csc\_row\_idx}[l] \leftarrow \var{csr\_row\_idx}[j]$.
@@ -75,7 +75,7 @@ Per mitigare questo aspetto negativo viene introdotta una variante di questo alg
 L'algoritmo considerato prevede due passi importanti: \textit{sort} e \textit{merge}.
 \begin{enumerate}
     \item portiamo la matrice in formato COO;
-    \item i vettori viene segmentato in blocchi di dimensione omogenea ognuno dei quale viene ordinato per indice di colonna; ogni blocco mantiene il proprio array dei puntatori contenente l'istogramma parziale proprio del blocco;
+    \item i tre vettori vengono segmentati in blocchi di dimensione omogenea ognuno dei quale viene ordinato per indice di colonna; ogni blocco mantiene il proprio array dei puntatori contenente l'istogramma parziale proprio del blocco;
     \item i blocchi vengono uniti a coppie attraverso l'operazione di \emph{merge} per ottenere blocchi di dimensione doppia della precedente. L'invariante di questo algoritmo è che ogni blocco mantiene la proprietà di essere ordinato per colonne ad ogni step.
 \end{enumerate}
 

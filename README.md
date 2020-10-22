@@ -1,5 +1,6 @@
-# Progetto Architetture Avanzate - AA 2019-2020
-## Parallel Transposition of Sparse Matrix
+# Architetture Avanzate - AA 2019-2020
+
+## Sparse Matrix Transposition for GPUs
 
 ## Usage
 
@@ -43,4 +44,4 @@ The implementation of can be found in [/code](./code) directory.
 
 ## Documentation
 
-The report of Parallel Transposition can be found in [/doc/report_aa.pdf](./doc/report_aa.pdf). 
+The report of __Sparse Matrix Transposition for GPUs__ can be found in [/doc/report_aa.pdf](./doc/report_aa.pdf). 
