@@ -23,7 +23,6 @@ L'algoritmo si sviluppa nel seguente modo:
     \begin{itemize}
         \item la locazione $\mathrm{loc}$ del $j$-esimo elemento ordinata per righe è $\var{csc\_col\_ptr}[j] + \mathrm{offset}[j]$ dove $\mathrm{offset}[j]$ è un contatore incrementato ogni volta che aggiungiamo un elemento della colonna $\var{csc\_col\_ptr}[j]$;
         \item l'indice di riga dell'elemento $\mathrm{loc}$-esimo è $i$;
-        % TODO mettere il nome di fianco all'array di sx?
         \item il valore dell'elemento  $\mathrm{loc}$-esimo è $\var{csr\_val}[j]$.
     \end{itemize}
 \end{enumerate}
@@ -84,11 +83,6 @@ Questo algoritmo permette ad ogni griglia di thread di lavorare su una porzione 
 
 Il funzionamento dell'algoritmo è illustrato in Figura~\ref{transpose_algo_mergerans}. 
 
-%\begin{figure}[H]
-%	\includegraphics[scale=0.6]{mergetrans.png}
-%	\caption{Merge Trans, esempio utilizzato in \cite{parallelTrans}.}
-%	\label{mergetrans}
-%\end{figure}
 
 \subsection{NVidia cuSPARSE}
 
