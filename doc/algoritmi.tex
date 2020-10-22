@@ -38,27 +38,26 @@ L'esecuzione dell'algoritmo seriale è illustrato in Figura~\ref{transpose_algo_
 	\label{transpose_algo_scantrans}
 \end{figure}
 
-
-L'algoritmo considerato prevede di effettuare la trasposta di matrici basandosi sul concetto di scan. Partendo sempre dal presupposto di avere in input una matrice in formato \textit{Csr}, vengono costruiti due array ausiliari:
-\begin{itemize}
-	\item inter: array bidimensionale di dimensione $ (nthreads+1) * n $,
-	\item intra: array monodimensionale di dimensione massima $ nnz $.
-\end{itemize}
-Ogni riga in \textit{inter} contiene il numero di indici della colonna presi dalla thread i-esima. Mentre ogni elemento in \textit{intra} viene utilizzato per salvare l'offeset relativo alla colonna corrispondente all'elemento nnz preso dalla thread. Dopo aver ottenuto gli istogrammi, viene applicato un \textit{vertical scan} su inter, e una \textit{prefix sum} solamente sull'ultima riga di inter. Infine l'algoritmo calcola l'offset assoluto relativo ad ogni elemento nnz e ritorna il tutto in formato \textit{csc}.
-
-Tutte le procedure utilizzate in \textit{Scan Trans} si trovano in sezione \ref{procedure}, e vengono eseguite nel seguente ordine:
+L'algoritmo si sviluppa nel seguente modo:
 \begin{enumerate}
-	\item pointers to index: \ref{pnt-to-idx},
-	\item index to pointers: \ref{idx-to-pnt},
-	\item scan: \ref{scan},
-	\item reorder elements.
+    \item il vettore \var{csr\_row\_ptr} viene espanso per ottenere il vettore \var{csr\_row\_idx} attraverso la procedura \emph{pointers-to-indexes} che effettua l'operazione inversa dell'\emph{istogramma}; \\
+    ora la struttura (\var{csr\_row\_idx}, \var{csr\_col\_idx}, \var{csr\_val}) rappresenta la matrice in formato COO ordinato per righe;
+    \item decidiamo un numero arbitrario di thread $K$ che lavoreranno ciascuna su blocchi di $K/\mathrm{nnz}$ elementi, allochiamo una matrice $\var{inter}$ di dimensioni $(K+1) \times n$ ed un vettore $\var{intra}$ di dimensione $\mathrm{nnz}$. La prima manterrà nella $(i+1)$-esima riga l'istogramma parziale relativo all'$i$-esimo blocco. La seconda mantiene un offset di colonna di ciascun elemento;
+    \item i $K$ thread eseguono l'\emph{istogramma} ciascuna sul proprio blocco, la matrice $\var{intra}$ viene riempita;
+    \item viene applicata l'operazione \emph{scan} ad ogni colonna della matrice \var{inter};
+    \item il vettore \var{csc\_col\_ptr} viene ottenuto copiando l'ultima riga di \var{inter} ed applicando al vettore risultante l'operazione \emph{scan};
+    \item riordiniamo gli elementi nei vettori \var{csr\_row\_idx}, \var{csr\_val} ottenendo quindi \var{csc\_row\_idx}, \var{csc\_val}; \\
+    la nuova posizione dell'elemento $i$-esimo viene calcolata nel seguente modo:
+    \begin{itemize}
+        \item $b = i / \mathrm{nnz}$;
+        \item $c = \var{csc\_col\_idx}[i]$;
+        \item $l = \var{csc\_col\_ptr}[c] + \var{inter}[b n + c] + \var{inter}[c]$;
+        \item $\var{csc\_val}[l] \leftarrow \var{csr\_val}[j]$;
+        \item $\var{csc\_row\_idx}[l] \leftarrow \var{csr\_row\_idx}[j]$.
+    \end{itemize}
 \end{enumerate}
 
-%\begin{figure}[H]
-%	\includegraphics[scale=0.6]{scantrans.png}
-%	\caption{Scan Trans, esempio utilizzato in \cite{parallelTrans}.}
-%	\label{scantrans}
-%\end{figure}
+Il funzionamento dell'algoritmo è illustrato in Figura~\ref{transpose_algo_scantrans}. 
 
 \subsection{MergeTrans}
 
@@ -66,19 +65,22 @@ Tutte le procedure utilizzate in \textit{Scan Trans} si trovano in sezione \ref{
     \centering
 	\includegraphics[scale=0.3]{transpose_mergetrans.png}
 	\caption{Algoritmo \MergeTrans}
-	\label{transpose_algo_scantrans}
+	\label{transpose_algo_mergerans}
 \end{figure}
 	
+Il precedente algoritmo esegue nello step (6) un insieme di accessi casuali in memoria che non permettono di sfruttare in modo adeguato la shared memory. 
+
+Per mitigare questo aspetto negativo viene introdotta una variante di questo algoritmo che, se implementato correttamente, permette ai thread di lavorare sempre con un numero costante, contiguo di elementi. 
+	
 L'algoritmo considerato prevede due passi importanti: \textit{sort} e \textit{merge}.
-Inizialmente sono stati creati gli indici di riga a partire dai puntatori delle colonne e su questi ultimi è stato fatto un sort su piccole porzioni di array, mantenendo quindi i vari blocchi disordinati tra di loro ma con gli elementi ordinati. Successivamente è stato utilizzato il merge ricorsivo partendo dai blocchi più piccoli e unendoli in blocchi sempre più grandi. Per funzionare questo processo necessita dell'utilizzo di due buffer di memoria che contengono gli elementi appena ordinati. Infine dai puntatori delle colonne vengono estraxtti gli indici e viene fatta la scan che ritorna il risultato in formato \textit{csc}. \newline
-Anche in questo caso le procedure utilizzate si trovano in sezione \ref{procedure}, e sono ordinatamente eseguite come segue:
-\begin{enumerate}
-	\item pointers to index: \ref{pnt-to-idx},
-	\item segmented sort: \ref{seg-sort},
-	\item segmented merge: \ref{merge},
-	\item index to pointers: \ref{idx-to-pnt},
-	\item scan: \ref{scan}.
-\end{enumerate}
+
+Inizialmente sono stati creati gli indici di riga a partire dai puntatori delle colonne e su questi ultimi è stato fatto un sort su piccole porzioni di array, mantenendo quindi i vari blocchi disordinati tra di loro ma con gli elementi ordinati. 
+
+Successivamente è stato utilizzato il merge ricorsivo partendo dai blocchi più piccoli e unendoli in blocchi sempre più grandi. Per funzionare questo processo necessita dell'utilizzo di due buffer di memoria che contengono gli elementi appena ordinati. 
+
+Infine dai puntatori delle colonne vengono estraxtti gli indici e viene fatta la scan che ritorna il risultato in formato \textit{csc}.
+
+Il funzionamento dell'algoritmo è illustrato in Figura~\ref{transpose_algo_mergerans}. 
 
 %\begin{figure}[H]
 %	\includegraphics[scale=0.6]{mergetrans.png}
@@ -86,14 +88,14 @@ Anche in questo caso le procedure utilizzate si trovano in sezione \ref{procedur
 %	\label{mergetrans}
 %\end{figure}
 
+\subsection{NVidia cuSPARSE}
 
-\subsection{Nvidia cuSPARSE}
+I risultati temporali di tutti gli algoritmi precedentemente descritti saranno confrontati con l'implementazione di NVidia della trasposta della matrice sparsa. 
 
-Questo toolkit è implementato all'interno nelle librerie NVIDIA CUDA runtime. Le routine delle librerie vengono utilizzate per operazioni tra vettori e matrici che sono rappresentate tramite diversi formati. Inoltre mette a disposione operazioni che permettono la conversione attraverso diverse rappresentazioni di matrici. Supporta inoltre la compressione in formato \textit{csr} che è una delle più usate quando si vuole rappresentare matrici sparse in modo efficiente.
+La libreria \cuSPARSE è parte di \textrm{CUDA Toolkit}, insieme di librerie utilizzate per effettuare operazioni tra vettori e matrici attraverso diversi formati. 
 
-Il codice è stato sviluppato partendo dalla guida \cite{cusparse} ed è diviso in due versioni di cuSPARSE a causa delle Gpu utilizzate. In fase di compilazione viene quindi controllata la versione usata: $ 9 $ o $ 10 $.
+Versioni diverse di \textrm{CUDA Toolkit} implementano funzioni con nomi diversi e funzionamenti diversi. In particolare per \textrm{Cuda Toolkit 9.0} possiamo trasporre la matrice sparsa attraverso la procedura \texttt{cusparseScsr2csc}.
 
-Nel caso in cui la versione usata sia la $ 10 $ vengono svolti alcuni ulteriori passi, come l'allocazione dello spazio necessario per l'esecuzione di cuSparse oltre all'allocazione del buffer per il calcolo della trasposta. Per quanto riguarda la versione $ 9 $ invece questi passi non sono necessari.
+Nella versione \textrm{Cuda Toolkit 10.2} viene esposto il metodo \texttt{cusparseCsr2cscEx2} che effettua la trasposta in due possibili modi a seconda se il parametro ``algoritmo" è valorizzato con la costante \texttt{CUSPARSE\_CSR2CSC\_ALG1} oppure \texttt{CUSPARSE\_CSR2CSC\_ALG2}. Le due versioni differiscono per le tempistiche e per il consumo di memoria (maggior memoria necessaria per la seconda implementazione). Le tempistiche sono riportate in Tabella~\ref{results}.
 
-Infine viene chiamata la procedura che effettua il calcolo della trasposta. Nel caso in cui la versione di cuSPARSE sia la $ 10 $ viene richiesto come ulteriore parametro l'algoritmo da utilizzare.\newline
-Dopo essere state eseguite entrambe ritornano i valori ottenuti in formato \textit{csc}.
+La libreria è dettagliatamente documentata in \cite{cusparse}. A seconda della versione di \emph{CUDA} dobbiamo modificare lo script di compilazione. In particolare il \emph{Makefile} del progetto permette di compilare per due architetture specifiche, una con CUDA 9 e l'altra CUDA 10/11. 
