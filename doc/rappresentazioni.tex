@@ -1,0 +1,37 @@
+\section{Rappresentazione delle matrici}\label{rappresentazione}
+
+Una matrice viene definita sparsa quando la maggior parte dei suoi valori sono nulli. Non esiste una definizione precisa, se consideriamo però una matrice di dimensioni $m \times n$ possiamo definire sparsa una matrice il cui numero di elementi non nulli $\mathrm{nnz}$ è più vicina ad $\max\{m, n \}$ che ad $m \times n$. 
+
+Tutti i formati di matrice sparsa permettono di memorizzare la matrice in modi molto più efficiente dal punto di vista dello storage. Alcuni formati permettono una più veloce modifica (es: \emph{formati COO}) altri invece un più efficiente accesso al dato (es. \emph{formati CSR, CSC}). 
+
+Una panoramica dei formati è presente in Figura~\ref{first_fig}.
+
+\subsection{Formato COO}
+
+Il formato COO (\emph{COOrdinate}) rappresenta la matrice di dimensioni $m \times n$ ed $\mathrm{nnz}$ elementi non nulli attraverso tre vettori di lunghezza $\mathrm{nnz}$:
+\begin{itemize}
+    \item \var{coo\_val}: contiene i valori non nulli;
+    \item \var{coo\_row\_idx}: contiene gli indici di riga dei valori non nulli;
+    \item \var{coo\_col\_idx}: contiene gli indici di colonna dei valori non nulli.
+\end{itemize}
+
+Per un accesso efficiente al dato occorre mantenere i vettori ordinati \emph{per indice di riga} oppure per \emph{indice di colonna}. 
+
+\subsection{Formato CSR}\label{csr}
+
+Il formato CSR (\emph{Compressed Sparse Row}) rappresenta la matrice di dimensioni $m \times n$ ed $\mathrm{nnz}$ elementi non nulli attraverso un vettore di lunghezza $m+1$ e due vettori di lunghezza $\mathrm{nnz}$. Può essere efficientemente ottenuto partendo dal formato \emph{COO ordinato per righe}. 
+\begin{enumerate}
+\item \var{csr\_row\_ptr}: ottenuto processando il vettore \var{coo\_row\_idx} attraverso la funzione \emph{istogramma} che calcola la frequenza di elementi per riga, e successivamente \emph{scan}. Il risultato che ottieniamo è che la cella $\var{csr\_row\_ptr}[i]$ punta al primo elemento della riga $i$-esima negli altri vettori, e che $R = \var{csr\_row\_ptr}[i+1] - \var{csr\_row\_ptr}[i]$ è il numero di elementi presenti nella $i$-esima riga.
+\item \var{csr\_col\_idx}: corrisponde a \var{coo\_col\_idx};
+\item \var{csr\_val}: corrisponde ad \var{coo\_val};
+\end{enumerate}
+
+\subsection{Formato CSC}\label{csc}
+
+Il formato CSC (\emph{Compressed Sparse Column}) rappresenta la matrice in modo simile al formato CSR. A differenza di quest'ultimo, il formato CSC viene ottenuto a partire dalla matrice in formato \emph{COO ordinato per colonne} e l'operazione di istogramma e scan vengono applicati alle colonne invece che alle righe. 
+
+Il vettore di puntatori \var{csc\_col\_ptr} ha lunghezza $n+1$ a differenza di \var{csr\_row\_ptr} che ha lunghezza $m+1$.
+
+\subsection{Equivalenza trasposta $\leftrightarrow$ csr-to-csc}\label{csr-to-csc}
+
+Risolvere il problema della trasposta in formato CSR/CSC è equivalente ad effettuare un cambio di formato da CSR a CSC (o viceversa). 

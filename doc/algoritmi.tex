@@ -74,12 +74,13 @@ Il precedente algoritmo esegue nello step (6) un insieme di accessi casuali in m
 Per mitigare questo aspetto negativo viene introdotta una variante di questo algoritmo che, se implementato correttamente, permette ai thread di lavorare sempre con un numero costante, contiguo di elementi. 
 	
 L'algoritmo considerato prevede due passi importanti: \textit{sort} e \textit{merge}.
+\begin{enumerate}
+    \item portiamo la matrice in formato COO;
+    \item i vettori viene segmentato in blocchi di dimensione omogenea ognuno dei quale viene ordinato per indice di colonna; ogni blocco mantiene il proprio array dei puntatori contenente l'istogramma parziale proprio del blocco;
+    \item i blocchi vengono uniti a coppie attraverso l'operazione di \emph{merge} per ottenere blocchi di dimensione doppia della precedente. L'invariante di questo algoritmo è che ogni blocco mantiene la proprietà di essere ordinato per colonne ad ogni step.
+\end{enumerate}
 
-Inizialmente sono stati creati gli indici di riga a partire dai puntatori delle colonne e su questi ultimi è stato fatto un sort su piccole porzioni di array, mantenendo quindi i vari blocchi disordinati tra di loro ma con gli elementi ordinati. 
-
-Successivamente è stato utilizzato il merge ricorsivo partendo dai blocchi più piccoli e unendoli in blocchi sempre più grandi. Per funzionare questo processo necessita dell'utilizzo di due buffer di memoria che contengono gli elementi appena ordinati. 
-
-Infine dai puntatori delle colonne vengono estraxtti gli indici e viene fatta la scan che ritorna il risultato in formato \textit{csc}.
+Questo algoritmo permette ad ogni griglia di thread di lavorare su una porzione di memoria ben definita, che eventualmente può essere caricata in più step nella shared memory a seconda di come viene implementato l'algoritmo che effettua il \emph{merge}. Il \emph{sort} viene applicato su blocchi di dimensione omogenea che deve essere scelta tale che l'intero blocco rientri nella shared memory.
 
 Il funzionamento dell'algoritmo è illustrato in Figura~\ref{transpose_algo_mergerans}. 
 
