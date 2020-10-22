@@ -6,25 +6,32 @@ Tutti i formati di matrice sparsa permettono di memorizzare la matrice in modi m
 
 Una panoramica dei formati è presente in Figura~\ref{first_fig}.
 
+\subsection{Formato COO}
+
+Il formato COO (\emph{COOrdinate}) rappresenta la matrice di dimensioni $m \times n$ ed $\mathrm{nnz}$ elementi non nulli attraverso tre vettori di lunghezza $\mathrm{nnz}$:
+\begin{itemize}
+    \item \var{coo\_val}: contiene i valori non nulli;
+    \item \var{coo\_row\_idx}: contiene gli indici di riga dei valori non nulli;
+    \item \var{coo\_col\_idx}: contiene gli indici di colonna dei valori non nulli.
+\end{itemize}
+
+Per un accesso efficiente al dato occorre mantenere i vettori ordinati \emph{per indice di riga} oppure per \emph{indice di colonna}. 
+
 \subsection{Formato CSR}\label{csr}
 
-Il \textit{compressed sparse row} è una rappresentazione di una matrice $M$ basata su tre array monodimensionali, che rispettivamente contengono:
+Il formato CSR (\emph{Compressed Sparse Row}) rappresenta la matrice di dimensioni $m \times n$ ed $\mathrm{nnz}$ elementi non nulli attraverso un vettore di lunghezza $m+1$ e due vettori di lunghezza $\mathrm{nnz}$. Può essere efficientemente ottenuto partendo dal formato \emph{COO ordinato per righe}. 
 \begin{enumerate}
-\item \textit{V}: i valori non zero (\textit{nnz}),
-\item \textit{COL\_INDEX}: gli indici delle colonne dove si trovano gli elementi \textit{nnz},
-\item \textit{ROW\_INDEX}: ha un elemento per ogni riga della matrice e rappresenta l'indice in $ V $ dove comincia la riga data.
+\item \var{csr\_row\_ptr}: ottenuto processando il vettore \var{coo\_row\_idx} attraverso la funzione \emph{istogramma} che calcola la frequenza di elementi per riga, e successivamente \emph{scan}. Il risultato che ottieniamo è che la cella $\var{csr\_row\_ptr}[i]$ punta al primo elemento della riga $i$-esima negli altri vettori, e che $R = \var{csr\_row\_ptr}[i+1] - \var{csr\_row\_ptr}[i]$ è il numero di elementi presenti nella $i$-esima riga.
+\item \var{csr\_col\_idx}: corrisponde a \var{coo\_col\_idx};
+\item \var{csr\_val}: corrisponde ad \var{coo\_val};
 \end{enumerate}
-I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ m $.
 
-\subsection{Formato Csc}\label{csc}
+\subsection{Formato CSC}\label{csc}
 
-Questa metodologia per la rappresentazione è simile alla precedente citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e lo stesso viene fatto per i puntatori di colonna .
+Il formato CSC (\emph{Compressed Sparse Column}) rappresenta la matrice in modo simile al formato CSR. A differenza di quest'ultimo, il formato CSC viene ottenuto a partire dalla matrice in formato \emph{COO ordinato per colonne} e l'operazione di istogramma e scan vengono applicati alle colonne invece che alle righe. 
 
-\subsection{Da Csr a Csc}\label{csr-to-csc}
+Il vettore di puntatori \var{csc\_col\_ptr} ha lunghezza $n+1$ a differenza di \var{csr\_row\_ptr} che ha lunghezza $m+1$.
 
-Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Infatti, ogni algoritmo  descritto in sezione~\ref{metodologie}, necessita di sei array per effettuare il calcolo della trasposta e dare l'output nella tipologia corretta. Abbiamo quindi:
-\begin{itemize}
- \item in input il formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
- \item in output il formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
-\end{itemize}
-In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.
+\subsection{Equivalenza trasposta $\leftrightarrow$ csr-to-csc}\label{csr-to-csc}
+
+Risolvere il problema della trasposta in formato CSR/CSC è equivalente ad effettuare un cambio di formato da CSR a CSC (o viceversa). 
