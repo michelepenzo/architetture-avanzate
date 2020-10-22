@@ -1,0 +1,30 @@
+\section{Rappresentazione delle matrici}\label{rappresentazione}
+
+Una matrice viene definita sparsa quando la maggior parte dei suoi valori sono nulli. Non esiste una definizione precisa, se consideriamo però una matrice di dimensioni $m \times n$ possiamo definire sparsa una matrice il cui numero di elementi non nulli $\mathrm{nnz}$ è più vicina ad $\max\{m, n \}$ che ad $m \times n$. 
+
+Tutti i formati di matrice sparsa permettono di memorizzare la matrice in modi molto più efficiente dal punto di vista dello storage. Alcuni formati permettono una più veloce modifica (es: \emph{formati COO}) altri invece un più efficiente accesso al dato (es. \emph{formati CSR, CSC}). 
+
+Una panoramica dei formati è presente in Figura~\ref{first_fig}.
+
+\subsection{Formato CSR}\label{csr}
+
+Il \textit{compressed sparse row} è una rappresentazione di una matrice $M$ basata su tre array monodimensionali, che rispettivamente contengono:
+\begin{enumerate}
+\item \textit{V}: i valori non zero (\textit{nnz}),
+\item \textit{COL\_INDEX}: gli indici delle colonne dove si trovano gli elementi \textit{nnz},
+\item \textit{ROW\_INDEX}: ha un elemento per ogni riga della matrice e rappresenta l'indice in $ V $ dove comincia la riga data.
+\end{enumerate}
+I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ m $.
+
+\subsection{Formato Csc}\label{csc}
+
+Questa metodologia per la rappresentazione è simile alla precedente citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e lo stesso viene fatto per i puntatori di colonna .
+
+\subsection{Da Csr a Csc}\label{csr-to-csc}
+
+Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Infatti, ogni algoritmo  descritto in sezione~\ref{metodologie}, necessita di sei array per effettuare il calcolo della trasposta e dare l'output nella tipologia corretta. Abbiamo quindi:
+\begin{itemize}
+ \item in input il formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
+ \item in output il formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
+\end{itemize}
+In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.

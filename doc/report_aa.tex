@@ -54,37 +54,13 @@ I risultati ottenuti vengono confrontati con le tempistiche della stessa operazi
 \section{Introduzione e motivazioni}\label{introduzione}
 
 % problema e motivazioni
-Sempre più applicazioni computazionali in ambito scientifico necessitano di algoritmi che compiano operazioni applicabili su matrici sparse. Si parla di semplici operazioni di algebra lineare, di moltiplicazione o di calcolo della trasposta come in questo caso.
+Diverse applicazioni in ambito scientifico utilizzano le matrice sparse per rappresentare in modo compatto ed efficiente matrici e grafi. 
 
-Il problema analizzato, quello della trasposizione di matrici, si presta bene al calcolo parallelo per l'esecuzione in maniera più efficiente e veloce. Verranno quindi mostrate le basi per la rappresentazione, i problemi riscontrati durante lo sviluppo e analizzati alcuni algoritmi per il calcolo su GPU.
+La operazioni fondamentali per poter lavorare su tali strutture sono la moltiplicazione e la \emph{trasposta}. In questo lavoro abbiamo ci siamo concentrati su questa seconda operazione. La trasposta è una componente fondamentale di diversi algoritmi come descritto in \cite{parallelTrans}.
 
-\section{Rappresentazione delle matrici}\label{rappresentazione}
-Una matrice sparsa non è altro che una matrice i cui valori sono per la maggior parte uguali a zero. La matrice in formato classico necessita di una quantità di memoria minima di $ m $x$ n $ elementi, ma essendo l'obiettivo quello di lavorare su matrici sparse non è stato necessario e utile memorizzare la matrice in formato denso.\newline
-Per rappresentare in modo efficace le matrici sparse senza troppo utilizzo di memoria sono state quindi introdotte ed utilizzate delle forme di rappresentazione matriciale che permettono il salvataggio di dati utilizzando quantitativi di memoria inferiori.\newline
-Di seguito vengono spiegate le due metodologie da noi utilizzate.
+Verranno quindi mostrate le basi per la rappresentazione, i problemi riscontrati durante lo sviluppo e analizzati alcuni algoritmi per il calcolo su GPU.
 
-\subsection{Formato Csr}
-\label{csr}
-Il \textit{compressed sparse row} è una rappresentazione di una matrice $ M $ basata su tre array monodimensionali, che rispettivamente contengono:
-\begin{enumerate}
-\item \textit{V}: i valori non zero (\textit{nnz}),
-\item \textit{COL\_INDEX}: gli indici delle colonne dove si trovano gli elementi \textit{nnz},
-\item \textit{ROW\_INDEX}: ha un elemento per ogni riga della matrice e rappresenta l'indice in $ V $ dove comincia la riga data.
-\end{enumerate}
-I primi due array sono di dimensione \textit{nnz}, mentre il terzo array è al massimo di dimensione $ m $.
-
-\subsection{Formato Csc}
-\label{csc}
-Questa metodologia per la rappresentazione è simile alla precedente citata \textit{Csr}, a differenza che i valori vengono letti prima per colonna. Di conseguenza, un indice di riga viene memorizzato per ogni valore e lo stesso viene fatto per i puntatori di colonna .
-
-\subsection{Da Csr a Csc}
-\label{csr-to-csc}
-Per il problema della trasposta di matrice è stato quindi utile introdurre entrambe le rappresentazioni. Infatti, ogni algoritmo  descritto in sezione~\ref{metodologie}, necessita di sei array per effettuare il calcolo della trasposta e dare l'output nella tipologia corretta. Abbiamo quindi:
-\begin{itemize}
- \item in input il formato \textit{Csr}: csrRowPtr, csrColIdx, csrVal;
- \item in output il formato \textit{Csc}: cscColPtr, cscRowIdx, cscVal.	
-\end{itemize}
-In base a come vengono create le matrici, se in modo casuale oppure se lette da file, vengono effettutate delle operazioni preliminari descritte dalla procedure in sezione~\ref{procedure} che portano ad ottenere gli array in input e in output nel formato corretto per effettuarne il controllo di correttezza.\newline
+\input{rappresentazioni}
 
 \input{algoritmi}
 	
