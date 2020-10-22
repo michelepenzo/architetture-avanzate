@@ -28,8 +28,8 @@ L'implementazione \MergeTrans{} risulta sempre meno efficiente della versione se
 
 Contrariamente a quanto asserito in \cite{parallelTrans}, nel nostro caso \ScanTrans{} si comporta meglio di \MergeTrans{}. Proponiamo alcune idee per migliorare il risultato:
 \begin{itemize}
-	\item utilizzare un algoritmo più efficiente per realizzare il merge: \textit{Merge Path} citato in \cite{merge};
-	\item la procedure da noi descritte potrennero essere sostituite con quelle fornite nella libreria \textit{modern gpu} presente su Github; \\ inoltre seguendo la descrizione delle implementazioni presenti in \cite{moderngpu} ci avrebbe aiutato nella fase di ingegnerizzazione.
+	\item utilizzare un algoritmo più efficiente per realizzare il merge quale il \textit{Merge Path} (\cite{mergepath});
+	\item la procedure da noi descritte potrennero essere sostituite con quelle fornite nella libreria \textit{modern gpu} presente su Github; inoltre seguendo la descrizione delle implementazioni presenti in \cite{moderngpu} ci avrebbe aiutato nella fase di ingegnerizzazione.
 	\item la procedura \emph{istogramma} (\var{index\_to\_pointers}) può essere migliorata nel seguente modo: attualmente una griglia di un unico thread calcola l'istogramma parziale sulla sua porzione di vettore; si potrebbero introdurre tante thread ognuna che legge l'intera porzione di blocco ma si occupa di processare gli elementi appartenenti ad una sola (o ad un piccolo insieme) di valori. Questo permetterebbe anche di caricare gli elementi in shared memory, eventualmente una porzione di blocco per volta.
 \end{itemize}
 
