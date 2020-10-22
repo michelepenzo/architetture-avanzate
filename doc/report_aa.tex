@@ -38,10 +38,9 @@
 \maketitle
 
 \begin{abstract}
+Il progetto implementa diversi algoritmi paralleli per calcola la \emph{trasposta} di una matrice \emph{sparsa}, estendendo \cite{parallelTrans} riscrivendo il software per GPU NVidia attraverso il linguaggio CUDA. 
 
-	L'obiettivo principale di questo progetto è stato quello di implementare alcune metodologie proposte per effettuare \textit{Sparse Matrix Transposition} su \textit{Gpu}.
-	Sono stati analizzati alcuni algoritmi, descritti in sezione~\ref{metodologie}, partendo dall'algoritmo seriale, passando a cuSPARSE per finire con l'implementazione degli algoritmi descritti in~\cite{parallelTrans}.
-	Infine vengono esposti i risultati e tratte le conclusioni.
+I risultati ottenuti vengono confrontati con le tempistiche della stessa operazione esposta dalla libreria \cuSPARSE, parte dell'SDK di NVidia. Infine suggeriamo alcune modifiche per migliorare ulterioremente le performance degli algoritmi da noi implementati.
 \end{abstract}
 
 \begin{figure*}[t]
