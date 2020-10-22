@@ -1,7 +1,7 @@
 
 \section{Metodologie analizzate}\label{metodologie}
 
-Gli algoritmi paralleli che calcolano la trasposta di una matrice sparsa descritti in \cite{parallelTrans} vengono confrontati nelle tempistiche rispetto all'algoritmo seriale e rispetto alle funzioni di libreria \cuSPARSE fornite da NVidia come parte della loro piattaforma Cuda SDK. 
+Gli algoritmi paralleli che calcolano la trasposta di una matrice sparsa descritti in \cite{parallelTrans} vengono confrontati nelle tempistiche rispetto all'algoritmo seriale e rispetto alle funzioni di libreria \cuSPARSE{} fornite da NVidia come parte della loro piattaforma Cuda SDK. 
 
 Per convenzione la matrice è in formato \emph{csr}. I nomi delle componenti della matrice sono chiamati \var{csr\_row\_ptr} (lunghezza $\mathrm{m}+1$) per il vettore dei puntatori ad inizio riga, \var{csr\_col\_idx} (lunghezza $\mathrm{nnz}$) per il vettore degli indici di colonna e \var{csr\_val} (lunghezza $\mathrm{nnz}$) per il vettore dei valori. 
 		
@@ -21,8 +21,9 @@ L'algoritmo si sviluppa nel seguente modo:
     \item allochiamo il vettore \var{csc\_val} contente gli elementi non nulli (lunghezza $\mathrm{nnz}$);
     \item per ogni riga $i \in [0, m)$ processiamo gli elementi corrispondenti all'$i$-esima riga, legati alle posizioni $j \in [\var{csr\_row\_ptr}[i], \var{csr\_row\_ptr}[i+1])$
     \begin{itemize}
-        \item la locazione $\mathrm{loc}$ del $j$-esimo elemento ordinata per righe è $\var{csr\_col\_ptr}[j] + \mathrm{offset}[j]$ dove $\mathrm{offset}[j]$ è un contatore incrementato ogni volta che aggiungiamo un elemento della colonna $\var{csr\_col\_ptr}[j]$;
+        \item la locazione $\mathrm{loc}$ del $j$-esimo elemento ordinata per righe è $\var{csc\_col\_ptr}[j] + \mathrm{offset}[j]$ dove $\mathrm{offset}[j]$ è un contatore incrementato ogni volta che aggiungiamo un elemento della colonna $\var{csc\_col\_ptr}[j]$;
         \item l'indice di riga dell'elemento $\mathrm{loc}$-esimo è $i$;
+        % TODO mettere il nome di fianco all'array di sx?
         \item il valore dell'elemento  $\mathrm{loc}$-esimo è $\var{csr\_val}[j]$.
     \end{itemize}
 \end{enumerate}
@@ -42,8 +43,8 @@ L'algoritmo si sviluppa nel seguente modo:
 \begin{enumerate}
     \item il vettore \var{csr\_row\_ptr} viene espanso per ottenere il vettore \var{csr\_row\_idx} attraverso la procedura \emph{pointers-to-indexes} che effettua l'operazione inversa dell'\emph{istogramma}; \\
     ora la struttura (\var{csr\_row\_idx}, \var{csr\_col\_idx}, \var{csr\_val}) rappresenta la matrice in formato COO ordinato per righe;
-    \item decidiamo un numero arbitrario di thread $K$ che lavoreranno ciascuna su blocchi di $K/\mathrm{nnz}$ elementi, allochiamo una matrice $\var{inter}$ di dimensioni $(K+1) \times n$ ed un vettore $\var{intra}$ di dimensione $\mathrm{nnz}$. La prima manterrà nella $(i+1)$-esima riga l'istogramma parziale relativo all'$i$-esimo blocco. La seconda mantiene un offset di colonna di ciascun elemento;
-    \item i $K$ thread eseguono l'\emph{istogramma} ciascuna sul proprio blocco, la matrice $\var{intra}$ viene riempita;
+    \item decidiamo un numero arbitrario di thread $K$ che lavoreranno ciascuna su blocchi di $K/\mathrm{nnz}$ elementi. Allochiamo una matrice $\var{inter}$ di dimensioni $(K+1) \times n$ ed un vettore $\var{intra}$ di dimensione $\mathrm{nnz}$. La prima manterrà nella $(i+1)$-esima riga l'istogramma parziale relativo all'$i$-esimo blocco. La seconda mantiene un offset di colonna di ciascun elemento;
+    \item i $K$ thread eseguono l'\emph{istogramma} ciascuna sul proprio blocco, la matrice $\var{inter}$ viene riempita;
     \item viene applicata l'operazione \emph{scan} ad ogni colonna della matrice \var{inter};
     \item il vettore \var{csc\_col\_ptr} viene ottenuto copiando l'ultima riga di \var{inter} ed applicando al vettore risultante l'operazione \emph{scan};
     \item riordiniamo gli elementi nei vettori \var{csr\_row\_idx}, \var{csr\_val} ottenendo quindi \var{csc\_row\_idx}, \var{csc\_val}; \\
@@ -92,7 +93,7 @@ Il funzionamento dell'algoritmo è illustrato in Figura~\ref{transpose_algo_merg
 
 I risultati temporali di tutti gli algoritmi precedentemente descritti saranno confrontati con l'implementazione di NVidia della trasposta della matrice sparsa. 
 
-La libreria \cuSPARSE è parte di \textrm{CUDA Toolkit}, insieme di librerie utilizzate per effettuare operazioni tra vettori e matrici attraverso diversi formati. 
+La libreria \cuSPARSE{} è parte di \textrm{CUDA Toolkit}, insieme di librerie utilizzate per effettuare operazioni tra vettori e matrici attraverso diversi formati. 
 
 Versioni diverse di \textrm{CUDA Toolkit} implementano funzioni con nomi diversi e funzionamenti diversi. In particolare per \textrm{Cuda Toolkit 9.0} possiamo trasporre la matrice sparsa attraverso la procedura \texttt{cusparseScsr2csc}.
 
